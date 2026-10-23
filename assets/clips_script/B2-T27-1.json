@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T27-1",
+ "no": 181,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 이번 달 업무 분담은 어떻게 돼요?",
+   "beaver_en": "Minji, how is the work divided this month?",
+   "beaver_roman": "minji ssi, ibeon dal eommu bundameun eotteoke dwaeyo?",
+   "learner": "제가 사무 관리를 맡고, 지수 씨한테 회계를 맡겼어요.",
+   "en": "I'm handling office management, and I gave accounting to Jisu.",
+   "roman": "jega samu gwallireul matgo, jisu ssihante hoegyereul matgyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "지수 씨가 회계를요? 아직 신입이잖아요.",
+   "beaver_en": "Jisu, accounting? She's still new.",
+   "beaver_roman": "jisu ssiga hoegyereuryo? ajik sinibijanayo.",
+   "learner": "그래서 제가 옆자리에 앉혀서 가르치려고요.",
+   "en": "That's why I'll seat her next to me and teach her.",
+   "roman": "geuraeseo jega yeopjarie anchyeoseo gareuchiryeogoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 대표님께는 말씀드렸어요?",
+   "beaver_en": "Good. Did you tell the CEO?",
+   "beaver_roman": "jonneyo. daepyonimkkeneun malsseumdeuryeosseoyo?",
+   "learner": "네, 어제 대표님께 말씀드렸어요.",
+   "en": "Yes, I told the CEO yesterday.",
+   "roman": "ne, eoje daepyonimkke malsseumdeuryeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 민지 씨는 승진은 언제 해요?",
+   "beaver_en": "By the way, when do you get promoted, Minji?",
+   "beaver_roman": "geureonde minji ssineun seungjineun eonje haeyo?",
+   "learner": "다음 달에 승진 심사가 있어요. 합격하면 좋겠어요.",
+   "en": "There's a promotion review next month. I hope I pass.",
+   "roman": "daeum dare seungjin simsaga isseoyo. hapgyeokamyeon jokesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "민지 씨라면 꼭 될 거예요.",
+   "beaver_en": "You'll definitely get it, Minji.",
+   "beaver_roman": "minji ssiramyeon kkok doel geoyeyo.",
+   "learner": "고마워요. 일이 조금만 적다면 더 잘할 텐데요.",
+   "en": "Thanks. If I had a bit less work, I'd do better.",
+   "roman": "gomawoyo. iri jogeumman jeokdamyeon deo jalhal tendeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "일이 많으면 업무를 좀 줄여 보세요.",
+   "beaver_en": "If you have too much, try cutting down your tasks.",
+   "beaver_roman": "iri maneumyeon eommureul jom juryeo boseyo.",
+   "learner": "네, 사무소 업무 회의도 반으로 줄였어요.",
+   "en": "Yes, I cut the office work meetings in half too.",
+   "roman": "ne, samuso eommu hoeuido baneuro juryeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "잘했네요. 회식은요? 이번 주에 해요?",
+   "beaver_en": "Nice. What about the team dinner? Is it this week?",
+   "beaver_roman": "jalhaenneyo. hoesigeunyo? ibeon jue haeyo?",
+   "learner": "금요일에 해요. 동료들한테 실컷 사 주고 싶어요.",
+   "en": "It's Friday. I want to treat my colleagues as much as they like.",
+   "roman": "geumyoire haeyo. dongnyodeulhante silkeot sa jugo sipeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "하하, 좋아요. 한때 회식 싫어하지 않았어요?",
+   "beaver_en": "Haha, great. Didn't you once hate team dinners?",
+   "beaver_roman": "haha, joayo. hanttae hoesik sireohaji anasseoyo?",
+   "learner": "한때는 그랬죠. 지금은 동료들이 좋아서 괜찮아요.",
+   "en": "I did once. Now I like my colleagues, so it's fine.",
+   "roman": "hanttaeneun geuraetjyo. jigeumeun dongnyodeuri joaseo gwaenchanayo."
+  },
+  {
+   "n": 9,
+   "beaver": "직장 생활에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Want to talk more about your work life?",
+   "beaver_roman": "jikjang saenghware daehae deo iyagihae bollaeyo?",
+   "learner": "내후년쯤 팀을 관리한다면 정말 기쁠 거예요.",
+   "en": "If I manage a team in two years, I'll be really happy.",
+   "roman": "naehunyeonjjeum timeul gwallihandamyeon jeongmal gippeul geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "꼭 그렇게 될 거예요. 금요일 회식 때 봐요!",
+   "beaver_en": "I'm sure it'll happen. See you at Friday's dinner!",
+   "beaver_roman": "kkok geureoke doel geoyeyo. geumyoil hoesik ttae bwayo!",
+   "learner": "네, 준호 씨. 회식 때 봐요!",
+   "en": "Yes, Junho. See you at the dinner!",
+   "roman": "ne, junho ssi. hoesik ttae bwayo!"
+  }
+ ]
+}

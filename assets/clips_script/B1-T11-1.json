@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T11-1",
+ "no": 125,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여기 처음 와 봤어. 뭐가 맛있대?",
+   "beaver_en": "First time here. What's good, they say?",
+   "beaver_roman": "Yeogi cheoeum wa bwasseo. Mwoga masitdae?",
+   "learner": "아까 직원한테 물어보니까 매운탕이 유명하대.",
+   "en": "I asked the staff, and they said the spicy fish stew is famous.",
+   "roman": "Akka jigwonhante mureobonikka maeuntangi yumyeonghadae."
+  },
+  {
+   "n": 2,
+   "beaver": "매운맛이 세? 나 매운 거 잘 못 먹어.",
+   "beaver_en": "Is it very spicy? I can't eat spicy food well.",
+   "beaver_roman": "Maeunmasi se? Na maeun geo jal mon meogeo.",
+   "learner": "들어 보니 국물은 구수하고 매운맛은 약하대.",
+   "en": "From what I heard, the broth is savory and not very spicy.",
+   "roman": "Deureo boni gungmureun gusuhago maeunmaseun yakadae."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 매운탕 시키자. 면도 넣을 수 있어?",
+   "beaver_en": "Then let's order the stew. Can we add noodles?",
+   "beaver_roman": "Geureom maeuntang sikija. Myeondo neoeul su isseo?",
+   "learner": "응, 면이나 죽 중에서 고를 수 있대.",
+   "en": "Yes, they said we can choose noodles or porridge.",
+   "roman": "Eung, myeonina juk jungeseo goreul su itdae."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 좋다. 여기 중식도 팔아?",
+   "beaver_en": "Wow, nice. Do they sell Chinese food too?",
+   "beaver_roman": "Wa, jota. Yeogi jungsikdo para?",
+   "learner": "아니, 중식은 없대. 메뉴판을 보니까 한식만 있어.",
+   "en": "No Chinese food. Looking at the menu, it's only Korean.",
+   "roman": "Ani, jungsigeun eopdae. Menyupaneul bonikka hansingman isseo."
+  },
+  {
+   "n": 5,
+   "beaver": "술은? 와인 있어?",
+   "beaver_en": "What about drinks? Is there wine?",
+   "beaver_roman": "Sureun? Wain isseo?",
+   "learner": "와인은 없고 인삼차가 맛있대.",
+   "en": "No wine, but they say the ginseng tea is good.",
+   "roman": "Waineun eopgo insamchaga masitdae."
+  },
+  {
+   "n": 6,
+   "beaver": "인삼차는 쓰지 않아?",
+   "beaver_en": "Isn't ginseng tea bitter?",
+   "beaver_roman": "Insamchaneun sseuji ana?",
+   "learner": "조금 마셔 봤는데 쓰지 않고 달콤했어.",
+   "en": "I tried a little, and it wasn't bitter. It was sweet.",
+   "roman": "Jogeum masyeo bwanneunde sseuji anko dalkomhaesseo."
+  },
+  {
+   "n": 7,
+   "beaver": "고기 메뉴는 없어?",
+   "beaver_en": "Is there no meat dish?",
+   "beaver_roman": "Gogi menyuneun eopseo?",
+   "learner": "갈비찜이 있는데 고기가 아주 연하대.",
+   "en": "There's braised ribs, and they say the meat is very tender.",
+   "roman": "Galbijjimi inneunde gogiga aju yeonhadae."
+  },
+  {
+   "n": 8,
+   "beaver": "아침을 안 먹어서 배가 너무 고파.",
+   "beaver_en": "I skipped breakfast, so I'm really hungry.",
+   "beaver_roman": "Achimeul an meogeoseo baega neomu gopa.",
+   "learner": "나도 배고파. 다 시켜 보자.",
+   "en": "I'm hungry too. Let's order everything.",
+   "roman": "Nado baegopa. Da sikyeo boja."
+  },
+  {
+   "n": 9,
+   "beaver": "후식은?",
+   "beaver_en": "What about dessert?",
+   "beaver_roman": "Husigeun?",
+   "learner": "복숭아랑 요구르트가 나온대. 공짜래!",
+   "en": "They said peaches and yogurt come out. It's free!",
+   "roman": "Boksungarang yogureuteuga naondae. Gongjjarae!"
+  },
+  {
+   "n": 10,
+   "beaver": "와, 여기 정말 좋다. 다음에 또 오자.",
+   "beaver_en": "Wow, this place is great. Let's come again.",
+   "beaver_roman": "Wa, yeogi jeongmal jota. Daeume tto oja.",
+   "learner": "응, 꼭 또 오자! 오늘은 남김없이 다 먹자.",
+   "en": "Yeah, let's definitely come again! Let's eat every bite today.",
+   "roman": "Eung, kkok tto oja! Oneureun namgimeopsi da meokja."
+  }
+ ]
+}

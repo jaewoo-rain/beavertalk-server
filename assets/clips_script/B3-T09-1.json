@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T09-1",
+ "no": 214,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 행사 의상 좀 같이 봐 줄래요?",
+   "beaver_en": "Minji, can you look at the event outfits with me?",
+   "beaver_roman": "minji ssi, haengsa uisang jom gachi bwa jullaeyo?",
+   "learner": "네, 좋아요. 어떤 의상들이 있어요?",
+   "en": "Sure. What outfits are there?",
+   "roman": "ne, joayo. eotteon uisangdeuri isseoyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "이 정장이랑 한복 중에 고민이에요.",
+   "beaver_en": "I can't decide between this suit and the hanbok.",
+   "beaver_roman": "i jeongjangirang hanbok junge gominieyo.",
+   "learner": "저는 한복이 더 눈길을 끈다고 봐요.",
+   "en": "I think the hanbok catches the eye more.",
+   "roman": "jeoneun hanbogi deo nungireul kkeundago bwayo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래요? 한복은 좀 불편하지 않을까요?",
+   "beaver_en": "Really? Isn't a hanbok a bit uncomfortable?",
+   "beaver_roman": "geuraeyo? hanbogeun jom bulpyeonhaji aneulkkayo?",
+   "learner": "좀 불편해도 사진은 더 예쁘게 나와요.",
+   "en": "It may be a bit uncomfortable, but it looks nicer in photos.",
+   "roman": "jom bulpyeonhaedo sajineun deo yeppeuge nawayo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 한복으로 할까요? 색깔도 골라야 해요.",
+   "beaver_en": "Then shall we go with the hanbok? We need to pick a color too.",
+   "beaver_roman": "geureom hanbogeuro halkkayo? saekkkaldo gollaya haeyo.",
+   "learner": "밝은 색이 행사에 잘 어울린다고 봐요.",
+   "en": "I think bright colors suit the event well.",
+   "roman": "balgeun saegi haengsae jal eoullindago bwayo."
+  },
+  {
+   "n": 5,
+   "beaver": "아이 옷도 골라야 해요. 공연에 나오거든요.",
+   "beaver_en": "We need kids' clothes too. They're in the show.",
+   "beaver_roman": "ai otdo gollaya haeyo. gongyeone naogeodeunyo.",
+   "learner": "아이들한테는 편한 옷을 입히는 게 좋다고 봐요.",
+   "en": "I think it's best to dress the kids in comfy clothes.",
+   "roman": "aideulhanteneun pyeonhan oseul ipineun ge jotago bwayo."
+  },
+  {
+   "n": 6,
+   "beaver": "이 바지는 어때요? 호주머니가 많네요.",
+   "beaver_en": "How about these pants? They have lots of pockets.",
+   "beaver_roman": "i bajineun eottaeyo? hojumeoniga manneyo.",
+   "learner": "호주머니가 있으면 손수건도 넣을 수 있겠어요.",
+   "en": "With pockets, they can carry a handkerchief.",
+   "roman": "hojumeoniga isseumyeon sonsugeondo neoeul su itgesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "행사를 밖에서 하니까 추울 수도 있어요.",
+   "beaver_en": "The event is outside, so it might be cold.",
+   "beaver_roman": "haengsareul bakkeseo hanikka chuul sudo isseoyo.",
+   "learner": "그럼 따뜻한 겉옷도 준비해야 한다고 봐요.",
+   "en": "Then I think we should prepare warm jackets too.",
+   "roman": "geureom ttatteutan geodotdo junbihaeya handago bwayo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 의상 가게는 언제 갈까요?",
+   "beaver_en": "Good. When should we go to the costume shop?",
+   "beaver_roman": "joayo. uisang gageneun eonje galkkayo?",
+   "learner": "점심때 같이 가면 좋겠어요.",
+   "en": "It'd be nice to go together at lunchtime.",
+   "roman": "jeomsimttae gachi gamyeon jokesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다른 건 더 생각해 볼 거 있을까요?",
+   "beaver_en": "Is there anything else we should think about?",
+   "beaver_roman": "dareun geon deo saenggakae bol geo isseulkkayo?",
+   "learner": "네, 의상은 행사 분위기에 맞아야 한다고 봐요.",
+   "en": "Yes, I think outfits should match the event mood.",
+   "roman": "ne, uisangeun haengsa bunwigie majaya handago bwayo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 덕분에 결정이 쉬워졌어요. 고마워요.",
+   "beaver_en": "Right. Thanks to you, it's easier to decide. Thanks.",
+   "beaver_roman": "majayo. deokbune gyeoljeongi swiwojyeosseoyo. gomawoyo.",
+   "learner": "아니에요. 행사가 꼭 잘될 거예요.",
+   "en": "Not at all. The event will surely go well.",
+   "roman": "anieyo. haengsaga kkok jaldoel geoyeyo."
+  }
+ ]
+}

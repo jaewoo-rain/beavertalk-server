@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T04-1",
+ "no": 164,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새로 온 민수 씨 어때요? 장점이 뭐예요?",
+   "beaver_en": "How's Minsu, the new guy? What are his strengths?",
+   "beaver_roman": "saero on minsu ssi eottaeyo? jangjeomi mwoyeyo?",
+   "learner": "민수 씨는 정말 성실해요. 그게 제일 큰 장점이에요.",
+   "en": "Minsu is really diligent. That's his biggest strength.",
+   "roman": "minsu ssineun jeongmal seongsilhaeyo. geuge jeil keun jangjeomieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그렇군요. 단점은요?",
+   "beaver_en": "I see. And his weaknesses?",
+   "beaver_roman": "geureokunyo. danjeomeunyo?",
+   "learner": "좀 내성적이라서 회의 때 말을 잘 안 해요.",
+   "en": "He's a bit introverted, so he rarely talks in meetings.",
+   "roman": "jom naeseongjeogiraseo hoeui ttae mareul jal an haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "성격은 또 어때요?",
+   "beaver_en": "And what's his personality like?",
+   "beaver_roman": "seonggyeogeun tto eottaeyo?",
+   "learner": "조용하지만 다정해요. 동료를 진심으로 도와줘요.",
+   "en": "He's quiet but warm. He sincerely helps coworkers.",
+   "roman": "joyonghajiman dajeonghaeyo. dongnyoreul jinsimeuro dowajwoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 인심도 좋은 편이에요?",
+   "beaver_en": "Wow, is he generous too?",
+   "beaver_roman": "wa, insimdo joeun pyeonieyo?",
+   "learner": "네, 인심이 좋아서 간식도 자주 나눠 줘요.",
+   "en": "Yes, he's generous and often shares snacks.",
+   "roman": "ne, insimi joaseo gansikdo jaju nanwo jwoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "일하는 능력은 어때요?",
+   "beaver_en": "How are his work skills?",
+   "beaver_roman": "ilhaneun neungnyeogeun eottaeyo?",
+   "learner": "컴퓨터는 천재처럼 잘해요. 그런데 모르는 척도 해요.",
+   "en": "He's like a genius with computers. But he also pretends not to know.",
+   "roman": "keompyuteoneun cheonjaecheoreom jalhaeyo. geureonde moreuneun cheokdo haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "왜 모르는 척해요?",
+   "beaver_en": "Why does he pretend not to know?",
+   "beaver_roman": "wae moreuneun cheokaeyo?",
+   "learner": "잘난 척을 싫어해서 바보 같은 척도 해요.",
+   "en": "He hates showing off, so he even acts like a fool.",
+   "roman": "jallan cheogeul sireohaeseo babo gateun cheokdo haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "다른 사람들 생각은 어때요?",
+   "beaver_en": "What do other people think?",
+   "beaver_roman": "dareun saramdeul saenggageun eottaeyo?",
+   "learner": "다들 좋게 봐요. 이미지가 아주 좋아요.",
+   "en": "Everyone sees him well. His image is very good.",
+   "roman": "dadeul joke bwayo. imijiga aju joayo."
+  },
+  {
+   "n": 8,
+   "beaver": "민수 씨를 한마디로 정리하면요?",
+   "beaver_en": "How would you sum up Minsu in a word?",
+   "beaver_roman": "minsu ssireul hanmadiro jeongnihamyeonyo?",
+   "learner": "장단점이 있지만, 성실하고 좋은 동료예요.",
+   "en": "He has pros and cons, but he's a diligent, good coworker.",
+   "roman": "jangdanjeomi itjiman, seongsilhago joeun dongnyoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 우리가 어떻게 도와주면 좋을까요?",
+   "beaver_en": "Then how can we help him?",
+   "beaver_roman": "geureom uriga eotteoke dowajumyeon joeulkkayo?",
+   "learner": "회의 때 먼저 의견을 물어봐 주면 좋겠어요.",
+   "en": "It'd be good to ask his opinion first in meetings.",
+   "roman": "hoeui ttae meonjeo uigyeoneul mureobwa jumyeon jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 오늘 점심에 민수 씨도 같이 불러요.",
+   "beaver_en": "Good. Let's invite Minsu to lunch today.",
+   "beaver_roman": "joayo. oneul jeomsime minsu ssido gachi bulleoyo.",
+   "learner": "좋아요! 제가 지금 가서 말해 볼게요.",
+   "en": "Great! I'll go tell him now.",
+   "roman": "joayo! jega jigeum gaseo malhae bolgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T64-1",
+ "no": 439,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이제 골짜기 입구예요. 길이 꽤 험하네요.",
+   "beaver_en": "We're at the valley entrance now. The path is quite rough.",
+   "beaver_roman": "ije goljjagi ipguyeyo. giri kkwae heomhaneyo.",
+   "learner": "네, 자갈이 많아서 발밑을 조심해야겠어요.",
+   "en": "Yes, there's a lot of gravel, so we should watch our step.",
+   "roman": "ne, jagari manaseo balmiteul josimhaeyagesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "저 너머는 뭐예요? 산이 끝없이 이어지네요.",
+   "beaver_en": "What's beyond there? The mountains go on forever.",
+   "beaver_roman": "jeo neomeoneun mwoyeyo? sani kkeudeopsi ieojineyo.",
+   "learner": "큰 산맥이에요. 이 일대는 전부 산간 지역이에요.",
+   "en": "It's a big mountain range. This whole area is mountainous.",
+   "roman": "keun sanmaegieyo. i ildaeneun jeonbu sangan jiyeogieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "산림이 정말 울창하네요. 밀림 같아요.",
+   "beaver_en": "The forest is really dense. It's like a jungle.",
+   "beaver_roman": "sallimi jeongmal ulchanghaneyo. millim gatayo.",
+   "learner": "맞아요. 나무가 정말 빽빽하게 자랐네요.",
+   "en": "Right. The trees have grown really densely.",
+   "roman": "majayo. namuga jeongmal ppaekppaekage jaranneyo."
+  },
+  {
+   "n": 4,
+   "beaver": "앞에 하천이 있어요. 하천을 건너야 해요.",
+   "beaver_en": "There's a river ahead. We have to cross it.",
+   "beaver_roman": "ape hacheoni isseoyo. hacheoneul geonneoya haeyo.",
+   "learner": "물살이 세 보여요. 유비무환이니 밧줄을 묶을게요.",
+   "en": "The current looks strong. Better safe than sorry, I'll tie a rope.",
+   "roman": "mulsari se boyeoyo. yubimuhwanini batjureul mukkeulgeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "이 하천은 어디로 흘러가나요?",
+   "beaver_en": "Where does this river flow to?",
+   "beaver_roman": "i hacheoneun eodiro heulleoganayo?",
+   "learner": "평야를 지나서 바다로 흘러가요.",
+   "en": "It flows across the plain to the sea.",
+   "roman": "pyeongyareul jinaseo badaro heulleogayo."
+  },
+  {
+   "n": 6,
+   "beaver": "바다까지 가면 수평선도 보이겠네요.",
+   "beaver_en": "If we go to the sea, we'll see the horizon too.",
+   "beaver_roman": "badakkaji gamyeon supyeongseondo boigenneyo.",
+   "learner": "네, 하구에 가면 수평선이 탁 트여 보여요.",
+   "en": "Yes, at the river mouth the horizon opens up wide.",
+   "roman": "ne, hague gamyeon supyeongseoni tak teuyeo boyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "물이 맑아서 수중 생물도 보여요.",
+   "beaver_en": "The water is so clear we can see underwater life.",
+   "beaver_roman": "muri malgaseo sujung saengmuldo boyeoyo.",
+   "learner": "물속 바위 사이로 물고기가 숨네요.",
+   "en": "Fish are hiding between the rocks in the water.",
+   "roman": "mulsok bawi sairo mulgogiga sumneyo."
+  },
+  {
+   "n": 8,
+   "beaver": "이 주변 지형에 대해 좀 더 알려 주세요.",
+   "beaver_en": "Tell me a bit more about the terrain around here.",
+   "beaver_roman": "i jubyeon jihyeonge daehae jom deo allyeo juseyo.",
+   "learner": "저쪽 비탈은 완만하고 골짜기가 넓어요.",
+   "en": "The slope over there is gentle, and the valley is wide.",
+   "roman": "jeojjok bitareun wanmanhago goljjagiga neolbeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "날이 저물기 전에 캠프로 돌아갈까요?",
+   "beaver_en": "Shall we head back to camp before it gets dark?",
+   "beaver_roman": "nari jeomulgi jeone kaempeuro doragalkkayo?",
+   "learner": "네, 해가 지기 전에 골짜기를 빠져나가요.",
+   "en": "Yes, let's get out of the valley before sunset.",
+   "roman": "ne, haega jigi jeone goljjagireul ppajyeonagayo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 수고 많았어요. 내일은 산맥 쪽으로 가요.",
+   "beaver_en": "Great work today. Tomorrow we'll head toward the mountain range.",
+   "beaver_roman": "oneul sugo manasseoyo. naeireun sanmaek jjogeuro gayo.",
+   "learner": "좋아요. 내일도 자갈길이 많을 테니 단단히 준비해요.",
+   "en": "Sounds good. There'll be gravel paths again, so let's prepare well.",
+   "roman": "joayo. naeildo jagalgiri maneul teni dandanhi junbihaeyo."
+  }
+ ]
+}

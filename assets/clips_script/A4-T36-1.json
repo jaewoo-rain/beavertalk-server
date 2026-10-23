@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T36-1",
+ "no": 108,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "설날 잘 보냈어요? 뭐 했어요?",
+   "beaver_en": "Did you have a good Seollal? What did you do?",
+   "beaver_roman": "seollal jal bonaesseoyo? mwo haesseoyo?",
+   "learner": "네, 할머니 댁에서 세배를 했어요.",
+   "en": "Yes, I did the New Year's bow at my grandma's.",
+   "roman": "ne, halmeoni daegeseo sebaereul haesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 세뱃돈도 받았어요?",
+   "beaver_en": "Wow, did you get New Year's money too?",
+   "beaver_roman": "wa, sebaetdondo badasseoyo?",
+   "learner": "네, 만 원짜리 세 장 받았어요.",
+   "en": "Yes, I got three 10,000-won bills.",
+   "roman": "ne, man wonjjari se jang badasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋겠다! 다른 일은 없었어요?",
+   "beaver_en": "Lucky you! Did anything else happen?",
+   "beaver_roman": "joketda! dareun ireun eopseosseoyo?",
+   "learner": "세배하다가 미끄러질 뻔했어요.",
+   "en": "I almost slipped while bowing.",
+   "roman": "sebaehadaga mikkeureojil ppeonhaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "하하, 안 다쳤어요? 잔치도 했어요?",
+   "beaver_en": "Haha, you didn't get hurt? Did you have a feast too?",
+   "beaver_roman": "haha, an dachyeosseoyo? janchido haesseoyo?",
+   "learner": "네, 가족들이 다 모여서 잔치를 했어요.",
+   "en": "Yes, the whole family got together for a feast.",
+   "roman": "ne, gajokdeuri da moyeoseo janchireul haesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "음식이 많았겠네요.",
+   "beaver_en": "There must have been lots of food.",
+   "beaver_roman": "eumsigi manatgenneyo.",
+   "learner": "네, 너무 많이 먹어서 배가 터질 뻔했어요.",
+   "en": "Yes, I ate so much I almost burst.",
+   "roman": "ne, neomu mani meogeoseo baega teojil ppeonhaesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "하하. 요즘 다른 모임도 있었어요?",
+   "beaver_en": "Haha. Any other get-togethers lately?",
+   "beaver_roman": "haha. yojeum dareun moimdo isseosseoyo?",
+   "learner": "지난주에 친구 집들이에 갔어요.",
+   "en": "Last week I went to a friend's housewarming party.",
+   "roman": "jinanjue chingu jipdeurie gasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "선물은요?",
+   "beaver_en": "What about a gift?",
+   "beaver_roman": "seonmureunyo?",
+   "learner": "꽃다발을 샀는데 놓고 갈 뻔했어요.",
+   "en": "I bought a bouquet, but I almost left it behind.",
+   "roman": "kkotdabareul sanneunde no-ko gal ppeonhaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "초대장도 받았어요?",
+   "beaver_en": "Did you get an invitation card too?",
+   "beaver_roman": "chodaejangdo badasseoyo?",
+   "learner": "네, 그런데 날짜를 착각할 뻔했어요.",
+   "en": "Yes, but I almost mixed up the date.",
+   "roman": "ne, geureonde naljjareul chakgakal ppeonhaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "크리스마스에는 뭐 할 거예요?",
+   "beaver_en": "What are you going to do on Christmas?",
+   "beaver_roman": "keuriseumaseueneun mwo hal geoyeyo?",
+   "learner": "크리스마스에는 친구들과 파티를 할 거예요.",
+   "en": "On Christmas, I'll have a party with friends.",
+   "roman": "keuriseumaseueneun chingudeulgwa patireul hal geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋네요! 저도 가도 돼요?",
+   "beaver_en": "Nice! Can I come too?",
+   "beaver_roman": "jonneyo! jeodo gado dwaeyo?",
+   "learner": "물론이에요. 초대장 보낼게요!",
+   "en": "Of course. I'll send you an invitation!",
+   "roman": "mullonieyo. chodaejang bonaelgeyo!"
+  }
+ ]
+}

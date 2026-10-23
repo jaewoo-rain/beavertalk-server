@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T03-1",
+ "no": 294,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 삼촌 인상착의 좀 알려 줄래요?",
+   "beaver_en": "Minsu, can you tell me what your uncle looks like?",
+   "beaver_roman": "Minsu ssi, samchon insangchagui jom allyeo jullaeyo?",
+   "learner": "네, 삼촌 인상착의를 자세히 설명할게요.",
+   "en": "Sure, I'll describe my uncle in detail.",
+   "roman": "Ne, samchon insangchaguireul jasehi seolmyeonghalgeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "고마워요. 키나 체형은 어때요?",
+   "beaver_en": "Thanks. What about his height and build?",
+   "beaver_roman": "Gomawoyo. Kina chehyeongeun eottaeyo?",
+   "learner": "키가 크고 체형은 좀 마른 편이에요.",
+   "en": "He's tall and has a rather slim build.",
+   "roman": "Kiga keugo chehyeongeun jom mareun pyeonieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "얼굴은요? 수염이 있어요?",
+   "beaver_en": "And his face? Does he have a beard?",
+   "beaver_roman": "Eolgureunyo? Suyeomi isseoyo?",
+   "learner": "네, 입가에 짧은 수염이 있어요.",
+   "en": "Yes, he has a short beard around his mouth.",
+   "roman": "Ne, ipgae jjalbeun suyeomi isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "머리 모양은 어때요?",
+   "beaver_en": "What's his hair like?",
+   "beaver_roman": "Meori moyangeun eottaeyo?",
+   "learner": "대머리예요. 그래서 나이보다 들어 보여요.",
+   "en": "He's bald. So he looks older than his age.",
+   "roman": "Daemeoriyeyo. Geuraeseo naiboda deureo boyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "나이가 들면서 많이 변하셨어요?",
+   "beaver_en": "Has he changed a lot with age?",
+   "beaver_roman": "Naiga deulmyeonseo mani byeonhasyeosseoyo?",
+   "learner": "나이가 들면서 주름이 많이 늘었어요.",
+   "en": "As he got older, he got a lot more wrinkles.",
+   "roman": "Naiga deulmyeonseo jureumi mani neureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다른 특징은 없어요?",
+   "beaver_en": "Any other features?",
+   "beaver_roman": "Dareun teukjingeun eopseoyo?",
+   "learner": "이마에 주름이 깊고 눈썹이 진해요.",
+   "en": "He has deep wrinkles on his forehead and thick eyebrows.",
+   "roman": "Imae jureumi gipgo nunsseobi jinhaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "첫인상은 어떤 편이에요?",
+   "beaver_en": "What's his first impression like?",
+   "beaver_roman": "Cheodinsangeun eotteon pyeonieyo?",
+   "learner": "첫인상은 무뚝뚝한데 웃으면 순해 보여요.",
+   "en": "He seems blunt at first, but looks gentle when he smiles.",
+   "roman": "Cheodinsangeun muttukttukande useumyeon sunhae boyeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "하하, 귀여우시네요. 오늘 옷차림은요?",
+   "beaver_en": "Haha, how cute. What's he wearing today?",
+   "beaver_roman": "Haha, gwiyeousineyo. Oneul otcharimeunyo?",
+   "learner": "회색 양복이요. 근데 면도기를 두고 오셨대요.",
+   "en": "A gray suit. But he says he left his razor behind.",
+   "roman": "Hoesaek yangbogiyo. Geunde myeondogireul dugo osyeotdaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 수염이 좀 길겠네요?",
+   "beaver_en": "Then his beard must be a bit long?",
+   "beaver_roman": "Geureom suyeomi jom gilgenneyo?",
+   "learner": "네, 아마 수염이 덥수룩하실 거예요.",
+   "en": "Yeah, his beard will probably be scruffy.",
+   "roman": "Ne, ama suyeomi deopsurukasil geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠어요. 공항에서 잘 찾아볼게요.",
+   "beaver_en": "Got it. I'll look for him at the airport.",
+   "beaver_roman": "Algesseoyo. Gonghangeseo jal chajabolgeyo.",
+   "learner": "고마워요. 삼촌께 미리 전화해 둘게요.",
+   "en": "Thanks. I'll call my uncle ahead of time.",
+   "roman": "Gomawoyo. Samchonkke miri jeonhwahae dulgeyo."
+  }
+ ]
+}

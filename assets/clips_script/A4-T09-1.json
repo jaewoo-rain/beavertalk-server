@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T09-1",
+ "no": 92,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "내일 친구 결혼식에 가요. 뭘 입을까요?",
+   "beaver_en": "I'm going to a friend's wedding tomorrow. What should I wear?",
+   "beaver_roman": "Naeil chingu gyeolhonsige gayo. Mwol ibeulkkayo?",
+   "learner": "이 파란 원피스를 입어도 돼요. 어때요?",
+   "en": "You could wear this blue dress. How about it?",
+   "roman": "I paran wonpiseureul ibeodo dwaeyo. Eottaeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "예뻐요. 그런데 좀 추울 것 같아요.",
+   "beaver_en": "It's pretty. But I think it might be a bit cold.",
+   "beaver_roman": "Yeppeoyo. Geureonde jom chuul geot gatayo.",
+   "learner": "그럼 위에 스웨터를 입어도 돼요.",
+   "en": "Then you can wear a sweater over it.",
+   "roman": "Geureom wie seuweteoreul ibeodo dwaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요. 목걸이는 해도 돼요?",
+   "beaver_en": "Good. Can I wear a necklace?",
+   "beaver_roman": "Joayo. Mokgeorineun haedo dwaeyo?",
+   "learner": "네, 목걸이하고 귀걸이를 해도 돼요.",
+   "en": "Yes, you can wear a necklace and earrings.",
+   "roman": "Ne, mokgeorihago gwigeorireul haedo dwaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "스카프도 하고 싶어요.",
+   "beaver_en": "I want to wear a scarf too.",
+   "beaver_roman": "Seukapeudo hago sipeoyo.",
+   "learner": "좋아요. 안에서는 스카프를 벗어도 돼요.",
+   "en": "Good. You can take the scarf off inside.",
+   "roman": "Joayo. Aneseoneun seukapeureul beoseodo dwaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "제 동생도 같이 가요. 동생은 뭘 입어요?",
+   "beaver_en": "My brother is coming too. What should he wear?",
+   "beaver_roman": "Je dongsaengdo gachi gayo. Dongsaengeun mwol ibeoyo?",
+   "learner": "양복하고 흰 와이셔츠가 좋아요.",
+   "en": "A suit and a white dress shirt would be good.",
+   "roman": "Yangbokago hin waisyeocheuga joayo."
+  },
+  {
+   "n": 6,
+   "beaver": "동생은 양복이 없어요. 운동복은 안 돼요?",
+   "beaver_en": "He doesn't have a suit. Can't he wear sportswear?",
+   "beaver_roman": "Dongsaengeun yangbogi eopseoyo. Undongbogeun an dwaeyo?",
+   "learner": "운동복은 안 돼요. 제 양복을 입어도 돼요.",
+   "en": "Not sportswear. He can wear my suit.",
+   "roman": "Undongbogeun an dwaeyo. Je yangbogeul ibeodo dwaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "고마워요. 반바지는요? 결혼식 후에 바다에 가요.",
+   "beaver_en": "Thanks. What about shorts? We're going to the beach after.",
+   "beaver_roman": "Gomawoyo. Banbajineunyo? Gyeolhonsik hue badae gayo.",
+   "learner": "바다에서는 반바지를 입어도 돼요.",
+   "en": "You can wear shorts at the beach.",
+   "roman": "Badaeseoneun banbajireul ibeodo dwaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 옷은 어디에서 갈아입어요?",
+   "beaver_en": "Then where do we change clothes?",
+   "beaver_roman": "Geureom oseun eodieseo garaibeoyo?",
+   "learner": "식당 화장실에서 갈아입어도 돼요.",
+   "en": "You can change in the restaurant restroom.",
+   "roman": "Sikdang hwajangsireseo garaibeodo dwaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "수영복도 가져갈까요?",
+   "beaver_en": "Should I bring a swimsuit too?",
+   "beaver_roman": "Suyeongbokdo gajyeogalkkayo?",
+   "learner": "네, 수영복은 이 가방에 넣어도 돼요.",
+   "en": "Yes, you can put the swimsuit in this bag.",
+   "roman": "Ne, suyeongbogeun i gabange neoeodo dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 이제 옷을 다 골랐어요!",
+   "beaver_en": "Thanks. Now I've picked all my clothes!",
+   "beaver_roman": "Gomawoyo. Ije oseul da gollasseoyo!",
+   "learner": "잘됐어요. 결혼식 잘 다녀오세요!",
+   "en": "Great. Have a nice time at the wedding!",
+   "roman": "Jaldwaesseoyo. Gyeolhonsik jal danyeooseyo!"
+  }
+ ]
+}

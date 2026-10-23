@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T11-1",
+ "no": 449,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "뭐 먹을지 정했어? 난 벌써 배고파.",
+   "beaver_en": "Did you decide what to eat? I'm already hungry.",
+   "beaver_roman": "Mwo meogeulji jeonghaesseo? Nan beolsseo baegopa.",
+   "learner": "아직이야. 허기가 져서 다 맛있어 보여.",
+   "en": "Not yet. I'm so hungry everything looks good.",
+   "roman": "Ajigiya. Heogiga jyeoseo da masisseo boyeo."
+  },
+  {
+   "n": 2,
+   "beaver": "생선구이 어때? 여기 유명하대.",
+   "beaver_en": "How about grilled fish? They say it's famous here.",
+   "beaver_roman": "Saengseongui eottae? Yeogi yumyeonghadae.",
+   "learner": "생선은 좀 비려서 싫어. 다른 거 볼래.",
+   "en": "Fish smells a bit fishy to me. I'll look at something else.",
+   "roman": "Saengseoneun jom biryeoseo sireo. Dareun geo bollae."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 죽은 어때? 전복죽도 있어.",
+   "beaver_en": "Then how about porridge? They have abalone porridge.",
+   "beaver_roman": "Geureom jugeun eottae? Jeonbokjukdo isseo.",
+   "learner": "죽이라고는 흰죽밖에 안 먹어 봤어.",
+   "en": "As for porridge, I've only ever had plain rice porridge.",
+   "roman": "Jugiragoneun hinjukbakke an meogeo bwasseo."
+  },
+  {
+   "n": 4,
+   "beaver": "여기 죽은 할머니 손맛이래. 먹어 봐.",
+   "beaver_en": "The porridge here tastes like grandma's cooking. Try it.",
+   "beaver_roman": "Yeogi jugeun halmeoni sonmasirae. Meogeo bwa.",
+   "learner": "손맛이라니 궁금하다. 그럼 전복죽 할게.",
+   "en": "Home-cooked taste? I'm curious. I'll get the abalone one.",
+   "roman": "Sonmasirani gunggeumhada. Geureom jeonbokjuk halge."
+  },
+  {
+   "n": 5,
+   "beaver": "나물 반찬도 나와. 쓴 거 괜찮아?",
+   "beaver_en": "Herb side dishes come too. Are bitter things okay?",
+   "beaver_roman": "Namul banchando nawa. Sseun geo gwaenchana?",
+   "learner": "씁쓸한 맛은 좋아해. 어른 입맛이거든.",
+   "en": "I like bitter flavors. I have grown-up taste.",
+   "roman": "Sseupsseulhan maseun joahae. Eoreun immasigeodeun."
+  },
+  {
+   "n": 6,
+   "beaver": "음료는? 배즙이랑 숭늉이 있대.",
+   "beaver_en": "Drinks? They have pear juice and scorched rice water.",
+   "beaver_roman": "Eumnyoneun? Baejeubirang sungnyungi itdae.",
+   "learner": "배즙도 좋지만 식후엔 숭늉이 좋아.",
+   "en": "Pear juice is nice, but after a meal I like sungnyung.",
+   "roman": "Baejeupdo jochiman sikuen sungnyungi joa."
+  },
+  {
+   "n": 7,
+   "beaver": "후식은 어떻게 할까?",
+   "beaver_en": "What should we do for dessert?",
+   "beaver_roman": "Husigeun eotteoke halkka?",
+   "learner": "한과 어때? 여기서 손수 만든대.",
+   "en": "How about hangwa? They make it by hand here.",
+   "roman": "Hangwa eottae? Yeogiseo sonsu mandeundae."
+  },
+  {
+   "n": 8,
+   "beaver": "좋지. 군밤도 같이 판대.",
+   "beaver_en": "Sounds good. They sell roasted chestnuts too.",
+   "beaver_roman": "Jochi. Gunbamdo gachi pandae.",
+   "learner": "군밤은 길에서만 사 먹어 봤어.",
+   "en": "I've only bought roasted chestnuts on the street.",
+   "roman": "Gunbameun gireseoman sa meogeo bwasseo."
+  },
+  {
+   "n": 9,
+   "beaver": "여기 건 더 달대. 같이 시키자.",
+   "beaver_en": "They say these are sweeter. Let's order them too.",
+   "beaver_roman": "Yeogi geon deo daldae. Gachi sikija.",
+   "learner": "좋아. 생각만 해도 더 배고파진다.",
+   "en": "Okay. Just thinking about it makes me hungrier.",
+   "roman": "Joa. Saenggangman haedo deo baegopajinda."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 주문하자. 사장님, 여기요!",
+   "beaver_en": "Then let's order. Excuse me, over here!",
+   "beaver_roman": "Geureom jumunhaja. Sajangnim, yeogiyo!",
+   "learner": "그래. 오늘 밥은 내가 살게!",
+   "en": "Okay. I'll pay for the meal today!",
+   "roman": "Geurae. Oneul babeun naega salge!"
+  }
+ ]
+}

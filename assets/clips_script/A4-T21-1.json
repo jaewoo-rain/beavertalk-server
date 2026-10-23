@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T21-1",
+ "no": 101,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 무엇을 도와 드릴까요?",
+   "beaver_en": "Welcome. How can I help you?",
+   "beaver_roman": "Eoseo oseyo. Mueoseul dowa deurilkkayo?",
+   "learner": "안녕하세요. 소포를 부치러 왔어요.",
+   "en": "Hello. I came to send a parcel.",
+   "roman": "Annyeonghaseyo. Soporeul buchireo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 소포 안에 뭐가 들어 있어요?",
+   "beaver_en": "Okay, what's inside the parcel?",
+   "beaver_roman": "Ne, sopo ane mwoga deureo isseoyo?",
+   "learner": "친구 생일 선물이에요. 새 전화기예요.",
+   "en": "It's a birthday gift for a friend. A new phone.",
+   "roman": "Chingu saengil seonmurieyo. Sae jeonhwagiyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "어디로 보내세요?",
+   "beaver_en": "Where are you sending it?",
+   "beaver_roman": "Eodiro bonaeseyo?",
+   "learner": "부산으로 보내요. 엽서도 부칠 거예요.",
+   "en": "To Busan. I'll also mail a postcard.",
+   "roman": "Busaneuro bonaeyo. Yeopseodo buchil geoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "엽서는 지금 쓰실 거예요?",
+   "beaver_en": "Will you write the postcard now?",
+   "beaver_roman": "Yeopseoneun jigeum sseusil geoyeyo?",
+   "learner": "아니요, 소포를 부친 후에 쓸게요.",
+   "en": "No, I'll write it after sending the parcel.",
+   "roman": "Aniyo, soporeul buchin hue sseulgeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "네, 알겠습니다. 봉투도 필요하세요?",
+   "beaver_en": "Okay. Do you need an envelope too?",
+   "beaver_roman": "Ne, algetseumnida. Bongtudo piryohaseyo?",
+   "learner": "네, 엽서를 넣을 봉투 하나 주세요.",
+   "en": "Yes, one envelope for the postcard, please.",
+   "roman": "Ne, yeopseoreul neoeul bongtu hana juseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "여기 있어요. 연락처를 적어 주세요.",
+   "beaver_en": "Here you go. Please write your contact info.",
+   "beaver_roman": "Yeogi isseoyo. Yeollakcheoreul jeogeo juseyo.",
+   "learner": "전화번호하고 메일 주소를 적었어요.",
+   "en": "I wrote my phone number and email address.",
+   "roman": "Jeonhwabeonhohago meil jusoreul jeogeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "감사합니다. 소포는 이틀 후에 도착해요.",
+   "beaver_en": "Thank you. The parcel arrives in two days.",
+   "beaver_roman": "Gamsahamnida. Soponeun iteul hue dochakaeyo.",
+   "learner": "소포가 도착한 후에 연락을 받을 수 있어요?",
+   "en": "Can I get a message after it arrives?",
+   "roman": "Sopoga dochakan hue yeollageul badeul su isseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 문자로 연락이 가요. 엽서도 다 쓰셨어요?",
+   "beaver_en": "Yes, you'll get a text. Did you finish the postcard?",
+   "beaver_roman": "Ne, munjaro yeollagi gayo. Yeopseodo da sseusyeosseoyo?",
+   "learner": "네, 다 썼어요. 같이 부쳐 주세요.",
+   "en": "Yes, I finished it. Please send it together.",
+   "roman": "Ne, da sseosseoyo. Gachi buchyeo juseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 모두 오천 원입니다.",
+   "beaver_en": "Great. That's 5,000 won in total.",
+   "beaver_roman": "Joayo. Modu ocheon wonimnida.",
+   "learner": "여기 있어요. 저번보다 빨리 끝났네요.",
+   "en": "Here you are. That was faster than last time.",
+   "roman": "Yeogi isseoyo. Jeobeonboda ppalli kkeunnanneyo."
+  },
+  {
+   "n": 10,
+   "beaver": "감사합니다. 안녕히 가세요.",
+   "beaver_en": "Thank you. Goodbye.",
+   "beaver_roman": "Gamsahamnida. Annyeonghi gaseyo.",
+   "learner": "네, 감사합니다. 수고하세요.",
+   "en": "Thank you. Have a good day.",
+   "roman": "Ne, gamsahamnida. Sugohaseyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T58-1",
+ "no": 44,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 무슨 생각을 해요? 얼굴이 좀 슬퍼 보여요.",
+   "beaver_en": "What are you thinking about lately? You look a bit sad.",
+   "beaver_roman": "yojeum museun saenggageul haeyo? eolguri jom seulpeo boyeoyo.",
+   "learner": "할머니 생각을 많이 해요. 마음이 아파요.",
+   "en": "I think about my grandma a lot. My heart hurts.",
+   "roman": "halmeoni saenggageul mani haeyo. maeumi apayo."
+  },
+  {
+   "n": 2,
+   "beaver": "할머니가 많이 보고 싶어요?",
+   "beaver_en": "Do you miss your grandma a lot?",
+   "beaver_roman": "halmeoniga mani bogo sipeoyo?",
+   "learner": "네, 할머니가 정말 보고 싶어요.",
+   "en": "Yes, I really miss my grandma.",
+   "roman": "ne, halmeoniga jeongmal bogo sipeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "할머니하고 어떤 추억이 있어요?",
+   "beaver_en": "What memories do you have with her?",
+   "beaver_roman": "halmeonihago eotteon chueogi isseoyo?",
+   "learner": "할머니가 저를 혼자 키워 주셨어요.",
+   "en": "My grandma raised me all by herself.",
+   "roman": "halmeoniga jeoreul honja kiwo jusyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "마지막으로 언제 만났어요?",
+   "beaver_en": "When did you last see her?",
+   "beaver_roman": "majimageuro eonje mannasseoyo?",
+   "learner": "서울에 온 후 못 만났어요. 너무 아쉬워요.",
+   "en": "I haven't seen her since I came to Seoul. It's such a shame.",
+   "roman": "seoure on hu mon mannasseoyo. neomu aswiwoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 할머니께 하고 싶은 말이 있어요?",
+   "beaver_en": "Then is there something you want to tell her?",
+   "beaver_roman": "geureom halmeonikke hago sipeun mari isseoyo?",
+   "learner": "고맙다고 꼭 말하고 싶어요.",
+   "en": "I really want to tell her thank you.",
+   "roman": "gomaptago kkok malhago sipeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "편지를 써 보세요. 마음이 편해질 거예요.",
+   "beaver_en": "Try writing her a letter. You'll feel better.",
+   "beaver_roman": "pyeonjireul sseo boseyo. maeumi pyeonhaejil geoyeyo.",
+   "learner": "좋은 생각이에요. 먼저 편지를 써 볼게요.",
+   "en": "Good idea. I'll write a letter first.",
+   "roman": "joeun saenggagieyo. meonjeo pyeonjireul sseo bolgeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "사진도 한번 찾아보세요.",
+   "beaver_en": "Try finding a photo, too.",
+   "beaver_roman": "sajindo hanbeon chajaboseyo.",
+   "learner": "찾았어요! 여기 할머니 사진이에요.",
+   "en": "Found it! Here's a photo of my grandma.",
+   "roman": "chajasseoyo! yeogi halmeoni sajinieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 할머니가 정말 따뜻해 보여요.",
+   "beaver_en": "Wow, she looks really warm.",
+   "beaver_roman": "wa, halmeoniga jeongmal ttatteuthae boyeoyo.",
+   "learner": "네, 할머니도 지금 제 생각을 하실 거예요.",
+   "en": "Yes, I bet she's thinking of me right now too.",
+   "roman": "ne, halmeonido jigeum je saenggageul hasil geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "사실 저도 고향에 계신 엄마가 그리워요.",
+   "beaver_en": "Actually, I miss my mom back home too.",
+   "beaver_roman": "sasil jeodo gohyange gyesin eommaga geuriwoyo.",
+   "learner": "그럼 지영 씨도 오늘 엄마께 전화해 보세요.",
+   "en": "Then try calling your mom today, Jiyeong.",
+   "roman": "geureom jiyeong ssido oneul eommakke jeonhwahae boseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럴게요. 이야기해 줘서 고마워요.",
+   "beaver_en": "I will. Thanks for sharing your story.",
+   "beaver_roman": "geureolgeyo. iyagihae jwoseo gomawoyo.",
+   "learner": "제 말을 들어 줘서 고마워요. 나중에 또 봐요.",
+   "en": "Thanks for listening to me. See you later.",
+   "roman": "je mareul deureo jwoseo gomawoyo. najunge tto bwayo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T56-1",
+ "no": 154,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 요즘 동네 어때요?",
+   "beaver_en": "Hello. How's the neighborhood these days?",
+   "beaver_roman": "annyeonghaseyo. yojeum dongne eottaeyo?",
+   "learner": "안녕하세요. 요즘 안전이 좀 걱정돼요.",
+   "en": "Hello. I'm a bit worried about safety lately.",
+   "roman": "annyeonghaseyo. yojeum anjeoni jom geokjeongdwaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜요? 무슨 일 있었어요?",
+   "beaver_en": "Why? Did something happen?",
+   "beaver_roman": "waeyo? museun il isseosseoyo?",
+   "learner": "지난주에 옆집에 도둑이 들었어요.",
+   "en": "A thief broke into the house next door last week.",
+   "roman": "jinanjue yeopjibe dodugi deureosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "정말요? 경찰에 신고했어요?",
+   "beaver_en": "Really? Did they report it to the police?",
+   "beaver_roman": "jeongmallyo? gyeongchare singohaesseoyo?",
+   "learner": "네, 경찰이 와서 조사했어요.",
+   "en": "Yes, the police came and investigated.",
+   "roman": "ne, gyeongchari waseo josahaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "우리 동네에 경찰서가 있어요?",
+   "beaver_en": "Is there a police station in our neighborhood?",
+   "beaver_roman": "uri dongnee gyeongchalsseoga isseoyo?",
+   "learner": "경찰서는 멀어요. 파출소는 가까워요.",
+   "en": "The police station is far. The substation is close.",
+   "roman": "gyeongchalsseoneun meoreoyo. pachulsoneun gakkawoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "소방서도 있어요?",
+   "beaver_en": "Is there a fire station too?",
+   "beaver_roman": "sobangseodo isseoyo?",
+   "learner": "네, 시장 옆에 소방서가 있어요.",
+   "en": "Yes, there's a fire station next to the market.",
+   "roman": "ne, sijang yeope sobangseoga isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래도 밤에는 좀 무섭죠?",
+   "beaver_en": "Still, it's a bit scary at night, right?",
+   "beaver_roman": "geuraedo bameneun jom museopjyo?",
+   "learner": "네, 골목이 어두워서 밤에는 무서워요.",
+   "en": "Yes, the alleys are dark, so it's scary at night.",
+   "roman": "ne, golmogi eoduwoseo bameneun museowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "이 동네는 원래 조용하잖아요.",
+   "beaver_en": "This neighborhood was always quiet, you know.",
+   "beaver_roman": "i dongneneun wollae joyonghajanayo.",
+   "learner": "맞아요. 옛날에는 안전한 동네로 유명했어요.",
+   "en": "Right. It used to be famous as a safe neighborhood.",
+   "roman": "majayo. yennareneun anjeonhan dongnero yumyeonghaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "동네 치안에 대해 더 이야기해 볼까요?",
+   "beaver_en": "Shall we talk more about neighborhood safety?",
+   "beaver_roman": "dongne chiane daehae deo iyagihae bolkkayo?",
+   "learner": "좋아요. 나라는 군대가 지키고, 동네는 경찰이 지켜요.",
+   "en": "Sure. The military protects the country, the police the town.",
+   "roman": "joayo. naraneun gundaega jikigo, dongneneun gyeongchari jikyeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "우리가 할 수 있는 일도 있을까요?",
+   "beaver_en": "Is there anything we can do, too?",
+   "beaver_roman": "uriga hal su inneun ildo isseulkkayo?",
+   "learner": "문을 꼭 잠그는 게 상식이에요.",
+   "en": "Locking the door is common sense.",
+   "roman": "muneul kkok jamgeuneun ge sangsigieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 우리 서로 조심해요.",
+   "beaver_en": "That's right. Let's both be careful.",
+   "beaver_roman": "majayo. uri seoro josimhaeyo.",
+   "learner": "네, 저는 파출소에 순찰을 부탁해 볼게요.",
+   "en": "Yes, I'll ask the substation for patrols.",
+   "roman": "ne, jeoneun pachulsoe sunchareul butakae bolgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T62-1",
+ "no": 83,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. mueoseul dowadeurilkkayo?",
+   "learner": "안녕하세요. 환전하고 싶어요.",
+   "en": "Hello. I'd like to exchange money.",
+   "roman": "annyeonghaseyo. hwanjeonhago sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 어느 나라 돈으로 바꿔 드릴까요?",
+   "beaver_en": "Sure, which currency would you like?",
+   "beaver_roman": "ne, eoneu nara doneuro bakkwo deurilkkayo?",
+   "learner": "달러를 한국 돈으로 바꾸고 싶어요.",
+   "en": "I want to change dollars into Korean money.",
+   "roman": "dalleoreul hanguk doneuro bakkugo sipeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "얼마를 바꾸시겠어요?",
+   "beaver_en": "How much would you like to exchange?",
+   "beaver_roman": "eolmareul bakkusigesseoyo?",
+   "learner": "300달러요. 수수료가 있어요?",
+   "en": "300 dollars. Is there a fee?",
+   "roman": "sambaek dalleoyo. susuryoga isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 수수료가 조금 있습니다. 괜찮으세요?",
+   "beaver_en": "Yes, there's a small fee. Is that okay?",
+   "beaver_roman": "ne, susuryoga jogeum itseumnida. gwaenchaneuseyo?",
+   "learner": "네, 괜찮아요. 현금으로 주세요.",
+   "en": "Yes, that's fine. Please give it in cash.",
+   "roman": "ne, gwaenchanayo. hyeongeumeuro juseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "여기 있습니다. 동전도 필요하세요?",
+   "beaver_en": "Here you are. Do you need coins too?",
+   "beaver_roman": "yeogi itseumnida. dongjeondo piryohaseyo?",
+   "learner": "아니요, 동전은 필요 없어요.",
+   "en": "No, I don't need coins.",
+   "roman": "aniyo, dongjeoneun piryo eopseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 통장도 만드시겠어요?",
+   "beaver_en": "Would you like to open a bankbook as well?",
+   "beaver_roman": "hoksi tongjangdo mandeusigesseoyo?",
+   "learner": "네, 저금을 하고 싶어요.",
+   "en": "Yes, I want to save money.",
+   "roman": "ne, jeogeumeul hago sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "네, 카드도 같이 만들어 드릴까요?",
+   "beaver_en": "Sure. Shall I make you a card too?",
+   "beaver_roman": "ne, kadeudo gachi mandeureo deurilkkayo?",
+   "learner": "감사합니다. 다음 달에 월급을 타요.",
+   "en": "Thank you. I get my salary next month.",
+   "roman": "gamsahamnida. daeum dare wolgeubeul tayo."
+  },
+  {
+   "n": 8,
+   "beaver": "월급을 타면 얼마나 저금하실 거예요?",
+   "beaver_en": "When you get paid, how much will you save?",
+   "beaver_roman": "wolgeubeul tamyeon eolmana jeogeumhasil geoyeyo?",
+   "learner": "반쯤 저금하고 싶어요. 부자가 됐으면 좋겠어요.",
+   "en": "I want to save about half. I wish I could be rich.",
+   "roman": "banjjeum jeogeumhago sipeoyo. bujaga dwaesseumyeon joketseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "저금을 잘하시면 부자가 되실 거예요.",
+   "beaver_en": "If you save well, you'll become rich.",
+   "beaver_roman": "jeogeumeul jalhasimyeon bujaga doesil geoyeyo.",
+   "learner": "그런데 친구한테 빌린 돈도 갚아야 해요.",
+   "en": "But I also have to pay back money I borrowed from a friend.",
+   "roman": "geureonde chinguhante billin dondo gapaya haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 통장과 카드 여기 있습니다.",
+   "beaver_en": "Good. Here are your bankbook and card.",
+   "beaver_roman": "joayo. tongjanggwa kadeu yeogi itseumnida.",
+   "learner": "돈을 많이 벌었으면 좋겠어요. 감사합니다!",
+   "en": "I hope I earn a lot of money. Thank you!",
+   "roman": "doneul mani beoreosseumyeon joketseoyo. gamsahamnida!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T17-1",
+ "no": 132,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 안내원입니다. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello. I'm the guide. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. annaewonimnida. mueoseul dowadeurilkkayo?",
+   "learner": "서울역에 가는 길에 우체국에 들르고 싶어요.",
+   "en": "I'd like to stop by the post office on the way to Seoul Station.",
+   "roman": "seoullyeoge ganeun gire ucheguge deureugo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 우체국은 역 가는 길에 있어요. 걸어서 가세요?",
+   "beaver_en": "Sure, the post office is on the way to the station. Are you walking?",
+   "beaver_roman": "ne, uchegugeun yeok ganeun gire isseoyo. georeoseo gaseyo?",
+   "learner": "네, 걸어서 가요. 약도가 있으면 좋겠어요.",
+   "en": "Yes, I'm walking. A simple map would be nice.",
+   "roman": "ne, georeoseo gayo. yakdoga isseumyeon jokesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "여기 약도가 있어요. 먼저 큰길로 나가세요.",
+   "beaver_en": "Here's a map. First, go out to the main road.",
+   "beaver_roman": "yeogi yakdoga isseoyo. meonjeo keungillo nagaseyo.",
+   "learner": "큰길로 나가서 직진하면 돼요?",
+   "en": "Do I go out to the main road and go straight?",
+   "roman": "keungillo nagaseo jikjinhamyeon dwaeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 직진하다가 건널목에서 좌회전하세요.",
+   "beaver_en": "Yes, go straight, then turn left at the crossing.",
+   "beaver_roman": "ne, jikjinhadaga geonneolmogeseo jwahoejeonhaseyo.",
+   "learner": "건널목에서 좌회전하는 거죠?",
+   "en": "I turn left at the crossing, right?",
+   "roman": "geonneolmogeseo jwahoejeonhaneun geojyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 좌회전하면 안내판이 보일 거예요.",
+   "beaver_en": "That's right. After the left turn, you'll see a sign board.",
+   "beaver_roman": "majayo. jwahoejeonhamyeon annaepani boil geoyeyo.",
+   "learner": "안내판을 보고 어디로 가요?",
+   "en": "Where do I go after the sign board?",
+   "roman": "annaepaneul bogo eodiro gayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "안내판 옆 골목으로 들어가면 더 빨라요.",
+   "beaver_en": "It's faster if you go into the alley next to the sign.",
+   "beaver_roman": "annaepan yeop golmogeuro deureogamyeon deo ppallayo.",
+   "learner": "어머, 골목이 있어요? 큰길보다 빨라요?",
+   "en": "Oh, there's an alley? Is it faster than the main road?",
+   "roman": "eomeo, golmogi isseoyo? keungilboda ppallayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 5분쯤 빨라요. 골목 끝에서 우회전하세요.",
+   "beaver_en": "Yes, about 5 minutes faster. Turn right at the end of the alley.",
+   "beaver_roman": "ne, obunjjeum ppallayo. golmok kkeuteseo uhoejeonhaseyo.",
+   "learner": "골목 끝에서 우회전하면 우체국이 있어요?",
+   "en": "If I turn right at the end, is the post office there?",
+   "roman": "golmok kkeuteseo uhoejeonhamyeon uchegugi isseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 오른쪽 세 번째 건물이 우체국이에요.",
+   "beaver_en": "Yes, the third building on the right is the post office.",
+   "beaver_roman": "ne, oreunjjok se beonjjae geonmuri uchegugieyo.",
+   "learner": "세 번째 건물이요. 거기서 역까지는요?",
+   "en": "The third building. And from there to the station?",
+   "roman": "se beonjjae geonmuriyo. geogiseo yeokkkajineunyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "우체국에서 나와서 계속 직진하면 역이에요.",
+   "beaver_en": "Come out of the post office and keep going straight to the station.",
+   "beaver_roman": "uchegugeseo nawaseo gyesok jikjinhamyeon yeogieyo.",
+   "learner": "그럼 역에 가는 길에 약국도 있어요?",
+   "en": "Then is there a pharmacy on the way to the station too?",
+   "roman": "geureom yeoge ganeun gire yakgukdo isseoyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 우체국 바로 옆에 약국이 있어요.",
+   "beaver_en": "Yes, there's a pharmacy right next to the post office.",
+   "beaver_roman": "ne, ucheguk baro yeope yakgugi isseoyo.",
+   "learner": "잘 알겠어요. 이따 가는 길에 들를게요. 감사합니다!",
+   "en": "Got it. I'll stop by on my way later. Thank you!",
+   "roman": "jal algesseoyo. itta ganeun gire deureulgeyo. gamsahamnida!"
+  }
+ ]
+}

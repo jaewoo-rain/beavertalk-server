@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T34-1",
+ "no": 465,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 공모 당선작, 평론 쓰셨어요?",
+   "beaver_en": "Did you write your review of the contest winner?",
+   "beaver_roman": "ibeon gongmo dangseonjak, pyeongnon sseosyeosseoyo?",
+   "learner": "네, 각본은 좋은데 개작이 아쉬웠어요.",
+   "en": "Yes. The script was good, but the adaptation fell short.",
+   "roman": "ne, gakboneun joeunde gaejagi aswiwosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "저는 좋게 봤습니다. 걸작이라고 생각해요.",
+   "beaver_en": "I liked it. I think it's a masterpiece.",
+   "beaver_roman": "jeoneun joke bwatseumnida. geoljagirago saenggakaeyo.",
+   "learner": "걸작이니 시적이니 하지만 저는 동의 못 해요.",
+   "en": "People call it a masterpiece, call it poetic, but I disagree.",
+   "roman": "geoljagini sijeogini hajiman jeoneun dongui mo taeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "왜요? 비극적인 결말이 극적이었잖아요.",
+   "beaver_en": "Why? The tragic ending was dramatic.",
+   "beaver_roman": "waeyo? bigeukjeogin gyeolmari geukjeogieotjanayo.",
+   "learner": "극적이긴 했지만 원작의 해학이 사라졌어요.",
+   "en": "It was dramatic, but the original's humor was lost.",
+   "roman": "geukjeogigin haetjiman wonjagui haehagi sarajyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "풍자는 오히려 더 날카로워졌던데요?",
+   "beaver_en": "But the satire got even sharper, didn't it?",
+   "beaver_roman": "pungjaneun ohiryeo deo nalkarowojyeotdeondeyo?",
+   "learner": "풍자가 아니라 선정적인 장면만 늘었어요.",
+   "en": "Not satire. Just more sensational scenes.",
+   "roman": "pungjaga anira seonjeongjeogin jangmyeonman neureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "관객 반응은요? 꽤 좋았다던데요.",
+   "beaver_en": "What about the audience? I heard they liked it.",
+   "beaver_roman": "gwangaek baneungeunyo? kkwae joatdadeondeyo.",
+   "learner": "관객은 박수 치는 게 고작이었어요.",
+   "en": "All the audience did was clap.",
+   "roman": "gwangaegeun baksu chineun ge gojagieosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래도 주역 배우 연기는 훌륭했잖아요.",
+   "beaver_en": "Still, the lead actor was excellent.",
+   "beaver_roman": "geuraedo juyeok baeu yeongineun hullyunghaetjanayo.",
+   "learner": "주역은 좋았지만 조연 섭외가 아쉬웠어요.",
+   "en": "The lead was good, but the supporting cast was a letdown.",
+   "roman": "juyeogeun joatjiman joyeon seoboega aswiwosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "음악은 어때요? 거문고 반주가 인상적이던데요.",
+   "beaver_en": "And the music? The geomungo accompaniment was striking.",
+   "beaver_roman": "eumageun eottaeyo? geomungo banjuga insangjeogideondeyo.",
+   "learner": "거문고 반주는 예술성이 있었어요. 인정해요.",
+   "en": "The geomungo accompaniment had artistry. I admit that.",
+   "roman": "geomungo banjuneun yesulseongi isseosseoyo. injeonghaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "음향은요? 객석 뒤쪽에선 잘 들렸어요?",
+   "beaver_en": "How was the sound? Could you hear well at the back?",
+   "beaver_roman": "eumhyangeunyo? gaekseok dwijjogeseon jal deullyeosseoyo?",
+   "learner": "아니요, 주인공 노래도 음향에 묻혔어요.",
+   "en": "No, even the lead's song got drowned out by the sound.",
+   "roman": "aniyo, juingong noraedo eumhyange muchyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "모티브는 어떻게 보셨어요? 더 말씀해 주시겠어요?",
+   "beaver_en": "What did you think of the motif? Could you say more?",
+   "beaver_roman": "motibeuneun eotteoke bosyeosseoyo? deo malsseumhae jusigesseoyo?",
+   "learner": "모티브는 시적이지만 걸작은 아니에요.",
+   "en": "The motif is poetic, but it's not a masterpiece.",
+   "roman": "motibeuneun sijeogijiman geoljageun anieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "결국 의견이 다르네요. 각자 평론을 써 봐요.",
+   "beaver_en": "So we disagree. Let's each write our own review.",
+   "beaver_roman": "gyeolguk uigyeoni dareuneyo. gakja pyeongnoneul sseo bwayo.",
+   "learner": "좋아요. 다음 경연 때 다시 이야기해요.",
+   "en": "Okay. Let's talk again at the next competition.",
+   "roman": "joayo. daeum gyeongyeon ttae dasi iyagihaeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T22-1",
+ "no": 406,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "우리가 알고 지낸 지 벌써 이십 년이네.",
+   "beaver_en": "It's already been twenty years since we met.",
+   "beaver_roman": "Uriga algo jinaen ji beolsseo isim nyeonine.",
+   "learner": "응, 너만큼 가까운 벗은 없어.",
+   "en": "Yeah, no friend is as close to me as you.",
+   "roman": "Eung, neomankeum gakkaun beoseun eopseo."
+  },
+  {
+   "n": 2,
+   "beaver": "그동안 우리 사이를 흔드는 소문도 많았지?",
+   "beaver_en": "There were plenty of rumors that shook us, right?",
+   "beaver_roman": "Geudongan uri saireul heundeuneun somundo manatji?",
+   "learner": "유언비어가 돌아도 난 늘 네 편이었지.",
+   "en": "Even when false rumors spread, I was always on your side.",
+   "roman": "Yueonbieoga doado nan neul ne pyeonieotji."
+  },
+  {
+   "n": 3,
+   "beaver": "그때 넌 왜 끝까지 내 곁에 있었어?",
+   "beaver_en": "Why did you stay by my side to the end back then?",
+   "beaver_roman": "Geuttae neon wae kkeutkkaji nae gyeote isseosseo?",
+   "learner": "비록 손해를 볼지언정 신의를 지키고 싶었어.",
+   "en": "Even if I lost out, I wanted to keep faith with you.",
+   "roman": "Birok sonhaereul boljieonjeong sinuireul jikigo sipeosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "내가 가게 문 닫았을 때도 기억나?",
+   "beaver_en": "Do you remember when I had to close my shop?",
+   "beaver_roman": "Naega gage mun dadasseul ttaedo gieongna?",
+   "learner": "친구들이 십시일반 돈을 보태서 도왔잖아.",
+   "en": "Our friends all chipped in money to help, remember?",
+   "roman": "Chingudeuri sipsiilban doneul botaeseo dowatjana."
+  },
+  {
+   "n": 5,
+   "beaver": "그때 정말 큰 힘이 됐어. 고마워.",
+   "beaver_en": "That really gave me strength. Thank you.",
+   "beaver_roman": "Geuttae jeongmal keun himi dwaesseo. Gomawo.",
+   "learner": "네 기운을 북돋우는 건 당연한 일이었지.",
+   "en": "Lifting your spirits was the obvious thing to do.",
+   "roman": "Ne giuneul bukdoduneun geon dangyeonhan irieotji."
+  },
+  {
+   "n": 6,
+   "beaver": "우리 우정이 이렇게 오래간 비결이 뭘까?",
+   "beaver_en": "What's the secret to our friendship lasting so long?",
+   "beaver_roman": "Uri ujeongi ireoke oraegan bigyeori mwolkka?",
+   "learner": "말 안 해도 통하는 교감과 유대감 덕분이야.",
+   "en": "It's the rapport and bond we share without words.",
+   "roman": "Mal an haedo tonghaneun gyogamgwa yudaegam deokbuniya."
+  },
+  {
+   "n": 7,
+   "beaver": "그러고 보니 우리 둘은 성격도 비슷해.",
+   "beaver_en": "Come to think of it, we even have similar personalities.",
+   "beaver_roman": "Geureogo boni uri dureun seonggyeokdo biseutae.",
+   "learner": "유유상종이라더니 우리가 딱 그렇네.",
+   "en": "Birds of a feather, they say—that's exactly us.",
+   "roman": "Yuyusangjongiradeoni uriga ttak geureonne."
+  },
+  {
+   "n": 8,
+   "beaver": "넌 친구 사이에 뭐가 제일 중요한 것 같아?",
+   "beaver_en": "What do you think matters most between friends?",
+   "beaver_roman": "Neon chingu saie mwoga jeil jungyohan geot gata?",
+   "learner": "차라리 혼자 지낼지언정 가짜 우정은 싫어.",
+   "en": "I'd rather live alone than have a fake friendship.",
+   "roman": "Charari honja jinaeljieonjeong gajja ujeongeun sireo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아. 그래서 우리 사이가 이렇게 돈독한가 봐.",
+   "beaver_en": "Right. Maybe that's why we're so close.",
+   "beaver_roman": "Maja. Geuraeseo uri saiga ireoke dondokanga bwa.",
+   "learner": "앞으로도 우리 우정 돈독하게 지켜 가자.",
+   "en": "Let's keep our friendship strong from now on, too.",
+   "roman": "Apeurodo uri ujeong dondokage jikyeo gaja."
+  },
+  {
+   "n": 10,
+   "beaver": "그래, 넌 정말 좋은 벗이야. 다음 주에 밥 먹자.",
+   "beaver_en": "Sure, you're a truly good friend. Let's eat next week.",
+   "beaver_roman": "Geurae, neon jeongmal joeun beosiya. Daeum jue bap meokja.",
+   "learner": "좋아, 내가 살게. 그날 보자!",
+   "en": "Great, it's on me. See you then!",
+   "roman": "Joa, naega salge. Geunal boja!"
+  }
+ ]
+}

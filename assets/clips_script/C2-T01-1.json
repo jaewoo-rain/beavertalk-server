@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T01-1",
+ "no": 347,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 근데 네 본명이 민수 맞아?",
+   "beaver_en": "Minsu, is Minsu actually your real name?",
+   "beaver_roman": "minsuya, geunde ne bonmyeongi minsu maja?",
+   "learner": "아니, 본명은 김민혁이야. 민수는 애칭이야.",
+   "en": "No, my real name is Kim Minhyeok. Minsu is a nickname.",
+   "roman": "ani, bonmyeongeun gimminhyeogiya. minsuneun aechingiya."
+  },
+  {
+   "n": 2,
+   "beaver": "진짜? 십 년 동안 몰랐네. 왜 말 안 했어?",
+   "beaver_en": "Really? I didn't know for ten years. Why didn't you tell me?",
+   "beaver_roman": "jinjja? sim nyeon dongan mollanne. wae mal an haesseo?",
+   "learner": "다들 알겠거니 하고 말을 안 했지.",
+   "en": "I assumed everyone knew, so I didn't say.",
+   "roman": "dadeul algetgeoni hago mareul an haetji."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 SNS에는 실명 써?",
+   "beaver_en": "Then do you use your real name on social media?",
+   "beaver_roman": "geureom eseuenesueneun silmyeong sseo?",
+   "learner": "아니, 실명 대신 '소인 민수'라고 써.",
+   "en": "No, instead of my real name I use 'Humble Minsu.'",
+   "roman": "ani, silmyeong daesin 'soin minsu'rago sseo."
+  },
+  {
+   "n": 4,
+   "beaver": "하하, 소인이 뭐야. 나이는 어떻게 돼?",
+   "beaver_en": "Haha, 'humble'? How old are you?",
+   "beaver_roman": "haha, soini mwoya. naineun eotteoke dwae?",
+   "learner": "96년생이야. 너보다 두 살 어리지.",
+   "en": "I was born in '96. I'm two years younger than you.",
+   "roman": "gusimnyungnyeonsaengiya. neoboda du sal eoriji."
+  },
+  {
+   "n": 5,
+   "beaver": "어? 나는 동갑이겠거니 했는데.",
+   "beaver_en": "Huh? I assumed we were the same age.",
+   "beaver_roman": "eo? naneun donggabigetgeoni haenneunde.",
+   "learner": "다들 그래. 내가 좀 나이 들어 보이잖아.",
+   "en": "Everyone does. I look a bit older, you know.",
+   "roman": "dadeul geurae. naega jom nai deureo boijana."
+  },
+  {
+   "n": 6,
+   "beaver": "아니야, 젊어 보여. 혈액형도 물어봐도 돼?",
+   "beaver_en": "No, you look young. Can I ask your blood type too?",
+   "beaver_roman": "aniya, jeolmeo boyeo. hyeoraekyeongdo mureobwado dwae?",
+   "learner": "A형이야. 우리 가족은 다 B형인데.",
+   "en": "Type A. Everyone else in my family is type B, though.",
+   "roman": "eihyeongiya. uri gajogeun da bihyeonginde."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘 무슨 일 해? 바쁘다고 들었어.",
+   "beaver_en": "What do you do these days? I heard you're busy.",
+   "beaver_roman": "yojeum museun il hae? bappeudago deureosseo.",
+   "learner": "남녀노소 다 듣는 라디오 프로그램을 만들어.",
+   "en": "I make a radio show that people of all ages listen to.",
+   "roman": "namnyeonoso da deunneun radio peurogeuraemeul mandeureo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 청취자는 어떤 연령층이 많아?",
+   "beaver_en": "Wow, which age group listens most?",
+   "beaver_roman": "wa, cheongchwijaneun eotteon yeollyeongcheungi mana?",
+   "learner": "20대 대학생이 제일 많아.",
+   "en": "Mostly college students in their twenties.",
+   "roman": "isipdae daehaksaengi jeil mana."
+  },
+  {
+   "n": 9,
+   "beaver": "진행자는 어떤 사람이야?",
+   "beaver_en": "What's the host like?",
+   "beaver_roman": "jinhaengjaneun eotteon saramiya?",
+   "learner": "별명이 '라디오녀'인 밝은 사람이야.",
+   "en": "She's a cheerful person nicknamed 'Radio Girl.'",
+   "roman": "byeolmyeongi 'radionyeo'in balgeun saramiya."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 너에 대해 많이 알았다. 다음에 또 보자.",
+   "beaver_en": "I learned a lot about you today. See you next time.",
+   "beaver_roman": "oneul neoe daehae mani aratda. daeume tto boja.",
+   "learner": "그래, 이제 민혁이라고 불러 줘. 잘 가!",
+   "en": "Okay, call me Minhyeok from now on. Bye!",
+   "roman": "geurae, ije minhyeogirago bulleo jwo. jal ga!"
+  }
+ ]
+}

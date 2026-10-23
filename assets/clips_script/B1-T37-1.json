@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T37-1",
+ "no": 147,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 장마철이라 비가 정말 많이 오네요.",
+   "beaver_en": "It's the rainy season, so it rains so much lately.",
+   "beaver_roman": "yojeum jangmacheorira biga jeongmal mani oneyo.",
+   "learner": "네, 습도가 높아서 너무 꿉꿉해요.",
+   "en": "Yes, the humidity is high, so it's really muggy.",
+   "roman": "ne, seupdoga nopaseo neomu kkupkkupaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "주말에 뭐 해요? 계획 있어요?",
+   "beaver_en": "What are you doing this weekend? Any plans?",
+   "beaver_roman": "jumare mwo haeyo? gyehoek isseoyo?",
+   "learner": "한강에 나들이 갈까 말까 하고 있어요.",
+   "en": "I'm wondering whether to go on an outing to the Han River.",
+   "roman": "hangange nadeuri galkka malkka hago isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "비 올 수도 있는데, 예보를 보지 그래요?",
+   "beaver_en": "It might rain. Why don't you check the forecast?",
+   "beaver_roman": "bi ol sudo inneunde, yeboreul boji geuraeyo?",
+   "learner": "아직 안 봤어요. 미리 볼걸 그랬어요.",
+   "en": "I haven't yet. I should have checked earlier.",
+   "roman": "ajik an bwasseoyo. miri bolgeol geuraesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "토요일에 소나기가 온대요. 천둥도 친대요.",
+   "beaver_en": "They say there'll be showers Saturday, with thunder too.",
+   "beaver_roman": "toyoire sonagiga ondaeyo. cheondungdo chindaeyo.",
+   "learner": "정말요? 번개가 치면 위험하겠네요.",
+   "en": "Really? It'd be dangerous if there's lightning.",
+   "roman": "jeongmallyo? beongaega chimyeon wiheomhagenneyo."
+  },
+  {
+   "n": 5,
+   "beaver": "네, 올여름은 태풍도 잦대요.",
+   "beaver_en": "Yes, and they say typhoons are frequent this summer.",
+   "beaver_roman": "ne, ollyeoreumeun taepungdo jatdaeyo.",
+   "learner": "올여름은 태풍이 많군요. 일요일은 어때요?",
+   "en": "Lots of typhoons this summer, huh. How about Sunday?",
+   "roman": "ollyeoreumeun taepungi mankunnyo. iryoireun eottaeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "일요일에는 날씨가 갠대요.",
+   "beaver_en": "They say it'll clear up on Sunday.",
+   "beaver_roman": "iryoireneun nalssiga gaendaeyo.",
+   "learner": "다행이네요. 날이 개고 햇빛 좋을 때 가야겠어요.",
+   "en": "What a relief. I'll go when it clears and it's sunny.",
+   "roman": "dahaengineyo. nari gaego haetbit joeul ttae gayagesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "아침에는 좀 선선할 거예요.",
+   "beaver_en": "It'll be a bit cool in the morning.",
+   "beaver_roman": "achimeneun jom seonseonhal geoyeyo.",
+   "learner": "선선하면 좋죠. 일출 보러 갈까 말까 해요.",
+   "en": "Cool is nice. I'm wondering whether to go see the sunrise.",
+   "roman": "seonseonhamyeon jochyo. ilchul boreo galkka malkka haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋네요. 그런데 새벽에는 쌀쌀할 거예요.",
+   "beaver_en": "Sounds nice. But it'll be chilly at dawn.",
+   "beaver_roman": "jonneyo. geureonde saebyeogeneun ssalssalhal geoyeyo.",
+   "learner": "쌀쌀하면 겉옷 챙길게요. 같이 갈래요?",
+   "en": "Then I'll bring a jacket. Want to come along?",
+   "roman": "ssalssalhamyeon geodot chaenggilgeyo. gachi gallaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요! 그런데 무슨 계절을 제일 좋아해요?",
+   "beaver_en": "Sure! By the way, which season do you like best?",
+   "beaver_roman": "joayo! geureonde museun gyejeoreul jeil joahaeyo?",
+   "learner": "저는 사계절 중에 겨울이 제일 좋아요.",
+   "en": "Of the four seasons, I like winter best.",
+   "roman": "jeoneun sagyejeol junge gyeouri jeil joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 겨울에도 같이 놀러 가요!",
+   "beaver_en": "Then let's hang out in winter too!",
+   "beaver_roman": "geureom gyeouredo gachi nolleo gayo!",
+   "learner": "좋아요. 첫눈 오면 눈사람 만들어요!",
+   "en": "Great. Let's build a snowman at the first snow!",
+   "roman": "joayo. cheonnun omyeon nunsaram mandeureoyo!"
+  }
+ ]
+}

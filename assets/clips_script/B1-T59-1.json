@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T59-1",
+ "no": 156,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 어떤 증상이에요?",
+   "beaver_en": "Welcome. What are your symptoms?",
+   "beaver_roman": "Eoseo oseyo. Eotteon jeungsangieyo?",
+   "learner": "어제부터 배탈이 나서 설사를 해요.",
+   "en": "I've had an upset stomach and diarrhea since yesterday.",
+   "roman": "Eojebuteo baetari naseo seolsareul haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그렇군요. 다른 데는요?",
+   "beaver_en": "I see. Anything else?",
+   "beaver_roman": "Geureokunnyo. Dareun deneunyo?",
+   "learner": "몸살도 있고 피로가 심해요. 죽겠어요.",
+   "en": "I have body aches and bad fatigue. I feel awful.",
+   "roman": "Momsaldo itgo piroga simhaeyo. Jukgesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "열도 있어요? 기침은요?",
+   "beaver_en": "Do you have a fever? A cough?",
+   "beaver_roman": "Yeoldo isseoyo? Gichimeunyo?",
+   "learner": "열은 없는데 콧물이 나고 기침도 해요.",
+   "en": "No fever, but I have a runny nose and a cough too.",
+   "roman": "Yeoreun eomneunde konmuri nago gichimdo haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "감기 증상도 있네요. 담배 피우세요?",
+   "beaver_en": "You have cold symptoms too. Do you smoke?",
+   "beaver_roman": "Gamgi jeungsangdo inneyo. Dambae piuseyo?",
+   "learner": "아니요, 작년부터 금연하고 있어요.",
+   "en": "No, I quit smoking last year.",
+   "roman": "Aniyo, jangnyeonbuteo geumyeonhago isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "잘하셨어요. 배탈 약하고 감기약 드릴게요.",
+   "beaver_en": "Good for you. I'll give you stomach and cold medicine.",
+   "beaver_roman": "Jalhasyeosseoyo. Baetal yakago gamgiyak deurilgeyo.",
+   "learner": "그리고 모기에 물려서 다리가 부었어요.",
+   "en": "Also, I got bitten by a mosquito and my leg swelled up.",
+   "roman": "Geurigo mogie mullyeoseo dariga bueosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "많이 가려우세요? 이 연고를 바르세요.",
+   "beaver_en": "Is it very itchy? Put on this ointment.",
+   "beaver_roman": "Mani garyeouseyo? I yeongoreul bareuseyo.",
+   "learner": "넘어져서 생긴 상처에도 발라도 돼요?",
+   "en": "Can I also put it on a wound from a fall?",
+   "roman": "Neomeojyeoseo saenggin sangcheoedo ballado dwaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 하루 두 번 바르시면 돼요.",
+   "beaver_en": "Yes, just apply it twice a day.",
+   "beaver_roman": "Ne, haru du beon bareusimyeon dwaeyo.",
+   "learner": "아침에 코피도 났는데 괜찮을까요?",
+   "en": "I also had a nosebleed this morning. Is that okay?",
+   "roman": "Achime kopido nanneunde gwaenchaneulkkayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "피곤하면 날 수 있어요. 푹 쉬세요.",
+   "beaver_en": "It can happen when you're tired. Get plenty of rest.",
+   "beaver_roman": "Pigonhamyeon nal su isseoyo. Puk swiseyo.",
+   "learner": "이 약은 어떻게 먹어요?",
+   "en": "How do I take this medicine?",
+   "roman": "I yageun eotteoke meogeoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "하루 세 번, 식후에 드세요. 총 삼 일분이에요.",
+   "beaver_en": "Take it three times a day after meals. Three days' worth in total.",
+   "beaver_roman": "Haru se beon, sikue deuseyo. Chong sam ilbunieyo.",
+   "learner": "네, 메모해 둘게요.",
+   "en": "Okay, I'll make a note of it.",
+   "roman": "Ne, memohae dulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "전부 만오천 원이에요. 빨리 나으세요.",
+   "beaver_en": "That's 15,000 won in total. Get well soon.",
+   "beaver_roman": "Jeonbu manocheon wonieyo. Ppalli naeuseyo.",
+   "learner": "감사합니다. 안녕히 계세요.",
+   "en": "Thank you. Goodbye.",
+   "roman": "Gamsahamnida. Annyeonghi gyeseyo."
+  }
+ ]
+}

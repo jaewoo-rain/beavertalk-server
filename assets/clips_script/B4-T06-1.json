@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T06-1",
+ "no": 257,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "좋은 아침이에요. 얼굴이 많이 피곤해 보여요.",
+   "beaver_en": "Good morning. You look really tired.",
+   "beaver_roman": "joeun achimieyo. eolguri mani pigonhae boyeoyo.",
+   "learner": "네, 어젯밤에 거의 밤새웠어요.",
+   "en": "Yes, I stayed up almost all night.",
+   "roman": "ne, eojetbame geoui bamsaewosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜요? 늦게 들어갔어요?",
+   "beaver_en": "Why? Did you get home late?",
+   "beaver_roman": "waeyo? neutge deureogasseoyo?",
+   "learner": "네, 새벽 두 시에 들어갔어요.",
+   "en": "Yes, I got home at 2 a.m.",
+   "roman": "ne, saebyeok du sie deureogasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "일이 많았나 봐요. 평소엔 잘 자요?",
+   "beaver_en": "You must have had a lot of work. Do you usually sleep well?",
+   "beaver_roman": "iri mananna bwayo. pyeongsoen jal jayo?",
+   "learner": "아니요, 요즘 잘 잠들지 못해요.",
+   "en": "No, I can't fall asleep well these days.",
+   "roman": "aniyo, yojeum jal jamdeulji motaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "무슨 걱정이라도 있어요?",
+   "beaver_en": "Is something worrying you?",
+   "beaver_roman": "museun geokjeongirado isseoyo?",
+   "learner": "걱정은 아니고, 남편이 코를 심하게 골아요.",
+   "en": "Not worries. My husband snores really loudly.",
+   "roman": "geokjeongeun anigo, nampyeoni koreul simhage gorayo."
+  },
+  {
+   "n": 5,
+   "beaver": "아하, 그래서 잠을 못 잤군요.",
+   "beaver_en": "Ah, so that's why you couldn't sleep.",
+   "beaver_roman": "aha, geuraeseo jameul mot jatgunnyo.",
+   "learner": "겨우 잠들었는데 악몽까지 꿨어요.",
+   "en": "I finally fell asleep, but then I had a nightmare.",
+   "roman": "gyeou jamdeureonneunde angmongkkaji kkwosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "어떤 꿈이었어요?",
+   "beaver_en": "What kind of dream was it?",
+   "beaver_roman": "eotteon kkumieosseoyo?",
+   "learner": "꿈속에서도 일하느라 밤을 새웠어요.",
+   "en": "Even in my dream, I stayed up all night working.",
+   "roman": "kkumsogeseodo ilhaneura bameul saewosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "정말 힘들었겠어요. 지금 졸리죠?",
+   "beaver_en": "That must have been hard. You're sleepy now, right?",
+   "beaver_roman": "jeongmal himdeureotgesseoyo. jigeum jollijyo?",
+   "learner": "네, 졸음이 와서 오늘 실수할지도 몰라요.",
+   "en": "Yes, I'm drowsy, so I might make mistakes today.",
+   "roman": "ne, joreumi waseo oneul silsuhaljido mollayo."
+  },
+  {
+   "n": 8,
+   "beaver": "잠깐 일어나서 기지개를 켜 보세요.",
+   "beaver_en": "Stand up for a moment and stretch.",
+   "beaver_roman": "jamkkan ireonaseo gijigaereul kyeo boseyo.",
+   "learner": "좋아요. 기지개를 켜니까 좀 나아요.",
+   "en": "Okay. Stretching makes me feel a bit better.",
+   "roman": "joayo. gijigaereul kyeonikka jom naayo."
+  },
+  {
+   "n": 9,
+   "beaver": "요즘 하루를 어떻게 보내요?",
+   "beaver_en": "How do you spend your days these days?",
+   "beaver_roman": "yojeum harureul eotteoke bonaeyo?",
+   "learner": "밤을 새우는 게 요즘 제 일상이 됐어요.",
+   "en": "Staying up all night has become my daily life lately.",
+   "roman": "bameul saeuneun ge yojeum je ilsangi dwaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그건 건강에 안 좋아요. 오늘은 일찍 자요.",
+   "beaver_en": "That's bad for your health. Go to bed early tonight.",
+   "beaver_roman": "geugeon geongange an joayo. oneureun iljjik jayo.",
+   "learner": "네, 생활 습관부터 바꿔 볼게요.",
+   "en": "Okay, I'll start by changing my lifestyle habits.",
+   "roman": "ne, saenghwal seupgwanbuteo bakkwo bolgeyo."
+  }
+ ]
+}

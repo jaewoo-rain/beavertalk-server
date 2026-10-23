@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T44-1",
+ "no": 332,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오십시오. 찾으시는 물건이 있습니까?",
+   "beaver_en": "Welcome. Are you looking for something?",
+   "beaver_roman": "eoseo osipsio. chajeusineun mulgeoni itseumnikka?",
+   "learner": "조선 시대 골동품을 좀 보고 싶어요.",
+   "en": "I'd like to see some Joseon-era antiques.",
+   "roman": "joseon sidae goldongpumeul jom bogo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이 도자기는 양반가에서 나온 것입니다.",
+   "beaver_en": "This pottery came from a yangban family.",
+   "beaver_roman": "i dojagineun yangbangaeseo naon geosimnida.",
+   "learner": "그래요? 이 도자기는 유래가 어떻게 돼요?",
+   "en": "Really? What is the origin of this pottery?",
+   "roman": "geuraeyo? i dojagineun yuraega eotteoke dwaeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "조선 중기에 양반 집안에서 쓰던 물건입니다.",
+   "beaver_en": "A yangban family used it in mid-Joseon.",
+   "beaver_roman": "joseon junggie yangban jibaneseo sseudeon mulgeonimnida.",
+   "learner": "그럼 궁중에서 쓰던 물건은 아니군요.",
+   "en": "So it wasn't used in the royal court.",
+   "roman": "geureom gungjungeseo sseudeon mulgeoneun anigunyo."
+  },
+  {
+   "n": 4,
+   "beaver": "네, 하지만 이 거울은 궁에서 나온 것입니다.",
+   "beaver_en": "Right, but this mirror came from a palace.",
+   "beaver_roman": "ne, hajiman i geoureun gungeseo naon geosimnida.",
+   "learner": "정말요? 궁에서 누가 쓰던 거예요?",
+   "en": "Really? Who used it in the palace?",
+   "roman": "jeongmallyo? gungeseo nuga sseudeon geoyeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 어린 왕자가 쓰던 거울이라고 합니다.",
+   "beaver_en": "Yes, they say a young prince used it.",
+   "beaver_roman": "ne, eorin wangjaga sseudeon geourirago hamnida.",
+   "learner": "증명서가 있나요? 사진으로나마 보고 싶어요.",
+   "en": "Is there a certificate? I'd like to see it, even if only in a photo.",
+   "roman": "jeungmyeongseoga innayo? sajineuronama bogo sipeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "증명서가 있습니다. 여기 보십시오.",
+   "beaver_en": "There is a certificate. Here, take a look.",
+   "beaver_roman": "jeungmyeongseoga itseumnida. yeogi bosipsio.",
+   "learner": "이런 거울은 아주 드물죠?",
+   "en": "Mirrors like this are very rare, right?",
+   "roman": "ireon geoureun aju deumuljyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "그렇습니다. 조선 건국 초기의 물건입니다.",
+   "beaver_en": "Yes. It's from the early days of Joseon's founding.",
+   "beaver_roman": "geureosseumnida. joseon geonguk chogiui mulgeonimnida.",
+   "learner": "조선이 멸망한 뒤에는 어디에 있었어요?",
+   "en": "Where was it after Joseon fell?",
+   "roman": "joseoni myeolmanghan dwieneun eodie isseosseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "일본에 있다가 다시 한국으로 돌아왔습니다.",
+   "beaver_en": "It was in Japan, then came back to Korea.",
+   "beaver_roman": "ilbone itdaga dasi hangugeuro dorawatseumnida.",
+   "learner": "근대에 나갔다가 해방 후에 돌아왔군요.",
+   "en": "So it left in the modern era and returned after liberation.",
+   "roman": "geundaee nagatdaga haebang hue dorawatgunyo."
+  },
+  {
+   "n": 9,
+   "beaver": "네. 이 칼도 보십시오. 전쟁터에서 쓰던 겁니다.",
+   "beaver_en": "Yes. Look at this sword too. It was used in battle.",
+   "beaver_roman": "ne. i kaldo bosipsio. jeonjaengteoeseo sseudeon geomnida.",
+   "learner": "백성이 쓰던 칼인가요, 양반이 쓰던 칼인가요?",
+   "en": "Was it a commoner's sword or a yangban's?",
+   "roman": "baekseongi sseudeon karingayo, yangbani sseudeon karingayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "양반이 쓰던 칼입니다. 오늘 하나 고르시겠습니까?",
+   "beaver_en": "A yangban's. Will you choose one today?",
+   "beaver_roman": "yangbani sseudeon karimnida. oneul hana goreusigetseumnikka?",
+   "learner": "칼은 비싸네요. 도자기나마 하나 사 갈게요.",
+   "en": "The sword is pricey. I'll at least buy the pottery.",
+   "roman": "kareun bissaneyo. dojaginama hana sa galgeyo."
+  }
+ ]
+}

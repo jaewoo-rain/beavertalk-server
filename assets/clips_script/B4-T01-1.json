@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T01-1",
+ "no": 252,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 세대 차이가 크다는 말을 자주 들어요.",
+   "beaver_en": "I often hear that the generation gap is big these days.",
+   "beaver_roman": "Yojeum sedae chaiga keudaneun mareul jaju deureoyo.",
+   "learner": "맞아요. 제 고국에서도 세대 이야기가 많아요.",
+   "en": "That's right. People talk about generations a lot in my homeland too.",
+   "roman": "Majayo. Je gogugeseodo sedae iyagiga manayo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 고국 소식은 자주 들으세요?",
+   "beaver_en": "Really? Do you often hear news from your homeland?",
+   "beaver_roman": "Geuraeyo? Goguk sosigeun jaju deureuseyo?",
+   "learner": "네, 아침에 일어나기가 무섭게 뉴스를 봐요.",
+   "en": "Yes, I check the news as soon as I wake up.",
+   "roman": "Ne, achime ireonagiga museopge nyuseureul bwayo."
+  },
+  {
+   "n": 3,
+   "beaver": "고국을 떠난 동포들은 어떻게 지내요?",
+   "beaver_en": "How are the fellow countrymen who left home doing?",
+   "beaver_roman": "Gogugeul tteonan dongpodeureun eotteoke jinaeyo?",
+   "learner": "여기 동포들은 서로 많이 도와요.",
+   "en": "The fellow countrymen here help each other a lot.",
+   "roman": "Yeogi dongpodeureun seoro mani dowayo."
+  },
+  {
+   "n": 4,
+   "beaver": "고국에서는 세대 갈등이 크다고 하던데요.",
+   "beaver_en": "I heard the generational conflict is big in your homeland.",
+   "beaver_roman": "Gogugeseoneun sedae galdeungi keudago hadeondeyo.",
+   "learner": "네, 구세대는 젊은 사람 생각을 잘 몰라요.",
+   "en": "Yes, the older generation doesn't really understand young people.",
+   "roman": "Ne, gusedaeneun jeolmeun saram saenggageul jal mollayo."
+  },
+  {
+   "n": 5,
+   "beaver": "어떤 일로 갈등이 생겨요?",
+   "beaver_en": "What causes the conflict?",
+   "beaver_roman": "Eotteon illo galdeungi saenggyeoyo?",
+   "learner": "젊은 세대는 남의 눈을 별로 신경 안 써요.",
+   "en": "The young generation doesn't care much about what others think.",
+   "roman": "Jeolmeun sedaeneun namui nuneul byeollo singyeong an sseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "하긴, 우리 부모님은 남의 시선을 중시하세요.",
+   "beaver_en": "True, my parents care a lot about how others see them.",
+   "beaver_roman": "Hagin, uri bumonimeun namui siseoneul jungsihaseyo.",
+   "learner": "우리 할머니도 그러세요. 어릴 때부터 그러셨대요.",
+   "en": "My grandmother too. She says she's been like that since childhood.",
+   "roman": "Uri halmeonido geureoseyo. Eoril ttaebuteo geureosyeotdaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘 고국 아이들은 어떻게 지내요?",
+   "beaver_en": "How are kids in your homeland doing these days?",
+   "beaver_roman": "Yojeum goguk aideureun eotteoke jinaeyo?",
+   "learner": "아이들이 학교가 끝나기가 무섭게 학원에 가요.",
+   "en": "Kids go to cram school as soon as school ends.",
+   "roman": "Aideuri hakgyoga kkeunnagiga museopge hagwone gayo."
+  },
+  {
+   "n": 8,
+   "beaver": "정말 바쁘네요. 놀 시간이 없겠어요.",
+   "beaver_en": "That's really busy. They must have no time to play.",
+   "beaver_roman": "Jeongmal bappeuneyo. Nol sigani eopgesseoyo.",
+   "learner": "네, 그래도 다들 열심히 해서 인정받고 싶어 해요.",
+   "en": "Yes, but they all want to work hard and be recognized.",
+   "roman": "Ne, geuraedo dadeul yeolsimhi haeseo injeongbatgo sipeo haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그런데 한국에 온 지는 얼마나 됐어요?",
+   "beaver_en": "By the way, how long have you been in Korea?",
+   "beaver_roman": "Geureonde hanguge on jineun eolmana dwaesseoyo?",
+   "learner": "저는 베트남에서 온 지 삼 년 됐어요. 회사원이에요.",
+   "en": "I came from Vietnam three years ago. I'm an office worker.",
+   "roman": "Jeoneun beteunameseo on ji sam nyeon dwaesseoyo. Hoesawonieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "다음에 고국 이야기 또 들려주세요. 반가웠어요.",
+   "beaver_en": "Tell me more about your homeland next time. Nice talking.",
+   "beaver_roman": "Daeume goguk iyagi tto deullyeojuseyo. Bangawosseoyo.",
+   "learner": "네, 고국 소식 들리면 또 전해 드릴게요.",
+   "en": "Sure, I'll share more when I hear news from home.",
+   "roman": "Ne, goguk sosik deullimyeon tto jeonhae deurilgeyo."
+  }
+ ]
+}

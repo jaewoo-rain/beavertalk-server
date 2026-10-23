@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T10-1",
+ "no": 260,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지야, 이 상가는 가게마다 값이 다르네.",
+   "beaver_en": "Minji, prices differ from store to store in this arcade.",
+   "beaver_roman": "minjiya, i sangganeun gagemada gapssi dareune.",
+   "learner": "응, 이 상가에서 여기가 제일 싸.",
+   "en": "Yeah, this place is the cheapest in the arcade.",
+   "roman": "eung, i sanggaeseo yeogiga jeil ssa."
+  },
+  {
+   "n": 2,
+   "beaver": "여기 단골 가게야?",
+   "beaver_en": "Is this your regular store?",
+   "beaver_roman": "yeogi dangol gageya?",
+   "learner": "응, 단골이라서 사장님을 잘 알아.",
+   "en": "Yes, I'm a regular, so I know the owner well.",
+   "roman": "eung, dangoriraseo sajangnimeul jal ara."
+  },
+  {
+   "n": 3,
+   "beaver": "이 운동화 얼마야? 처음 보는 거네.",
+   "beaver_en": "How much are these sneakers? I've never seen them.",
+   "beaver_roman": "i undonghwa eolmaya? cheoeum boneun geone.",
+   "learner": "사만 원이야. 정가보다 만 원 싸.",
+   "en": "It's 40,000 won. That's 10,000 won below list price.",
+   "roman": "saman woniya. jeonggaboda man won ssa."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 그럼 저 가게는 얼마였어?",
+   "beaver_en": "Wow, so how much was it at that store?",
+   "beaver_roman": "wa, geureom jeo gageneun eolmayeosseo?",
+   "learner": "저 가게는 오만 원이야. 여기가 훨씬 싸지.",
+   "en": "That store charges 50,000 won. It's much cheaper here.",
+   "roman": "jeo gageneun oman woniya. yeogiga hwolssin ssaji."
+  },
+  {
+   "n": 5,
+   "beaver": "근데 너무 싸면 싸구려 아닐까?",
+   "beaver_en": "But if it's too cheap, isn't it junk?",
+   "beaver_roman": "geunde neomu ssamyeon ssaguryeo anilkka?",
+   "learner": "아니야, 싸구려와 달리 품질이 좋아.",
+   "en": "No, unlike cheap goods, the quality is good.",
+   "roman": "aniya, ssaguryeowa dalli pumjiri joa."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 나도 하나 살까?",
+   "beaver_en": "Then should I buy one too?",
+   "beaver_roman": "geureom nado hana salkka?",
+   "learner": "응, 여기서 사는 게 제일 이득이야.",
+   "en": "Yes, buying here is the best deal.",
+   "roman": "eung, yeogiseo saneun ge jeil ideugiya."
+  },
+  {
+   "n": 7,
+   "beaver": "저 사람은 왜 저렇게 많이 사?",
+   "beaver_en": "Why is that person buying so much?",
+   "beaver_roman": "jeo sarameun wae jeoreoke mani sa?",
+   "learner": "많이 사면 더 싸게 해 줘서 그래.",
+   "en": "It's because they give a discount if you buy a lot.",
+   "roman": "mani samyeon deo ssage hae jwoseo geurae."
+  },
+  {
+   "n": 8,
+   "beaver": "계산대가 붐비네. 빨리 줄 서자.",
+   "beaver_en": "The checkout is crowded. Let's get in line quickly.",
+   "beaver_roman": "gyesandaega bumbine. ppalli jul seoja.",
+   "learner": "잠깐, 나 할인권이 있어. 같이 쓰자.",
+   "en": "Wait, I have a discount coupon. Let's use it together.",
+   "roman": "jamkkan, na harinkkwoni isseo. gachi sseuja."
+  },
+  {
+   "n": 9,
+   "beaver": "와, 고마워! 다른 물건도 볼까?",
+   "beaver_en": "Wow, thanks! Shall we look at other things too?",
+   "beaver_roman": "wa, gomawo! dareun mulgeondo bolkka?",
+   "learner": "응, 생활용품도 다른 가게보다 싸.",
+   "en": "Sure, household goods are cheaper than at other stores too.",
+   "roman": "eung, saenghwallyongpumdo dareun gageboda ssa."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아, 그럼 더 둘러보고 같이 계산하자.",
+   "beaver_en": "Great, let's look around more and pay together.",
+   "beaver_roman": "joa, geureom deo dulleobogo gachi gyesanhaja.",
+   "learner": "그래, 다 고르고 계산대로 가자!",
+   "en": "Okay, let's pick everything and go to the checkout!",
+   "roman": "geurae, da goreugo gyesandaero gaja!"
+  }
+ ]
+}

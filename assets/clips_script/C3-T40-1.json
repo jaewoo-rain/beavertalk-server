@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T40-1",
+ "no": 420,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘은 사회 격차 문제를 진단해 보겠습니다.",
+   "beaver_en": "Today, let's diagnose the problem of social disparity.",
+   "beaver_roman": "Oneureun sahoe gyeokcha munjereul jindanhae bogetseumnida.",
+   "learner": "네, 요즘 빈부 격차가 정말 심각합니다.",
+   "en": "Yes, the gap between rich and poor is really serious these days.",
+   "roman": "Ne, yojeum binbu gyeokchaga jeongmal simgakamnida."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 세태가 가장 걱정되십니까?",
+   "beaver_en": "Which social trend worries you the most?",
+   "beaver_roman": "Eotteon setaega gajang geokjeongdoesimnikka?",
+   "learner": "지역을 막론하고 빈민이 늘고 있습니다.",
+   "en": "Regardless of region, the number of poor people is growing.",
+   "roman": "Jiyeogeul mangnonhago binmini neulgo itseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "그 원인은 무엇입니까?",
+   "beaver_en": "What is the cause?",
+   "beaver_roman": "Geu wonineun mueosimnikka?",
+   "learner": "공정성을 잃은 제도가 원인이라고 봅니다.",
+   "en": "I think the cause is a system that has lost its fairness.",
+   "roman": "Gongjeongseongeul ireun jedoga wonirago bomnida."
+  },
+  {
+   "n": 4,
+   "beaver": "성별에 따른 격차는 어떻습니까?",
+   "beaver_en": "What about the gender gap?",
+   "beaver_roman": "Seongbyeore ttareun gyeokchaneun eotteosseumnikka?",
+   "learner": "아직도 직장에서 성차별이 남아 있습니다.",
+   "en": "Gender discrimination still remains in the workplace.",
+   "roman": "Ajikdo jikjangeseo seongchabyeori nama itseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "여성의 공헌은 인정받고 있습니까?",
+   "beaver_en": "Are women's contributions being recognized?",
+   "beaver_roman": "Yeoseongui gongheoneun injeongbatgo itseumnikka?",
+   "learner": "공헌은 크지만 임금 격차는 여전합니다.",
+   "en": "Their contribution is big, but the wage gap persists.",
+   "roman": "Gongheoneun keujiman imgeum gyeokchaneun yeojeonhamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "해결책은 무엇입니까?",
+   "beaver_en": "What is the solution?",
+   "beaver_roman": "Haegyeolchaegeun mueosimnikka?",
+   "learner": "인권과 공존을 우선으로 하는 정책입니다.",
+   "en": "Policies that put human rights and coexistence first.",
+   "roman": "Ingwongwa gongjoneul useoneuro haneun jeongchaegimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "사회 제도와 복지에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about social systems and welfare?",
+   "beaver_roman": "Sahoe jedowa bokjie daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "복지 혜택이 필요한 사람에게 제대로 가야 합니다.",
+   "en": "Welfare benefits must properly reach those who need them.",
+   "roman": "Bokji hyetaegi piryohan saramege jedaero gaya hamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "정부만으로 충분하겠습니까?",
+   "beaver_en": "Is the government alone enough?",
+   "beaver_roman": "Jeongbumaneuro chungbunhagetseumnikka?",
+   "learner": "아닙니다. 민간의 참여도 꼭 필요합니다.",
+   "en": "No. Participation from the private sector is essential too.",
+   "roman": "Animnida. Minganui chamyeodo kkok piryohamnida."
+  },
+  {
+   "n": 9,
+   "beaver": "다른 나라의 사례도 참고할 만합니까?",
+   "beaver_en": "Are other countries' cases worth referring to?",
+   "beaver_roman": "Dareun naraui saryedo chamgohal manhamnikka?",
+   "learner": "네, 국내외를 막론하고 좋은 사례는 참고해야 합니다.",
+   "en": "Yes, we should refer to good cases, both at home and abroad.",
+   "roman": "Ne, gungnaeoereul mangnonhago joeun saryeneun chamgohaeya hamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막으로 한 말씀 부탁드립니다.",
+   "beaver_en": "Please give us a final word.",
+   "beaver_roman": "Majimageuro han malsseum butakdeurimnida.",
+   "learner": "모두 함께 격차를 줄여 나가야 합니다. 감사합니다.",
+   "en": "We must all work together to reduce the gap. Thank you.",
+   "roman": "Modu hamkke gyeokchareul juryeo nagaya hamnida. Gamsahamnida."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T13-1",
+ "no": 450,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어머, 이게 무슨 냄새야? 솥에서 탄 냄새 나.",
+   "beaver_en": "Oh my, what's that smell? Something's burning in the pot.",
+   "beaver_roman": "eomeo, ige museun naemsaeya? soteseo tan naemsae na.",
+   "learner": "엄마, 죄송해요. 보시다시피 밥을 태웠어요.",
+   "en": "Mom, I'm sorry. As you can see, I burned the rice.",
+   "roman": "eomma, joesonghaeyo. bosidasipi babeul taewosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "햅쌀로 지은 밥인데... 아깝다.",
+   "beaver_en": "It was made with new rice... What a waste.",
+   "beaver_roman": "haepssallo jieun babinde... akkapda.",
+   "learner": "햅쌀을 헹구고 물을 너무 적게 넣었나 봐요.",
+   "en": "I rinsed the new rice but must have added too little water.",
+   "roman": "haepssareul henggugo mureul neomu jeokge neoeonna bwayo."
+  },
+  {
+   "n": 3,
+   "beaver": "국은 어때? 사골은 잘 고았어?",
+   "beaver_en": "How's the soup? Did you simmer the bones well?",
+   "beaver_roman": "gugeun eottae? sagoreun jal goasseo?",
+   "learner": "불을 세게 해서 펄펄 끓이기만 했어요.",
+   "en": "I turned the heat up high and just boiled it hard.",
+   "roman": "bureul sege haeseo peolpeol kkeurigiman haesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "약불로 오래 고아야 맛이 우러나는데.",
+   "beaver_en": "You have to simmer it long on low heat for the flavor to come out.",
+   "beaver_roman": "yakbullo orae goaya masi ureonaneunde.",
+   "learner": "아시다시피 제가 성격이 급하잖아요.",
+   "en": "As you know, I'm impatient.",
+   "roman": "asidasipi jega seonggyeogi geupajanayo."
+  },
+  {
+   "n": 5,
+   "beaver": "기름은 걷어냈어? 국물이 탁하네.",
+   "beaver_en": "Did you skim off the fat? The broth is cloudy.",
+   "beaver_roman": "gireumeun geodeonaesseo? gungmuri takane.",
+   "learner": "기름을 안 걷어내서 그대로 떠 있어요.",
+   "en": "I didn't skim the fat, so it's still floating there.",
+   "roman": "gireumeul an geodeonaeseo geudaero tteo isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "양념을 더 넣어 볼까?",
+   "beaver_en": "Should we try adding more seasoning?",
+   "beaver_roman": "yangnyeomeul deo neoeo bolkka?",
+   "learner": "소금이랑 파를 좀 넣어 볼까요?",
+   "en": "Should we try adding some salt and green onion?",
+   "roman": "sogeumirang pareul jom neoeo bolkkayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "계란찜은? 노른자는 잘 섞었어?",
+   "beaver_en": "And the steamed eggs? Did you mix the yolks well?",
+   "beaver_roman": "gyeranjjimeun? noreunjaneun jal seokkeosseo?",
+   "learner": "노른자를 덜 휘저어서 모양이 이상해요.",
+   "en": "I didn't stir the yolks enough, so it looks weird.",
+   "roman": "noreunjareul deol hwijeoeoseo moyangi isanghaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "괜찮아. 반찬은 뭘 곁들일까?",
+   "beaver_en": "It's okay. What side dishes should we serve with it?",
+   "beaver_roman": "gwaenchana. banchaneun mwol gyeotdeurilkka?",
+   "learner": "묵은지랑 견과류 볶음을 곁들이면 어때요?",
+   "en": "How about serving aged kimchi and stir-fried nuts with it?",
+   "roman": "mugeunjirang gyeongwaryu bokkeumeul gyeotdeurimyeon eottaeyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "좋다. 이 꽃은 장식용이야?",
+   "beaver_en": "Sounds good. Is this flower just for decoration?",
+   "beaver_roman": "jota. i kkocheun jangsingnyongiya?",
+   "learner": "아니요, 식용 꽃이라 먹어도 돼요.",
+   "en": "No, it's an edible flower, so you can eat it.",
+   "roman": "aniyo, sigyong kkochira meogeodo dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "잘했어. 다음엔 천천히 같이 하자.",
+   "beaver_en": "Well done. Next time let's take it slow together.",
+   "beaver_roman": "jalhaesseo. daeumen cheoncheonhi gachi haja.",
+   "learner": "네, 다음엔 약불로 천천히 고아 볼게요.",
+   "en": "Okay, next time I'll simmer it slowly on low heat.",
+   "roman": "ne, daeumen yakbullo cheoncheonhi goa bolgeyo."
+  }
+ ]
+}

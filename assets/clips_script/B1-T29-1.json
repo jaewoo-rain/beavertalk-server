@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T29-1",
+ "no": 142,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 오늘 계속 하품을 하네요. 피곤해요?",
+   "beaver_en": "Minsu, you keep yawning today. Are you tired?",
+   "beaver_roman": "Minsu ssi, oneul gyesok hapumeul haneyo. Pigonhaeyo?",
+   "learner": "네, 요즘 잠을 못 자기 때문에 하품이 나요.",
+   "en": "Yes, I yawn because I can't sleep these days.",
+   "roman": "Ne, yojeum jameul mot jagi ttaemune hapumi nayo."
+  },
+  {
+   "n": 2,
+   "beaver": "손은 왜 그래요? 손등이 빨개요.",
+   "beaver_en": "What happened to your hand? The back of it is red.",
+   "beaver_roman": "Soneun wae geuraeyo? Sondeungi ppalgaeyo.",
+   "learner": "넘어졌기 때문에 손등이 빨개요. 손목도 아파요.",
+   "en": "It's red because I fell. My wrist hurts too.",
+   "roman": "Neomeojyeotgi ttaemune sondeungi ppalgaeyo. Sonmokdo apayo."
+  },
+  {
+   "n": 3,
+   "beaver": "손목도요? 많이 아파요?",
+   "beaver_en": "Your wrist too? Does it hurt a lot?",
+   "beaver_roman": "Sonmokdoyo? Mani apayo?",
+   "learner": "네, 손목이 아프기 때문에 타자도 못 쳐요.",
+   "en": "Yes, I can't even type because my wrist hurts.",
+   "roman": "Ne, sonmogi apeugi ttaemune tajado mot chyeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "걷는 것도 불편해 보여요.",
+   "beaver_en": "Walking looks uncomfortable for you, too.",
+   "beaver_roman": "Geonneun geotdo bulpyeonhae boyeoyo.",
+   "learner": "왼발도 조금 다쳤어요. 그래서 천천히 걸어요.",
+   "en": "I hurt my left foot a bit too. So I walk slowly.",
+   "roman": "Oenbaldo jogeum dachyeosseoyo. Geuraeseo cheoncheonhi georeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저런. 다른 변화는 없어요?",
+   "beaver_en": "Oh no. Any other changes?",
+   "beaver_roman": "Jeoreon. Dareun byeonhwaneun eopseoyo?",
+   "learner": "요즘 손발이 자주 차가워요. 감각도 좀 이상해요.",
+   "en": "My hands and feet are often cold. The feeling is odd too.",
+   "roman": "Yojeum sonbari jaju chagawoyo. Gamgakdo jom isanghaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "감각이 어떻게 이상해요?",
+   "beaver_en": "How is the feeling strange?",
+   "beaver_roman": "Gamgagi eotteoke isanghaeyo?",
+   "learner": "가끔 손끝에 감각이 없어요.",
+   "en": "Sometimes I have no feeling in my fingertips.",
+   "roman": "Gakkeum sonkkeute gamgagi eopseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "병원에는 가 봤어요?",
+   "beaver_en": "Have you been to the hospital?",
+   "beaver_roman": "Byeongwoneneun ga bwasseoyo?",
+   "learner": "네, 의사가 간이 좀 안 좋다고 했어요.",
+   "en": "Yes, the doctor said my liver isn't very good.",
+   "roman": "Ne, uisaga gani jom an jotago haesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "간이요? 술을 많이 마셨어요?",
+   "beaver_en": "Your liver? Did you drink a lot?",
+   "beaver_roman": "Ganiyo? Sureul mani masyeosseoyo?",
+   "learner": "네, 회식이 많았기 때문에 술을 자주 마셨어요.",
+   "en": "Yes, I drank often because there were many team dinners.",
+   "roman": "Ne, hoesigi manatgi ttaemune sureul jaju masyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "이제 술도 줄이고 푹 쉬세요.",
+   "beaver_en": "Cut down on drinking now and rest well.",
+   "beaver_roman": "Ije suldo jurigo puk swiseyo.",
+   "learner": "네, 건강이 중요하기 때문에 술을 끊을 거예요.",
+   "en": "Yes, I'll quit drinking because health is important.",
+   "roman": "Ne, geongangi jungyohagi ttaemune sureul kkeuneul geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘은 일찍 퇴근하세요. 제가 도와줄게요.",
+   "beaver_en": "Go home early today. I'll help you.",
+   "beaver_roman": "Oneureun iljjik toegeunhaseyo. Jega dowajulgeyo.",
+   "learner": "지영 씨, 고마워요. 내일 커피 살게요.",
+   "en": "Thanks, Jiyeong. I'll buy you coffee tomorrow.",
+   "roman": "Jiyeong ssi, gomawoyo. Naeil keopi salgeyo."
+  }
+ ]
+}

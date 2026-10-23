@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T37-1",
+ "no": 18,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘 날씨가 정말 춥네요.",
+   "beaver_en": "Hello. It's really cold today.",
+   "beaver_roman": "annyeonghaseyo. oneul nalssiga jeongmal chumneyo.",
+   "learner": "네, 정말 춥습니다. 겨울은 너무 추워요.",
+   "en": "Yes, it's really cold. Winter is so cold.",
+   "roman": "ne, jeongmal chupseumnida. gyeoureun neomu chuwoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "겨울이 길지요?",
+   "beaver_en": "Winter is long, isn't it?",
+   "beaver_roman": "gyeouri giljiyo?",
+   "learner": "네, 겨울은 길지만 봄이 곧 옵니다.",
+   "en": "Yes, winter is long, but spring is coming soon.",
+   "roman": "ne, gyeoureun giljiman bomi got omnida."
+  },
+  {
+   "n": 3,
+   "beaver": "봄 날씨는 어때요?",
+   "beaver_en": "What is spring weather like?",
+   "beaver_roman": "bom nalssineun eottaeyo?",
+   "learner": "봄은 따뜻하지만 비가 자주 내립니다.",
+   "en": "Spring is warm, but it often rains.",
+   "roman": "bomeun ttatteutajiman biga jaju naerimnida."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 봄에는 우산이 필요하겠네요.",
+   "beaver_en": "Then you'll need an umbrella in spring.",
+   "beaver_roman": "geureom bomeneun usani piryohagenneyo.",
+   "learner": "네, 가방에 우산을 넣고 다닙니다.",
+   "en": "Yes, I carry an umbrella in my bag.",
+   "roman": "ne, gabange usaneul neoko danimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "여름에는 비가 많이 와요.",
+   "beaver_en": "It rains a lot in summer.",
+   "beaver_roman": "yeoreumeneun biga mani wayo.",
+   "learner": "맞아요. 여름에는 비가 정말 많이 와요.",
+   "en": "Right. It really rains a lot in summer.",
+   "roman": "majayo. yeoreumeneun biga jeongmal mani wayo."
+  },
+  {
+   "n": 6,
+   "beaver": "작년 여름은 정말 더웠어요.",
+   "beaver_en": "Last summer was really hot.",
+   "beaver_roman": "jangnyeon yeoreumeun jeongmal deowosseoyo.",
+   "learner": "네, 여름은 덥지만 낮이 길어서 좋습니다.",
+   "en": "Yes, summer is hot, but I like the long days.",
+   "roman": "ne, yeoreumeun deopjiman naji gireoseo joseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "겨울하고 봄 중에서 어느 계절이 더 좋아요?",
+   "beaver_en": "Which season do you like better, winter or spring?",
+   "beaver_roman": "gyeoulhago bom jungeseo eoneu gyejeori deo joayo?",
+   "learner": "저는 봄이 좋습니다. 겨울보다 따뜻합니다.",
+   "en": "I like spring. It's warmer than winter.",
+   "roman": "jeoneun bomi joseumnida. gyeoulboda ttatteutamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "저는 겨울이 좋아요. 눈이 내리니까요.",
+   "beaver_en": "I like winter, because it snows.",
+   "beaver_roman": "jeoneun gyeouri joayo. nuni naerinikkayo.",
+   "learner": "눈은 예쁘지만 저는 추운 날씨가 싫어요.",
+   "en": "Snow is pretty, but I don't like cold weather.",
+   "roman": "nuneun yeppeujiman jeoneun chuun nalssiga sireoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "봄이 돌아오면 같이 산책해요.",
+   "beaver_en": "When spring comes back, let's take a walk together.",
+   "beaver_roman": "bomi doraomyeon gachi sanchaekaeyo.",
+   "learner": "좋습니다. 따뜻한 날에 같이 걸어요.",
+   "en": "Sounds good. Let's walk together on a warm day.",
+   "roman": "joseumnida. ttatteutan nare gachi georeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네. 오늘은 추우니까 따뜻하게 입으세요.",
+   "beaver_en": "Okay. It's cold today, so dress warmly.",
+   "beaver_roman": "ne. oneureun chuunikka ttatteutage ibeuseyo.",
+   "learner": "네, 고맙습니다. 또 이야기해요.",
+   "en": "Yes, thank you. Let's talk again.",
+   "roman": "ne, gomapseumnida. tto iyagihaeyo."
+  }
+ ]
+}

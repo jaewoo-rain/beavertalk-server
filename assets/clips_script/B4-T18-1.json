@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T18-1",
+ "no": 264,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지은 씨, 오랜만이에요. 잘 지냈어요?",
+   "beaver_en": "Jieun, long time no see. How have you been?",
+   "beaver_roman": "Jieun ssi, oraenmanieyo. jal jinaesseoyo?",
+   "learner": "네, 잘 지냈어요. 이민 간다는 소식 들었어요.",
+   "en": "Yes, I've been well. I heard you're emigrating.",
+   "roman": "Ne, jal jinaesseoyo. imin gandaneun sosik deureosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 맞아요. 다음 달에 캐나다로 가요.",
+   "beaver_en": "Yes, that's right. I'm going to Canada next month.",
+   "beaver_roman": "Ne, majayo. daeum dare kaenadaro gayo.",
+   "learner": "와, 이민 수속은 다 끝났어요?",
+   "en": "Wow, are your immigration procedures all done?",
+   "roman": "Wa, imin susogeun da kkeunnasseoyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "거의 끝났어요. 서류가 정말 많았어요.",
+   "beaver_en": "Almost done. There was so much paperwork.",
+   "beaver_roman": "Geoui kkeunnasseoyo. seoryuga jeongmal manasseoyo.",
+   "learner": "수속이 복잡했겠네요. 어디에 정착해요?",
+   "en": "The procedures must have been complicated. Where will you settle?",
+   "roman": "Susogi bokjapaetgenneyo. eodie jeongchakaeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "밴쿠버에 정착하려고 해요. 바다가 가까워요.",
+   "beaver_en": "I plan to settle in Vancouver. It's close to the sea.",
+   "beaver_roman": "Baenkubeoe jeongchakaryeogo haeyo. badaga gakkawoyo.",
+   "learner": "밴쿠버는 휴양지로도 유명하잖아요.",
+   "en": "Vancouver is famous as a resort too, isn't it?",
+   "roman": "Baenkubeoneun hyuyangjirodo yumyeonghajanayo."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 여름에는 관광객이 정말 많대요.",
+   "beaver_en": "Right. I hear there are lots of tourists in summer.",
+   "beaver_roman": "Majayo. yeoreumeneun gwangwanggaegi jeongmal mantaeyo.",
+   "learner": "관광객이 많으면 집값도 비싸지 않아요?",
+   "en": "With so many tourists, isn't housing expensive too?",
+   "roman": "Gwangwanggaegi maneumyeon jipkkapdo bissaji anayo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 비싸요. 그래서 작은 집을 구했어요.",
+   "beaver_en": "Yes, it is. So I found a small place.",
+   "beaver_roman": "Ne, bissayo. geuraeseo jageun jibeul guhaesseoyo.",
+   "learner": "집이 작으면 짐은 필수품만 챙겨 가세요.",
+   "en": "If the place is small, just pack the essentials.",
+   "roman": "Jibi jageumyeon jimeun pilsupumman chaenggyeo gaseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "네, 옷하고 필수품만 가져가려고요.",
+   "beaver_en": "Yes, I'm only taking clothes and essentials.",
+   "beaver_roman": "Ne, otago pilsupumman gajyeogaryeogoyo.",
+   "learner": "거기 한국 음식은 한국만 못할 거예요.",
+   "en": "Korean food there won't be as good as in Korea.",
+   "roman": "Geogi hanguk eumsigeun hangungman motal kkeoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아요. 그래서 김치를 직접 만들 거예요.",
+   "beaver_en": "Right. That's why I'll make kimchi myself.",
+   "beaver_roman": "Majayo. geuraeseo gimchireul jikjeop mandeul kkeoyeyo.",
+   "learner": "대단해요! 나중에 귀국할 생각도 있어요?",
+   "en": "Impressive! Do you ever plan to return to Korea?",
+   "roman": "Daedanhaeyo! najunge gwigukal saenggakdo isseoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "아직 몰라요. 일단 잘 정착하고 싶어요.",
+   "beaver_en": "I don't know yet. First I want to settle in well.",
+   "beaver_roman": "Ajik mollayo. ildan jal jeongchakago sipeoyo.",
+   "learner": "생활이 한국만 못하면 언제든 돌아와요.",
+   "en": "If life there isn't as good as Korea, come back anytime.",
+   "roman": "Saenghwari hangungman motamyeon eonjedeun dorawayo."
+  },
+  {
+   "n": 10,
+   "beaver": "하하, 고마워요. 떠나기 전에 밥 한번 먹어요.",
+   "beaver_en": "Haha, thanks. Let's have a meal before I leave.",
+   "beaver_roman": "Haha, gomawoyo. tteonagi jeone bap hanbeon meogeoyo.",
+   "learner": "좋아요. 캐나다 정착 잘하길 바랄게요.",
+   "en": "Sounds good. I hope you settle in well in Canada.",
+   "roman": "Joayo. kaenada jeongchak jalhagil baralkkeyo."
+  }
+ ]
+}

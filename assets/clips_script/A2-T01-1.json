@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T01-1",
+ "no": 21,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 외국인 등록하러 오셨어요?",
+   "beaver_en": "Hello. Are you here for foreigner registration?",
+   "beaver_roman": "Annyeonghaseyo. Oegugin deungnokhareo osyeosseoyo?",
+   "learner": "네, 안녕하세요. 등록하러 왔어요.",
+   "en": "Yes, hello. I came to register.",
+   "roman": "Ne, annyeonghaseyo. Deungnokhareo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 성함이 어떻게 되세요?",
+   "beaver_en": "Okay, may I have your name?",
+   "beaver_roman": "Ne, seonghami eotteoke doeseyo?",
+   "learner": "제 소개를 할게요. 저는 한스 뮐러입니다.",
+   "en": "Let me introduce myself. I'm Hans Müller.",
+   "roman": "Je sogaereul halgeyo. Jeoneun hanseu mwilleoimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "한스 씨, 혹시 일본 분이세요?",
+   "beaver_en": "Mr. Hans, are you Japanese, by any chance?",
+   "beaver_roman": "Hanseu ssi, hoksi ilbon buniseyo?",
+   "learner": "아니요, 일본 사람이 아닙니다. 독일 사람이에요.",
+   "en": "No, I'm not Japanese. I'm German.",
+   "roman": "Aniyo, ilbon sarami animnida. Dogil saramieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아, 독일이요. 한국에는 어떻게 오시게 되었어요?",
+   "beaver_en": "Ah, Germany. How did you come to Korea?",
+   "beaver_roman": "A, dogiriyo. Hangugeneun eotteoke osige doeeosseoyo?",
+   "learner": "회사 일 때문에 작년에 왔어요.",
+   "en": "I came last year for work.",
+   "roman": "Hoesa il ttaemune jangnyeone wasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "한국에서 어떤 일을 하면서 지내세요?",
+   "beaver_en": "What do you do while living in Korea?",
+   "beaver_roman": "Hangugeseo eotteon ireul hamyeonseo jinaeseyo?",
+   "learner": "회사에서 일하면서 한국어를 공부해요.",
+   "en": "I study Korean while working at a company.",
+   "roman": "Hoesaeseo ilhamyeonseo hangugeoreul gongbuhaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 이 서류에 국적과 주소를 써 주세요.",
+   "beaver_en": "Then please write your nationality and address on this form.",
+   "beaver_roman": "Geureom i seoryue gukjeokgwa jusoreul sseo juseyo.",
+   "learner": "네. 국적은 독일, 주소는 서울 마포구예요.",
+   "en": "Okay. Nationality is Germany, address is Mapo-gu, Seoul.",
+   "roman": "Ne. Gukjeogeun dogil, jusoneun seoul mapoguyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "동하고 번지도 써 주세요. 성별도요.",
+   "beaver_en": "Please write the neighborhood and lot number too. And your sex.",
+   "beaver_roman": "Donghago beonjido sseo juseyo. Seongbyeoldoyo.",
+   "learner": "서교동 12번지예요. 성별은 남자예요.",
+   "en": "It's 12 Seogyo-dong. I'm male.",
+   "roman": "Seogyodong sibibeonjiyeyo. Seongbyeoreun namjayeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네. 같이 사는 가족이 있으세요?",
+   "beaver_en": "Okay. Do you have family living with you?",
+   "beaver_roman": "Ne. Gachi saneun gajogi isseuseyo?",
+   "learner": "아내가 있어요. 아내는 태국 사람이에요.",
+   "en": "I have a wife. She's Thai.",
+   "roman": "Anaega isseoyo. Anaeneun taeguk saramieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 아내분도 따로 등록하셔야 해요.",
+   "beaver_en": "Then your wife needs to register separately too.",
+   "beaver_roman": "Geureom anaebundo ttaro deungnokasyeoya haeyo.",
+   "learner": "네, 아내는 저기서 서류를 써요.",
+   "en": "Yes, my wife is filling out a form over there.",
+   "roman": "Ne, anaeneun jeogiseo seoryureul sseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 다 됐어요. 2주 후에 카드 받으러 오세요.",
+   "beaver_en": "Okay, all done. Come pick up your card in two weeks.",
+   "beaver_roman": "Ne, da dwaesseoyo. Iju hue kadeu badeureo oseyo.",
+   "learner": "감사합니다. 안녕히 계세요.",
+   "en": "Thank you. Goodbye.",
+   "roman": "Gamsahamnida. Annyeonghi gyeseyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T39-1",
+ "no": 379,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "박사님, 이번 폐수 유출 사고를 어떻게 보십니까?",
+   "beaver_en": "Doctor, what do you think of this wastewater leak?",
+   "beaver_roman": "baksanim, ibeon pyesu yuchul sagoreul eotteoke bosimnikka?",
+   "learner": "참담하기 그지없습니다. 강이 죽어 가고 있습니다.",
+   "en": "It's utterly tragic. The river is dying.",
+   "roman": "chamdamhagi geujieopseumnida. gangi jugeo gago itseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "피해가 어느 정도로 심각합니까?",
+   "beaver_en": "How serious is the damage?",
+   "beaver_roman": "pihaega eoneu jeongdoro simgakamnikka?",
+   "learner": "폐수 때문에 수질이 크게 나빠졌습니다.",
+   "en": "The water quality got much worse because of the wastewater.",
+   "roman": "pyesu ttaemune sujiri keuge nappajyeotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "강의 생태계에도 영향이 있습니까?",
+   "beaver_en": "Does it affect the river's ecosystem too?",
+   "beaver_roman": "gangui saengtaegyeedo yeonghyangi itseumnikka?",
+   "learner": "네, 생태계가 무너졌습니다. 안타깝기 그지없습니다.",
+   "en": "Yes, the ecosystem has collapsed. It's extremely sad.",
+   "roman": "ne, saengtaegyega muneojyeotseumnida. antakkapgi geujieopseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "회복은 가능합니까?",
+   "beaver_en": "Is recovery possible?",
+   "beaver_roman": "hoebogeun ganeunghamnikka?",
+   "learner": "복구는 가능하지만 몇 년은 걸릴 겁니다.",
+   "en": "Restoration is possible, but it will take years.",
+   "roman": "bokguneun ganeunghajiman myeon nyeoneun geollil geomnida."
+  },
+  {
+   "n": 5,
+   "beaver": "사고의 원인은 무엇입니까?",
+   "beaver_en": "What caused the accident?",
+   "beaver_roman": "sagoui wonineun mueosimnikka?",
+   "learner": "공장이 안전 관리를 소홀히 했기 때문입니다.",
+   "en": "Because the factory neglected safety management.",
+   "roman": "gongjangi anjeon gwallireul soholhi haetgi ttaemunimnida."
+  },
+  {
+   "n": 6,
+   "beaver": "대책은 있습니까?",
+   "beaver_en": "Are there any measures?",
+   "beaver_roman": "daechaegeun itseumnikka?",
+   "learner": "규제를 강화하고 세부 기준을 만들어야 합니다.",
+   "en": "We must strengthen rules and make detailed standards.",
+   "roman": "gyujereul ganghwahago sebu gijuneul mandeureoya hamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "환경 문제에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us more about environmental issues?",
+   "beaver_roman": "hwangyeong munjee daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "봄마다 오는 황사도 심각성이 커지고 있습니다.",
+   "en": "The yellow dust every spring is also getting more serious.",
+   "roman": "bommada oneun hwangsado simgakseongi keojigo itseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "원자력 발전에 대한 걱정도 많은데요.",
+   "beaver_en": "Many people also worry about nuclear power plants.",
+   "beaver_roman": "wonjaryeok baljeone daehan geokjeongdo maneundeyo.",
+   "learner": "네, 원자력도 사고가 나면 피해가 큽니다.",
+   "en": "Yes, nuclear accidents also cause huge damage.",
+   "roman": "ne, wonjaryeokdo sagoga namyeon pihaega keumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "시민들은 무엇을 할 수 있을까요?",
+   "beaver_en": "What can citizens do?",
+   "beaver_roman": "simindeureun mueoseul hal su isseulkkayo?",
+   "learner": "가급적 친환경 제품을 써 주시기를 호소합니다.",
+   "en": "I urge everyone to use eco-friendly products whenever possible.",
+   "roman": "gageupjeok chinhwangyeong jepumeul sseo jusigireul hosohamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 말씀 진심으로 감사합니다, 박사님.",
+   "beaver_en": "Thank you sincerely for your words today, Doctor.",
+   "beaver_roman": "oneul malsseum jinsimeuro gamsahamnida, baksanim.",
+   "learner": "감사합니다. 이 강이 진정 다시 살아나길 바랍니다.",
+   "en": "Thank you. I truly hope this river comes back to life.",
+   "roman": "gamsahamnida. i gangi jinjeong dasi saranagil baramnida."
+  }
+ ]
+}

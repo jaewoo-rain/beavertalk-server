@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T26-1",
+ "no": 270,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 요즘 진로 때문에 고민이 많아.",
+   "beaver_en": "Minsu, I've been worrying a lot about my career lately.",
+   "beaver_roman": "Minsuya, yojeum jillo ttaemune gomini mana.",
+   "learner": "적성에 맞는 일을 찾기가 어렵지?",
+   "en": "It's hard to find work that fits your aptitude, right?",
+   "roman": "jeokseonge manneun ireul chatgiga eoryeopji?"
+  },
+  {
+   "n": 2,
+   "beaver": "응. 사무직이 좋을지 전문직이 좋을지 모르겠어.",
+   "beaver_en": "Yeah. I can't decide between an office job and a professional one.",
+   "beaver_roman": "eung. samujigi joeulji jeonmunjigi joeulji moreugesseo.",
+   "learner": "사무직은 입사가 쉽지만 전문직은 자격증이 필요해.",
+   "en": "Office jobs are easier to get into, but professional jobs need a license.",
+   "roman": "samujigeun ipsaga swipjiman jeonmunjigeun jagyeokjeungi piryohae."
+  },
+  {
+   "n": 3,
+   "beaver": "디자이너는 어때? 너 그림 잘 그리잖아.",
+   "beaver_en": "What about being a designer? You draw well.",
+   "beaver_roman": "dijaineoneun eottae? neo geurim jal geurijana.",
+   "learner": "나한테 디자인은 직업이라기보다는 취미야.",
+   "en": "For me, design is a hobby rather than a job.",
+   "roman": "nahante dijaineun jigeobiragibodaneun chwimiya."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 사업은? 너희 삼촌이 기업가잖아.",
+   "beaver_en": "Then what about business? Your uncle is an entrepreneur.",
+   "beaver_roman": "geureom saeobeun? neohui samchoni gieopgajana.",
+   "learner": "기업가는 경력보다 용기가 더 필요한 것 같아.",
+   "en": "I think entrepreneurs need courage more than experience.",
+   "roman": "gieopganeun gyeongnyeokboda yonggiga deo piryohan geot gata."
+  },
+  {
+   "n": 5,
+   "beaver": "요즘 실업 문제도 심해서 더 무서워.",
+   "beaver_en": "Unemployment is bad these days, so it's even scarier.",
+   "beaver_roman": "yojeum sireom munjedo simhaeseo deo museowo.",
+   "learner": "우리 부모님은 농사를 지으셔. 그것도 전문 직업이야.",
+   "en": "My parents farm. That's a professional job too.",
+   "roman": "uri bumonimeun nongsareul jieusyeo. geugeotdo jeonmun jigeobiya."
+  },
+  {
+   "n": 6,
+   "beaver": "농사도 기술이 필요하겠다. 다른 예도 있어?",
+   "beaver_en": "Farming must take skill too. Any other examples?",
+   "beaver_roman": "nongsado gisuri piryohagetda. dareun yedo isseo?",
+   "learner": "우리 이모는 가정주부였다가 다시 회사원이 됐어.",
+   "en": "My aunt was a housewife, then became an office worker again.",
+   "roman": "uri imoneun gajeongjubuyeotdaga dasi hoesawoni dwaesseo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 경력이 끊겨도 입사할 수 있구나.",
+   "beaver_en": "Wow, you can join a company even after a career break.",
+   "beaver_roman": "wa, gyeongnyeogi kkeunkyeodo ipsahal su itguna.",
+   "learner": "응. 요즘은 원서를 낼 때 적성 검사도 봐.",
+   "en": "Yeah. These days they also do aptitude tests when you apply.",
+   "roman": "eung. yojeumeun wonseoreul nael ttae jeokseong geomsado bwa."
+  },
+  {
+   "n": 8,
+   "beaver": "나는 무슨 일이 맞을지 한눈에 알고 싶어.",
+   "beaver_en": "I wish I could see at a glance what job suits me.",
+   "beaver_roman": "naneun museun iri majeulji hannune algo sipeo.",
+   "learner": "운전기사나 요리사 같은 기술직도 생각해 봐.",
+   "en": "Think about skilled jobs too, like driver or cook.",
+   "roman": "unjeongisana yorisa gateun gisuljikdo saenggakae bwa."
+  },
+  {
+   "n": 9,
+   "beaver": "너는 어떤 일을 하고 싶어?",
+   "beaver_en": "What kind of work do you want to do?",
+   "beaver_roman": "neoneun eotteon ireul hago sipeo?",
+   "learner": "음, 나는 과학자보다는 교사가 되고 싶어.",
+   "en": "Well, I'd rather be a teacher than a scientist.",
+   "roman": "eum, naneun gwahakjabodaneun gyosaga doego sipeo."
+  },
+  {
+   "n": 10,
+   "beaver": "멋지다. 나도 자격증부터 하나씩 준비할게.",
+   "beaver_en": "That's great. I'll start preparing, beginning with a license.",
+   "beaver_roman": "meotjida. nado jagyeokjeungbuteo hanassik junbihalge.",
+   "learner": "그래, 같이 힘내자! 다음에 또 얘기하자.",
+   "en": "Okay, let's both do our best! Let's talk again later.",
+   "roman": "geurae, gachi himnaeja! daeume tto yaegihaja."
+  }
+ ]
+}

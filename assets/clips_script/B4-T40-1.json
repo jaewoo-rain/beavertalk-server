@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T40-1",
+ "no": 279,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 저는 봉사 단체 담당자 김민지예요.",
+   "beaver_en": "Hello. I'm Kim Minji, a coordinator at a volunteer group.",
+   "beaver_roman": "annyeonghaseyo. jeoneun bongsa danche damdangja gimminjiyeyo.",
+   "learner": "안녕하세요. 사회 문제 해결 방법을 제안하고 싶어요.",
+   "en": "Hello. I'd like to suggest a way to solve a social problem.",
+   "roman": "annyeonghaseyo. sahoe munje haegyeol bangbeobeul jeanhago sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 어떤 문제가 제일 걱정되세요?",
+   "beaver_en": "Great. Which problem worries you the most?",
+   "beaver_roman": "joayo. eotteon munjega jeil geokjeongdoeseyo?",
+   "learner": "계층 간 불평등이 심해지고 있다고 생각해요.",
+   "en": "I think inequality between social classes is getting worse.",
+   "roman": "gyecheung gan bulpyeongdeungi simhaejigo itdago saenggakaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "왜 그렇게 생각하세요?",
+   "beaver_en": "Why do you think so?",
+   "beaver_roman": "wae geureoke saenggakaseyo?",
+   "learner": "뉴스를 보면 불평등이 커지는 걸 알 수 있어요.",
+   "en": "If you watch the news, you can tell inequality is growing.",
+   "roman": "nyuseureul bomyeon bulpyeongdeungi keojineun geol al su isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "맞아요. 길에서 지내는 사람도 많아졌어요.",
+   "beaver_en": "Right. More people are living on the streets, too.",
+   "beaver_roman": "majayo. gireseo jinaeneun saramdo manajyeosseoyo.",
+   "learner": "그분들에 대한 편견과 차별도 문제예요.",
+   "en": "Prejudice and discrimination against them are a problem, too.",
+   "roman": "geubundeure daehan pyeongyeongwa chabyeoldo munjeyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 어떻게 할까요?",
+   "beaver_en": "Then what should we do?",
+   "beaver_roman": "geureom eotteoke halkkayo?",
+   "learner": "상류층의 기부를 늘리면 좋겠어요. 혜택도 주고요.",
+   "en": "I'd like more donations from the upper class, with benefits too.",
+   "roman": "sangnyucheungui gibureul neullimyeon jokesseoyo. hyetaekdo jugoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "기부를 의무적으로 하게 할까요?",
+   "beaver_en": "Should we make donations compulsory?",
+   "beaver_roman": "gibureul uimujeogeuro hage halkkayo?",
+   "learner": "강제로 하면 난리가 날 거예요. 협조가 중요해요.",
+   "en": "Forcing it would cause chaos. Cooperation is important.",
+   "roman": "gangjero hamyeon nalliga nal geoyeyo. hyeopjoga jungyohaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "기부한 사람 이름을 공개할까요?",
+   "beaver_en": "Should we make donors' names public?",
+   "beaver_roman": "gibuhan saram ireumeul gonggaehalkkayo?",
+   "learner": "네, 공개하면 다른 사람들도 기부에 동참할 거예요.",
+   "en": "Yes, if we make them public, others will join in donating.",
+   "roman": "ne, gonggaehamyeon dareun saramdeuldo gibue dongchamhal geoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋은 생각이네요. 다른 방법도 있어요?",
+   "beaver_en": "Good idea. Any other ways?",
+   "beaver_roman": "joeun saenggagineyo. dareun bangbeopdo isseoyo?",
+   "learner": "노숙인 쉼터를 더 많이 만들면 좋겠어요.",
+   "en": "I'd like us to build more homeless shelters.",
+   "roman": "nosugin swimteoreul deo mani mandeulmyeon jokesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "사회 제도와 복지에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about social systems and welfare?",
+   "beaver_roman": "sahoe jedowa bokjie daehae deo iyagihae bollaeyo?",
+   "learner": "세계적인 문제라서 복지 제도가 꼭 필요해요.",
+   "en": "It's a worldwide problem, so we really need a welfare system.",
+   "roman": "segyejeogin munjeraseo bokji jedoga kkok piryohaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 제안 고마워요. 꼭 참고할게요.",
+   "beaver_en": "Thanks for your suggestions today. We'll keep them in mind.",
+   "beaver_roman": "oneul jean gomawoyo. kkok chamgohalgeyo.",
+   "learner": "감사합니다. 인권을 지키는 공동체가 되면 좋겠어요.",
+   "en": "Thank you. I hope we become a community that protects human rights.",
+   "roman": "gamsahamnida. inkkwoneul jikineun gongdongchega doemyeon jokesseoyo."
+  }
+ ]
+}

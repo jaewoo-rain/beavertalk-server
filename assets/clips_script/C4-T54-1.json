@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T54-1",
+ "no": 480,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "변호사님, 오늘 판결 결과를 말씀해 주시겠습니까?",
+   "beaver_en": "Counselor, could you tell us today's verdict?",
+   "beaver_roman": "byeonhosanim, oneul pangyeol gyeolgwareul malsseumhae jusigetseumnikka?",
+   "learner": "재판부가 피고인에게 유죄를 선고했습니다.",
+   "en": "The court found the accused guilty.",
+   "roman": "jaepanbuga pigoinege yujoereul seongohaetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 혐의였습니까?",
+   "beaver_en": "What were the charges?",
+   "beaver_roman": "eotteon hyeomiyeotseumnikka?",
+   "learner": "뇌물을 받고 서류를 위조한 혐의입니다.",
+   "en": "Taking bribes and forging documents.",
+   "roman": "noemureul batgo seoryureul wijohan hyeomiimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "형량은 어떻습니까?",
+   "beaver_en": "What about the sentence?",
+   "beaver_roman": "hyeongnyangeun eotteosseumnikka?",
+   "learner": "징역 5년과 공직 자격 박탈이 선고됐습니다.",
+   "en": "Five years in prison and loss of eligibility for public office.",
+   "roman": "jingyeok onyeongwa gongjik jagyeok baktari seongodwaetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "피고인이 자백했다는 말이 있던데요?",
+   "beaver_en": "There are reports that the accused confessed?",
+   "beaver_roman": "pigoini jabaekaetdaneun mari itdeondeyo?",
+   "learner": "아닙니다. 의뢰인은 자백한 적이 없습니다.",
+   "en": "No. My client never confessed.",
+   "roman": "animnida. uiroeineun jabaekan jeogi eopseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 장본인이 따로 있다는 말씀입니까?",
+   "beaver_en": "So you're saying someone else is responsible?",
+   "beaver_roman": "geureom jangbonini ttaro itdaneun malsseumimnikka?",
+   "learner": "네, 다른 관련자가 장본인이라고 봅니다.",
+   "en": "Yes, I believe another person involved is responsible.",
+   "roman": "ne, dareun gwallyeonjaga jangboninirago bomnida."
+  },
+  {
+   "n": 6,
+   "beaver": "그 사람은 자수하지 않았습니까?",
+   "beaver_en": "Hasn't that person turned himself in?",
+   "beaver_roman": "geu sarameun jasuhaji anatseumnikka?",
+   "learner": "아직 자수하지 않았습니다. 수사가 필요합니다.",
+   "en": "Not yet. An investigation is needed.",
+   "roman": "ajik jasuhaji anatseumnida. susaga piryohamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "항소하실 계획입니까?",
+   "beaver_en": "Do you plan to appeal?",
+   "beaver_roman": "hangsohasil gyehoegimnikka?",
+   "learner": "판결은 존중하지만 항소하겠습니다.",
+   "en": "We respect the verdict, but we will appeal.",
+   "roman": "pangyeoreun jonjunghajiman hangsohagetseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "배상 명령도 있었습니까?",
+   "beaver_en": "Was there also a compensation order?",
+   "beaver_roman": "baesang myeongnyeongdo isseotseumnikka?",
+   "learner": "네, 배상 명령도 있어서 함께 다투겠습니다.",
+   "en": "Yes, there was, and we'll contest that too.",
+   "roman": "ne, baesang myeongnyeongdo isseoseo hamkke datugetseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "제도적으로 개선할 점이 있습니까?",
+   "beaver_en": "Is there anything to improve in the system?",
+   "beaver_roman": "jedojeogeuro gaeseonhal jeomi itseumnikka?",
+   "learner": "공직 부패를 막는 법 개정이 필요합니다.",
+   "en": "We need to amend laws to stop corruption in public office.",
+   "roman": "gongjik bupaereul mangneun beop gaejeongi piryohamnida."
+  },
+  {
+   "n": 10,
+   "beaver": "끝으로 시청자께 한마디 해 주십시오.",
+   "beaver_en": "Lastly, a word for our viewers, please.",
+   "beaver_roman": "kkeuteuro sicheongjakke hanmadi hae jusipsio.",
+   "learner": "의뢰인은 죄인이 아닙니다. 끝까지 변호하겠습니다.",
+   "en": "My client is not a criminal. I'll defend him to the end.",
+   "roman": "uiroeineun joeini animnida. kkeutkkaji byeonhohagetseumnida."
+  }
+ ]
+}

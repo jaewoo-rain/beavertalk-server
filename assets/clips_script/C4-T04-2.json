@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T04-2",
+ "no": 443,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새로 온 도윤 씨, 좀 건방지지 않아요?",
+   "beaver_en": "Isn't the new guy, Doyun, a bit arrogant?",
+   "beaver_roman": "saero on doyun ssi, jom geonbangjiji anayo?",
+   "learner": "건방지다기보다 자신감이 있는 것 같아요.",
+   "en": "I think he's confident rather than arrogant.",
+   "roman": "geonbangjidagiboda jasingami inneun geot gatayo."
+  },
+  {
+   "n": 2,
+   "beaver": "회의 때 막무가내로 자기 말만 하던데요.",
+   "beaver_en": "In meetings he stubbornly talks only about his own ideas.",
+   "beaver_roman": "hoeui ttae mangmugaero jagi malman hadeondeyo.",
+   "learner": "막무가내라기보다 열정이 넘치는 거예요.",
+   "en": "He's not unreasonable; he's just full of passion.",
+   "roman": "mangmugaeragiboda yeoljeongi neomchineun geoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "독선적이라는 말도 있어요.",
+   "beaver_en": "Some people say he's self-righteous.",
+   "beaver_roman": "dokseonjeogiraneun maldo isseoyo.",
+   "learner": "독선적이진 않아요. 남의 의견도 잘 들어요.",
+   "en": "He's not self-righteous. He listens to others well.",
+   "roman": "dokseonjeogijin anayo. name uigyeondo jal deureoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "근데 좀 폐쇄적으로 보여요.",
+   "beaver_en": "But he seems a bit closed off.",
+   "beaver_roman": "geunde jom pyeswaejeogeuro boyeoyo.",
+   "learner": "아직 낯설어서 그래요. 원래는 개방적이에요.",
+   "en": "It's just that he's still new. He's actually very open.",
+   "roman": "ajik natseoreoseo geuraeyo. wollaeneun gaebangjeogieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 그 사람 성격은 어때요?",
+   "beaver_en": "Then what's his personality like?",
+   "beaver_roman": "geureom geu saram seonggyeogeun eottaeyo?",
+   "learner": "재치 있고 똑똑해요. 교양도 있고요.",
+   "en": "He's witty and smart. Cultured, too.",
+   "roman": "jaechi itgo ttokttokaeyo. gyoyangdo itgoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "어제 내 보고서를 꼬집던데, 그건요?",
+   "beaver_en": "He picked at my report yesterday, though. What about that?",
+   "beaver_roman": "eoje nae bogoseoreul kkojipdeonde, geugeonyo?",
+   "learner": "좋은 뜻으로 한 말일 거예요. 악의는 없어요.",
+   "en": "He probably meant well. There's no ill will.",
+   "roman": "joeun tteuseuro han maril geoyeyo. agineun eopseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "자기 사람만 챙겨서 배타적이래요.",
+   "beaver_en": "They say he's exclusive and only looks after his own people.",
+   "beaver_roman": "jagi saramman chaenggyeoseo baetajeogiraeyo.",
+   "learner": "소문만 듣고 판단하면 안 돼요.",
+   "en": "You shouldn't judge him just from rumors.",
+   "roman": "somunman deutgo pandanhamyeon an dwaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "내 평가가 너무 심했나요?",
+   "beaver_en": "Was I too harsh on him?",
+   "beaver_roman": "nae pyeonggaga neomu simhaennayo?",
+   "learner": "네, 좀 가혹했어요. 배타적인 사람도 아니에요.",
+   "en": "Yes, a bit cruel. He's not exclusive, either.",
+   "roman": "ne, jom gahokaesseoyo. baetajeogin saramdo anieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 평소엔 왜 말이 없을까요?",
+   "beaver_en": "Then why is he usually so quiet?",
+   "beaver_roman": "geureom pyeongsoen wae mari eopseulkkayo?",
+   "learner": "수줍음이 많아서 그래요. 먼저 말 걸어 보세요.",
+   "en": "He's just very shy. Try talking to him first.",
+   "roman": "sujubeumi manaseo geuraeyo. meonjeo mal georeo boseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠어요. 오늘 점심에 같이 가자고 할게요.",
+   "beaver_en": "Okay. I'll ask him to lunch today.",
+   "beaver_roman": "algesseoyo. oneul jeomsime gachi gajago halgeyo.",
+   "learner": "좋아요. 서로 마음을 열면 금방 친해질 거예요.",
+   "en": "Great. If you open up to each other, you'll be close soon.",
+   "roman": "joayo. seoro maeumeul yeolmyeon geumbang chinhaejil geoyeyo."
+  }
+ ]
+}

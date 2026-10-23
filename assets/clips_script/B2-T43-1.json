@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T43-1",
+ "no": 196,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘 어떤 문화재를 보셨어요?",
+   "beaver_en": "Hello. Which cultural assets did you see today?",
+   "beaver_roman": "annyeonghaseyo. oneul eotteon munhwajaereul bosyeosseoyo?",
+   "learner": "이 도자기를 봤어요. 정말 아름답네요.",
+   "en": "I saw this pottery. It's really beautiful.",
+   "roman": "i dojagireul bwasseoyo. jeongmal areumdamneyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그 도자기에는 용이 그려져 있어요. 전설도 있어요.",
+   "beaver_en": "There's a dragon painted on it. There's a legend, too.",
+   "beaver_roman": "geu dojagieneun yongi geuryeojyeo isseoyo. jeonseoldo isseoyo.",
+   "learner": "용 전설이요? 저는 옛날이야기를 좋아해요.",
+   "en": "A dragon legend? I love old folk tales.",
+   "roman": "yong jeonseoriyo? jeoneun yennalliyagireul joahaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "옛날 사람들은 용에게 비를 빌었대요.",
+   "beaver_en": "People long ago prayed to dragons for rain.",
+   "beaver_roman": "yennal saramdeureun yongege bireul bireotdaeyo.",
+   "learner": "아, 비가 오기를 빌면서 기도했군요.",
+   "en": "Oh, so they prayed, wishing for rain.",
+   "roman": "a, biga ogireul bilmyeonseo gidohaetgunyo."
+  },
+  {
+   "n": 4,
+   "beaver": "네, 그게 옛날 풍습이었어요. 종교와도 관계있어요.",
+   "beaver_en": "Yes, that was an old custom. It's related to religion, too.",
+   "beaver_roman": "ne, geuge yennal pungseubieosseoyo. jonggyowado gwangyeisseoyo.",
+   "learner": "도자기에 기도를 담았다니 생각도 못 했어요.",
+   "en": "I never imagined they put prayers into pottery.",
+   "roman": "dojagie gidoreul damatdani saenggakdo mot haesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "이 도자기, 정말 크지요?",
+   "beaver_en": "This pottery is really big, isn't it?",
+   "beaver_roman": "i dojagi, jeongmal keujiyo?",
+   "learner": "네, 제 동생만 해요. 정말 놀라워요.",
+   "en": "Yes, it's as big as my little brother. Amazing.",
+   "roman": "ne, je dongsaengman haeyo. jeongmal nollawoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "부채도 보셨어요? 저쪽에 전통 부채가 있어요.",
+   "beaver_en": "Did you see the fans too? There are traditional fans over there.",
+   "beaver_roman": "buchaedo bosyeosseoyo? jeojjoge jeontong buchaega isseoyo.",
+   "learner": "네, 봤어요. 전통적인 그림이 예뻤어요.",
+   "en": "Yes, I did. The traditional pictures were pretty.",
+   "roman": "ne, bwasseoyo. jeontongjeogin geurimi yeppeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "동양의 부채에는 속담을 쓰기도 했어요.",
+   "beaver_en": "In the East, people sometimes wrote proverbs on fans.",
+   "beaver_roman": "dongyangui buchaeeneun sokdameul sseugido haesseoyo.",
+   "learner": "부채에 속담을요? 정말 재미있네요.",
+   "en": "Proverbs on fans? That's really interesting.",
+   "roman": "buchaee sokdameuryo? jeongmal jaemiinneyo."
+  },
+  {
+   "n": 8,
+   "beaver": "문화와 전통에 대해 더 이야기해 보실래요?",
+   "beaver_en": "Would you like to talk more about culture and tradition?",
+   "beaver_roman": "munhwawa jeontonge daehae deo iyagihae bosillaeyo?",
+   "learner": "네. 지난주에 성당에서 천사 그림을 봤어요.",
+   "en": "Sure. Last week I saw an angel painting at a cathedral.",
+   "roman": "ne. jinanjue seongdangeseo cheonsa geurimeul bwasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "서양에는 천사, 동양에는 신선 이야기가 많지요.",
+   "beaver_en": "The West has many angel stories, the East many immortal tales.",
+   "beaver_roman": "seoyangeneun cheonsa, dongyangeneun sinseon iyagiga manchiyo.",
+   "learner": "종교가 달라도 기도하는 마음은 같네요.",
+   "en": "Even with different religions, the heart of prayer is the same.",
+   "roman": "jonggyoga dallado gidohaneun maeumeun ganneyo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 오늘 관람은 어떠셨어요?",
+   "beaver_en": "That's right. How was your visit today?",
+   "beaver_roman": "majayo. oneul gwallameun eotteosyeosseoyo?",
+   "learner": "문화재가 정말 볼 만했어요. 감사합니다!",
+   "en": "The cultural assets were really worth seeing. Thank you!",
+   "roman": "munhwajaega jeongmal bol manhaesseoyo. gamsahamnida!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T15-1",
+ "no": 174,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여기 정말 넓네요. 화장실은 어디 있을까요?",
+   "beaver_en": "It's really big here. Where might the restroom be?",
+   "beaver_roman": "yeogi jeongmal neomneyo. hwajangsireun eodi isseulkkayo?",
+   "learner": "저쪽 코너가 화장실인 모양이에요.",
+   "en": "That corner over there seems to be the restroom.",
+   "roman": "jeojjok koneoga hwajangsirin moyangieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "아, 맞네요. 비상구는 어디예요?",
+   "beaver_en": "Oh, you're right. Where's the emergency exit?",
+   "beaver_roman": "a, manneyo. bisangguneun eodiyeyo?",
+   "learner": "복도 양쪽 끝의 초록 불이 비상구인 모양이에요.",
+   "en": "The green lights at both ends of the hall seem to be exits.",
+   "roman": "bokdo yangjjok kkeute chorok buri bisangguin moyangieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "사람이 많아서 정신없네요. 안내 데스크는요?",
+   "beaver_en": "So many people, it's hectic. What about the info desk?",
+   "beaver_roman": "sarami manaseo jeongsineomneyo. annae deseukeuneunyo?",
+   "learner": "입구 맞은편 공간이 안내소인 모양이에요.",
+   "en": "The space across from the entrance seems to be the info center.",
+   "roman": "ipgu majeunpyeon gongani annaesoin moyangieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "행사장은 몇 층일까요?",
+   "beaver_en": "Which floor is the event hall on?",
+   "beaver_roman": "haengsajangeun myeot cheungilkkayo?",
+   "learner": "2층 가운데 구역이 행사장인 모양이에요.",
+   "en": "The middle area on the 2nd floor seems to be the event hall.",
+   "roman": "icheung gaunde guyeogi haengsajangin moyangieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "이 건물에는 시설이 정말 많네요.",
+   "beaver_en": "This building has so many facilities.",
+   "beaver_roman": "i geonmureneun siseori jeongmal manneyo.",
+   "learner": "네, 곳곳에 편의 시설이 있어요.",
+   "en": "Yes, there are amenities everywhere.",
+   "roman": "ne, gotgose pyeonui siseori isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "점심은 어디서 먹을까요?",
+   "beaver_en": "Where should we eat lunch?",
+   "beaver_roman": "jeomsimeun eodiseo meogeulkkayo?",
+   "learner": "오른편 코너가 식당 구역인 모양이에요.",
+   "en": "The corner on the right seems to be the dining area.",
+   "roman": "oreunpyeon koneoga sikdang guyeogin moyangieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "커피 마시면서 쉴 곳도 있을까요?",
+   "beaver_en": "Is there a place to rest with coffee?",
+   "beaver_roman": "keopi masimyeonseo swil gotdo isseulkkayo?",
+   "learner": "건물 뒤 야외 공간이 카페인 모양이에요.",
+   "en": "The outdoor space behind the building seems to be a café.",
+   "roman": "geonmul dwi yaoe gongani kapein moyangieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그런데 차를 어디에 세웠죠?",
+   "beaver_en": "By the way, where did we park the car?",
+   "beaver_roman": "geureonde chareul eodie sewotjyo?",
+   "learner": "건물 앞뒤에 주차장이 있어요. 우리는 뒤쪽이에요.",
+   "en": "There are lots in front and back. We're in the back.",
+   "roman": "geonmul apdwie juchajangi isseoyo. urineun dwijjogieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "오늘 이곳저곳 다 둘러봐야겠네요.",
+   "beaver_en": "We'll have to look around everywhere today.",
+   "beaver_roman": "oneul igotjeogot da dulleobwayagenneyo.",
+   "learner": "네, 넓으니까 길 잃지 않게 같이 다녀요.",
+   "en": "Yes, it's big, so let's stick together so we don't get lost.",
+   "roman": "ne, neolbeunikka gil ilchi anke gachi danyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "하하, 알겠어요. 이제 행사장으로 가요.",
+   "beaver_en": "Haha, okay. Let's head to the event hall now.",
+   "beaver_roman": "haha, algesseoyo. ije haengsajangeuro gayo.",
+   "learner": "좋아요. 저 계단이 지름길인 모양이에요.",
+   "en": "Okay. Those stairs seem to be the shortcut.",
+   "roman": "joayo. jeo gyedani jireumgirin moyangieyo."
+  }
+ ]
+}

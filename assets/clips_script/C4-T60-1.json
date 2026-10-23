@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T60-1",
+ "no": 487,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민준 학생, 이번 시험 성적이 많이 올랐네요.",
+   "beaver_en": "Minjun, your grades went up a lot on this exam.",
+   "beaver_roman": "Minjun haksaeng, ibeon siheom seongjeogi mani ollanneyo.",
+   "learner": "네, 이번에 처음으로 상위권에 들었어요.",
+   "en": "Yes, I made it into the top ranks for the first time.",
+   "roman": "Ne, ibeone cheoeumeuro sangwigwone deureosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "축하해요. 어느 영역이 제일 많이 올랐어요?",
+   "beaver_en": "Congratulations. Which area improved the most?",
+   "beaver_roman": "Chukahaeyo. Eoneu yeongyeogi jeil mani ollasseoyo?",
+   "learner": "국어요. 긴 지문을 빨리 읽는 법을 터득했어요.",
+   "en": "Korean. I mastered how to read long passages quickly.",
+   "roman": "Gugeoyo. Gin jimuneul ppalli ingneun beobeul teodeukaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그 방법은 어떻게 익혔어요?",
+   "beaver_en": "How did you learn that method?",
+   "beaver_roman": "Geu bangbeobeun eotteoke ikyeosseoyo?",
+   "learner": "선생님께서 알려 주신 덕분에 방법이 바뀌었어요.",
+   "en": "Thanks to what you taught me, my method changed.",
+   "roman": "Seonsaengnimkkeseo allyeo jusin deokbune bangbeobi bakkwieosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "고마워요. 그런데 수학은 조금 내려갔네요.",
+   "beaver_en": "Thank you. But your math score dropped a little.",
+   "beaver_roman": "Gomawoyo. Geureonde suhageun jogeum naeryeoganneyo.",
+   "learner": "네, 심화 문제가 많이 출제돼서 어려웠어요.",
+   "en": "Yes, many advanced questions were set, so it was hard.",
+   "roman": "Ne, simhwa munjega mani chuljedwaeseo eoryeowosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그렇군요. 공식은 잘 외웠어요?",
+   "beaver_en": "I see. Did you memorize the formulas well?",
+   "beaver_roman": "Geureokunyo. Gongsigeun jal oewosseoyo?",
+   "learner": "암기력은 좋은데 응용이 약한 것 같아요.",
+   "en": "My memorization is good, but I think I'm weak at applying it.",
+   "roman": "Amgiryeogeun joeunde eungyongi yakan geot gatayo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 다른 과목 때문에 바빴어요?",
+   "beaver_en": "Were you busy with other subjects, by any chance?",
+   "beaver_roman": "Hoksi dareun gwamok ttaemune bappasseoyo?",
+   "learner": "네, 예체능 실기 연습으로 시간이 부족했어요.",
+   "en": "Yes, arts and PE practice left me short on time.",
+   "roman": "Ne, yechenung silgi yeonseubeuro sigani bujokaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 수학은 대책이 있어요?",
+   "beaver_en": "Then do you have a plan for math?",
+   "beaver_roman": "Geureom suhageun daechaegi isseoyo?",
+   "learner": "단계적으로 쉬운 문제부터 다시 풀 거예요.",
+   "en": "I'll redo problems step by step, starting with easy ones.",
+   "roman": "Dangyejeogeuro swiun munjebuteo dasi pul kkeoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋은 계획이에요. 다음 달에 성취도 평가도 있어요.",
+   "beaver_en": "Good plan. There's also an achievement test next month.",
+   "beaver_roman": "Joeun gyehoegieyo. Daeum dare seongchwido pyeonggado isseoyo.",
+   "learner": "성적에 반영은 안 되지만 열심히 할게요.",
+   "en": "It doesn't count toward my grades, but I'll work hard.",
+   "roman": "Seongjeoge banyeongeun an doejiman yeolsimhi halkkeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음 학기 반 배정 방식은 알고 있어요?",
+   "beaver_en": "Do you know how classes are assigned next semester?",
+   "beaver_roman": "Daeum hakgi ban baejeong bangsigeun algo isseoyo?",
+   "learner": "네, 성적순으로 정한다고 들었어요.",
+   "en": "Yes, I heard they're decided by grade order.",
+   "roman": "Ne, seongjeoksuneuro jeonghandago deureosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 지금처럼 하면 될 거예요. 힘내요.",
+   "beaver_en": "That's right. Keep it up like now and you'll be fine. Cheer up.",
+   "beaver_roman": "Majayo. Jigeumcheoreom hamyeon doel kkeoyeyo. Himnaeyo.",
+   "learner": "감사합니다, 선생님. 꼭 상위권을 지킬게요.",
+   "en": "Thank you, teacher. I'll definitely stay in the top ranks.",
+   "roman": "Gamsahamnida, seonsaengnim. Kkok sangwigwoneul jikilkkeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T64-1",
+ "no": 346,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 제주도 지리를 조사하는 학생입니다.",
+   "beaver_en": "Hello. I'm a student researching Jeju's geography.",
+   "beaver_roman": "annyeonghaseyo. jejudo jirireul josahaneun haksaengimnida.",
+   "learner": "네, 반가워요. 제주도는 화산 폭발로 생긴 섬이에요.",
+   "en": "Nice to meet you. Jeju is an island formed by a volcanic eruption.",
+   "roman": "ne, bangawoyo. jejudoneun hwasan pokballo saenggin seomieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그렇군요. 지형은 어떤 점이 특징적입니까?",
+   "beaver_en": "I see. What is characteristic about the terrain?",
+   "beaver_roman": "geureokunyo. jihyeongeun eotteon jeomi teukjingjeogimnikka?",
+   "learner": "지형은 가운데에 한라산이 있고 해안이 평지예요.",
+   "en": "Hallasan is in the middle, and the coast is flatland.",
+   "roman": "jihyeongeun gaundee hallasani itgo haeani pyeongjiyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "산도 유명합니까?",
+   "beaver_en": "Are the mountains famous too?",
+   "beaver_roman": "sando yumyeonghamnikka?",
+   "learner": "네, 한라산에 오르면 들판과 바다가 다 보여요.",
+   "en": "Yes, from Hallasan you can see the fields and the sea.",
+   "roman": "ne, hallasane oreumyeon deulpangwa badaga da boyeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "굴도 있다고 들었습니다. 정말입니까?",
+   "beaver_en": "I heard there are caves too. Is that true?",
+   "beaver_roman": "guldo itdago deureotseumnida. jeongmarimnikka?",
+   "learner": "네, 자연적으로 생긴 굴이 많은 점이 특징적이에요.",
+   "en": "Yes, having many natural caves is characteristic here.",
+   "roman": "ne, jayeonjeogeuro saenggin guri maneun jeomi teukjingjeogieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "굴 안은 어떻습니까?",
+   "beaver_en": "What is it like inside the caves?",
+   "beaver_roman": "gul aneun eotteoseumnikka?",
+   "learner": "천장에서 물방울이 떨어져서 바닥이 미끄러워요.",
+   "en": "Water drips from the ceiling, so the floor is slippery.",
+   "roman": "cheonjangeseo mulbanguri tteoreojyeoseo badagi mikkeureowoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "물은 어떻습니까? 샘도 있습니까?",
+   "beaver_en": "What about water? Are there springs?",
+   "beaver_roman": "mureun eotteoseumnikka? saemdo isseumnikka?",
+   "learner": "네, 바닷가에 샘이 있는데 샘물이 아주 차가워요.",
+   "en": "Yes, there's a spring by the sea, and its water is very cold.",
+   "roman": "ne, badatgae saemi inneunde saemmuri aju chagawoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "바다는 어떻습니까?",
+   "beaver_en": "What about the sea?",
+   "beaver_roman": "badaneun eotteoseumnikka?",
+   "learner": "썰물 때 넓은 바위가 드러나는 점이 특징적이에요.",
+   "en": "Wide rocks appearing at ebb tide is characteristic.",
+   "roman": "sseolmul ttae neolbeun bawiga deureonaneun jeomi teukjingjeogieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "해안 지형에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the coastal terrain?",
+   "beaver_roman": "haean jihyeonge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "남쪽에는 높은 절벽이 있고 해양 생물도 풍부해요.",
+   "en": "The south has high cliffs, and there's lots of ocean life.",
+   "roman": "namjjogeneun nopeun jeolbyeogi itgo haeyang saengmuldo pungbuhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "농사는 어떻습니까? 토양이 좋습니까?",
+   "beaver_en": "What about farming? Is the soil good?",
+   "beaver_roman": "nongsaneun eotteoseumnikka? toyangi joseumnikka?",
+   "learner": "화산 토양이라 물이 잘 빠져서 감귤이 잘 자라요.",
+   "en": "It's volcanic soil that drains well, so tangerines grow well.",
+   "roman": "hwasan toyangira muri jal ppajyeoseo gamgyuri jal jarayo."
+  },
+  {
+   "n": 10,
+   "beaver": "감사합니다. 조사에 큰 도움이 되었습니다.",
+   "beaver_en": "Thank you. This really helped my research.",
+   "beaver_roman": "gamsahamnida. josae keun doumi doeeotseumnida.",
+   "learner": "천천히 둘러보세요. 육지와 다른 자연을 즐기세요.",
+   "en": "Take your time looking around. Enjoy nature unlike the mainland.",
+   "roman": "cheoncheonhi dulleoboseyo. yukjiwa dareun jayeoneul jeulgiseyo."
+  }
+ ]
+}

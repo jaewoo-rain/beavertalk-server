@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T13-2",
+ "no": 58,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘은 삼계탕이랑 생선전 만들자. 재료 다 샀어?",
+   "beaver_en": "Let's make samgyetang and fish pancakes today. Did you buy everything?",
+   "beaver_roman": "oneureun samgyetangirang saengseonjeon mandeulja. jaeryo da sasseo?",
+   "learner": "응, 닭이랑 인삼, 쌀 샀어. 생선도 신선해.",
+   "en": "Yes, I bought chicken, ginseng, and rice. The fish is fresh too.",
+   "roman": "eung, dalgirang insam, ssal sasseo. saengseondo sinseonhae."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아. 쌀은 먼저 물에 씻어 둬.",
+   "beaver_en": "Good. Wash the rice in water first.",
+   "beaver_roman": "joa. ssareun meonjeo mure ssiseo dwo.",
+   "learner": "쌀은 닭 안에 넣어야 돼?",
+   "en": "Do I have to put the rice inside the chicken?",
+   "roman": "ssareun dak ane neoeoya dwae?"
+  },
+  {
+   "n": 3,
+   "beaver": "응, 쌀이랑 인삼을 닭 안에 넣어.",
+   "beaver_en": "Yes, put the rice and ginseng inside the chicken.",
+   "beaver_roman": "eung, ssarirang insameul dak ane neoeo.",
+   "learner": "그다음에 냄비에 넣고 끓여야 돼?",
+   "en": "Then do I put it in the pot and boil it?",
+   "roman": "geudaeume naembie neoko kkeuryeoya dwae?"
+  },
+  {
+   "n": 4,
+   "beaver": "맞아. 물이 끓으면 불을 줄여.",
+   "beaver_en": "Right. When the water boils, turn down the heat.",
+   "beaver_roman": "maja. muri kkeureumyeon bureul juryeo.",
+   "learner": "얼마나 끓여야 돼? 닭이 다 익어야 되지?",
+   "en": "How long should I boil it? The chicken has to be fully cooked, right?",
+   "roman": "eolmana kkeuryeoya dwae? dalgi da igeoya doeji?"
+  },
+  {
+   "n": 5,
+   "beaver": "한 시간쯤. 김이 오르면 뚜껑 조심해.",
+   "beaver_en": "About an hour. Be careful with the lid when steam rises.",
+   "beaver_roman": "han siganjjeum. gimi oreumyeon ttukkeong josimhae.",
+   "learner": "알았어. 생선은 어떻게 해? 썰어야 돼?",
+   "en": "Okay. What about the fish? Do I have to slice it?",
+   "roman": "arasseo. saengseoneun eotteoke hae? sseoreoya dwae?"
+  },
+  {
+   "n": 6,
+   "beaver": "응, 생선을 얇게 썰어.",
+   "beaver_en": "Yes, slice the fish thin.",
+   "beaver_roman": "eung, saengseoneul yalge sseoreo.",
+   "learner": "밀가루도 필요해? 달걀은 몇 개 넣어?",
+   "en": "Do we need flour too? How many eggs do I add?",
+   "roman": "milgarudo piryohae? dalgyareun myeot gae neoeo?"
+  },
+  {
+   "n": 7,
+   "beaver": "밀가루 조금, 달걀은 서너 개면 돼.",
+   "beaver_en": "A little flour, and three or four eggs is enough.",
+   "beaver_roman": "milgaru jogeum, dalgyareun seoneo gaemyeon dwae.",
+   "learner": "밀가루하고 달걀을 섞어야 돼?",
+   "en": "Do I have to mix the flour and eggs?",
+   "roman": "milgaruhago dalgyareul seokkeoya dwae?"
+  },
+  {
+   "n": 8,
+   "beaver": "아니, 생선에 밀가루 먼저, 그다음 달걀이야.",
+   "beaver_en": "No, flour on the fish first, then the egg.",
+   "beaver_roman": "ani, saengseone milgaru meonjeo, geudaeum dalgyariya.",
+   "learner": "그럼 프라이팬은 언제 데워야 돼?",
+   "en": "Then when should I heat the frying pan?",
+   "roman": "geureom peuraipaeneun eonje dewoya dwae?"
+  },
+  {
+   "n": 9,
+   "beaver": "지금 데워. 기름 넣고 생선을 구워.",
+   "beaver_en": "Heat it now. Add oil and fry the fish.",
+   "beaver_roman": "jigeum dewo. gireum neoko saengseoneul guwo.",
+   "learner": "생선은 안 쪄도 돼? 간장도 필요해?",
+   "en": "I don't need to steam the fish? Do we need soy sauce?",
+   "roman": "saengseoneun an jjyeodo dwae? ganjangdo piryohae?"
+  },
+  {
+   "n": 10,
+   "beaver": "응, 굽기만 해. 간장은 찍어 먹을 때 써.",
+   "beaver_en": "Right, just fry it. Use soy sauce for dipping.",
+   "beaver_roman": "eung, gupgiman hae. ganjangeun jjigeo meogeul ttae sseo.",
+   "learner": "고마워. 다 익으면 국물 떠서 같이 먹자!",
+   "en": "Thanks. When it's done, let's scoop the soup and eat together!",
+   "roman": "gomawo. da igeumyeon gungmul tteoseo gachi meokja!"
+  }
+ ]
+}

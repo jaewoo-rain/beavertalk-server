@@ -13,11 +13,15 @@ from __future__ import annotations
 
 import asyncio
 import difflib
+import hashlib
+import io
 import json
 import logging
 import re
 import time
 import wave
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional
 
 from domains.learning.realtime import clip_expr
@@ -28,6 +32,7 @@ logger = logging.getLogger(__name__)
 ROOT = clip_expr.ROOT.parent / "clips_script"
 FACE_BY_GROUP = {"sg_good": "happy", "sg_open": "happy", "sg_close_call": "happy", "sg_angry": "angry"}
 PASS_SIM, CLOSE_SIM = 0.6, 0.4
+PRON_SIM = 0.9          # PM-DEC-1019 — 첫 시도 통과가 이만큼 대본과 같으면 «발음 감탄» 반응(받아쓰기 유사도 · 발음 점수 아님)
 READY_LEAD_S = 1.0      # PM-DEC-895 — 바바 말 끝나기 이만큼 전에 내 줄을 회색으로 미리 보인다
 PARTIAL_EXTRA_S = 0.8   # PM-DEC-913 — 앞 반쪽으로 미룰 때 말 끝 무음을 이만큼 더 기다린다(1.2 → 2.0초)
 PARTIAL_RATIO = 0.7     # PM-DEC-912 — 들은 한글이 대본의 이만큼 못 되면 «앞 반쪽» 으로 보고 한 번 더 들어 본다
@@ -65,8 +70,10 @@ def _is_first_part(line: str, heard: str) -> bool:
     if not hl or hl >= PARTIAL_RATIO * ll:
         return False
     hj = jamo(heard)
-    head = jamo("".join(re.findall(r"[가-힣]", line))[: hl + 2])
-    return difflib.SequenceMatcher(None, head, hj).ratio() >= 0.75
+    letters = "".join(re.findall(r"[가-힣]", line))
+    # react2 2845 줄3·4 — 짧은 앞부분(«아니요» 3자)은 +2 여유 때문에 비율이 0.7 로 떨어져 반쪽으로 못 봤다 → 그대로 판정해 fail.
+    #   같은 길이 앞부분과도 비교해 더 나은 쪽을 쓴다.
+    return max(difflib.SequenceMatcher(None, jamo(letters[: hl + k]), hj).ratio() for k in (0, 2)) >= 0.75
 
 
 CONTENT_PASS = 0.8      # ④(2319) 0.5 → 0.8 — 내용어 절반만 맞아도 통과하던 것
@@ -153,28 +160,155 @@ def enabled(settings: Any, *, call_type: Optional[str], voice: Optional[str], lo
     if not (ROOT / f"{char}_en" / "manifest.json").exists():
         clip_expr.fallback("script", f"캐릭터 자산 없음({char}_en)", char=char)
         return None
+    if not (_beaver_clips_match(char, lesson) or _remote_sb(char, lesson) is not None):
+        # PM-DEC-1012 — 비버 줄 녹음은 저장소(A2-T11-1 sb_N) 또는 버킷 clips_script/<캐릭터>/<sha1 12자>.wav. 그 차시 줄이 다 있어야 연다.
+        clip_expr.fallback("script", f"비버 줄 녹음 없음({lesson})", char=char)
+        return None
     return char
 
 
+# ── PM-DEC-1012 — 차시별 비버 줄 녹음(버킷) ──
+SB_PREFIX = "clips_script"            # gs://<GCS_AUDIO_BUCKET>/clips_script/<Baba|Bibi>/<sha1(비버 줄.strip())[:12]>.wav
+SB_LRU_MAX = 40                       # 차시 묶음 캐시 상한(한 묶음 = 10줄 · 약 3MB)
+SB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다(통화마다 버킷을 두드리지 않게)
+SB_TTS_MAX_MISSING = 2                # 녹음이 끝내 안 된 줄은 그 줄만 Cloud TTS(같은 캐릭터 목소리)로 · 차시당 이 수까지만
+_SB_LRU: "OrderedDict[tuple[str, str], dict]" = OrderedDict()
+_SB_MISS: dict[tuple[str, str], float] = {}
+_SB_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="sb-fetch")
+
+
+def sb_hash(text: str) -> str:
+    """비버 줄 녹음 파일 이름 — call flow 산출과 같은 규칙(sha1(줄.strip() UTF-8) 앞 12자)."""
+    return hashlib.sha1((text or "").strip().encode("utf-8")).hexdigest()[:12]
+
+
+def _fetch_sb(char: str, n: int, text: str) -> Optional[Clip]:
+    from core import storage
+    data = storage.download(SB_PREFIX, f"{char}/{sb_hash(text)}.wav")
+    if not data:
+        return None
+    try:
+        with wave.open(io.BytesIO(data), "rb") as w:
+            if not (w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1):
+                logger.warning("script_read: 비버 줄 녹음 형식 다름 %s/%s", char, sb_hash(text))
+                return None
+            frames = w.readframes(w.getnframes())
+    except (wave.Error, EOFError) as exc:
+        logger.warning("script_read: 비버 줄 녹음 읽기 실패 %s/%s: %s", char, sb_hash(text), exc)
+        return None
+    return Clip(f"sb_{n}", text, len(frames) / 48000.0, frames, "neutral")
+
+
+def _tts_sb(char: str, n: int, text: str) -> Optional[Clip]:
+    """녹음 없는 비버 줄 하나를 Cloud TTS(캐릭터 목소리 · PCM16 24kHz)로. 작업 스레드에서 부른다."""
+    if not text.strip():
+        return None
+    try:
+        pcm = clip_expr._tts_sync(text.strip(), "ko", clip_expr.CHAR_VOICE.get(char, "Fenrir"))
+    except Exception as exc:   # TTS 실패는 그 차시를 닫는 것으로 끝낸다(통화는 종전 경로)
+        logger.warning("script_read: 비버 줄 TTS 대체 실패 %s/%s: %s", char, sb_hash(text), exc)
+        return None
+    if pcm and pcm[:4] == b"RIFF":
+        pcm = pcm[44:]
+    if not pcm:
+        return None
+    return Clip(f"sb_{n}", text, len(pcm) / 48000.0, pcm, "neutral")
+
+
+def _remote_sb(char: str, lesson: str) -> Optional[dict]:
+    """그 차시 비버 줄 녹음 sb_1..N 을 버킷에서 받아 묶음으로(LRU 캐시 · 없음은 잠깐 기억). 작업 스레드에서 부른다.
+
+    녹음이 빠진 줄이 SB_TTS_MAX_MISSING 이하면 그 줄만 TTS 로 채워 연다(PM-DEC-1018 — 녹음 불합격 줄).
+    """
+    key = (char, lesson)
+    if key in _SB_LRU:
+        _SB_LRU.move_to_end(key)
+        return _SB_LRU[key]
+    miss = _SB_MISS.get(key)
+    if miss is not None and time.monotonic() - miss < SB_MISS_TTL_S:
+        return None
+    try:
+        lines = json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["lines"]
+    except (OSError, ValueError, KeyError):
+        return None
+    t0 = time.monotonic()
+    got = list(_SB_POOL.map(lambda x: _fetch_sb(char, int(x["n"]), x.get("beaver") or ""), lines))
+    ms = (time.monotonic() - t0) * 1000
+    holes = [i for i, c in enumerate(got) if c is None]
+    if lines and 0 < len(holes) <= min(SB_TTS_MAX_MISSING, len(lines) - 1):
+        for i in holes:
+            got[i] = _tts_sb(char, int(lines[i]["n"]), lines[i].get("beaver") or "")
+        logger.info("script_read: 비버 줄 TTS 대체 %s/%s %s", char, lesson,
+                    [int(lines[i]["n"]) for i in holes if got[i] is not None])
+    if not lines or any(c is None for c in got):
+        _SB_MISS[key] = time.monotonic()
+        logger.info("script_read: 비버 줄 녹음 부족 %s/%s %d/%d (%.0fms)", char, lesson,
+                    sum(c is not None for c in got), len(lines), ms)
+        return None
+    bank = {c.id: c for c in got}
+    _SB_LRU[key] = bank
+    while len(_SB_LRU) > SB_LRU_MAX:
+        _SB_LRU.popitem(last=False)
+    logger.info("script_read: 비버 줄 녹음 받음 %s/%s %d개 %.0fms", char, lesson, len(bank), ms)
+    return bank
+
+
+_CLIPS_MATCH: dict[tuple[str, str], bool] = {}
+
+
+def _beaver_clips_match(char: str, lesson: str) -> bool:
+    """차시 대본의 비버 줄마다 같은 글자의 녹음 sb_N 이 캐릭터 자산에 있나(결과는 캐시)."""
+    key = (char, lesson)
+    if key not in _CLIPS_MATCH:
+        try:
+            clips = {c["id"]: (c.get("text") or "").strip()
+                     for c in json.loads((ROOT / f"{char}_en" / "manifest.json").read_text(encoding="utf-8"))}
+            lines = json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["lines"]
+            _CLIPS_MATCH[key] = bool(lines) and all(clips.get(f"sb_{x['n']}") == (x.get("beaver") or "").strip() for x in lines)
+        except (OSError, ValueError, KeyError) as exc:
+            logger.warning("script_read: 녹음 대조 실패 %s/%s: %s", char, lesson, exc)
+            _CLIPS_MATCH[key] = False
+    return _CLIPS_MATCH[key]
+
+
 _BANK: dict[str, tuple] = {}
+
+
+_BASE: dict[str, dict[str, Clip]] = {}
+
+
+def _base_clips(char: str) -> dict[str, Clip]:
+    """캐릭터 공통 클립(반응·인사 · 저장소 sb_N 포함)은 캐릭터당 한 번만 읽는다(PM-DEC-1012 — 차시마다 다시 읽지 않게)."""
+    if char not in _BASE:
+        d = ROOT / f"{char}_en"
+        clips: dict[str, Clip] = {}
+        for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
+            with wave.open(str(d / f"{c['id']}.wav"), "rb") as w:
+                assert w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1, c["id"]
+                face = c.get("face") or "neutral"
+                if face == "neutral":
+                    face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
+                clips[c["id"]] = Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
+        _BASE[char] = clips
+    return _BASE[char]
 
 
 def load_bank(char: str, lesson: str = "A2-T11-1") -> tuple[dict[str, Clip], list[Item], dict[int, dict]]:
     key = f"{char}_{lesson}"
     if key in _BANK:
         return _BANK[key]
-    d = ROOT / f"{char}_en"
-    clips: dict[str, Clip] = {}
-    for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
-        with wave.open(str(d / f"{c['id']}.wav"), "rb") as w:
-            assert w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1, c["id"]
-            face = c.get("face") or "neutral"
-            if face == "neutral":
-                face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
-            clips[c["id"]] = Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
+    clips = dict(_base_clips(char))
+    if not _beaver_clips_match(char, lesson):
+        remote = _remote_sb(char, lesson)
+        if remote is not None:
+            # 저장소 sb_N(A2-T11-1 녹음)을 빼고 이 차시 녹음으로 — 다른 차시 대본에 A2-T11-1 소리가 나가지 않게
+            clips = {k: v for k, v in clips.items() if not k.startswith("sb_")}
+            clips.update(remote)
     lines = json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["lines"]
     items = [Item(x["n"], x["learner"], x.get("en") or "", False) for x in lines]
     _BANK[key] = (clips, items, {x["n"]: x for x in lines})
+    while len(_BANK) > SB_LRU_MAX + 4:
+        _BANK.pop(next(iter(_BANK)))
     return _BANK[key]
 
 
@@ -195,6 +329,8 @@ class ScriptReadSession(ClipExprSession):
         self.empties = 0
         self.angry_used = 0
         self.angry_line = False
+        self._quiet_t0: Optional[float] = None    # PM-DEC-1024 — 이 줄에서 무음이 시작된 시각(빈 판정이 이어지는 동안)
+        self._quiet_replayed = False
         self.results: list[tuple[int, str, float]] = []
         self._band_tasks: set[asyncio.Task] = set()
         # PM-DEC-899 — 판정하는 동안(받아쓰기 ~1초) 들어온 마이크를 버리지 않는다(사용자 「마이크가 씹히는 느낌」 · call 2104 줄8 빈 판정 13회).
@@ -405,9 +541,12 @@ class ScriptReadSession(ClipExprSession):
                 logger.info("normalcall script 무음 대기: call_id=%s 줄=%d 시도=%d", self._cid(), n, self.attempt)
                 self._silence_logged = True
             self.empties += 1
+            if await self._on_quiet(n, time.monotonic()):
+                return
             await self._wait(carry=True)      # 실패로 치지 않는다 · 반응 없음 · 그새 이어 말했으면 붙여서 다시
             return
         self._silence_logged = False
+        self._quiet_t0, self._quiet_replayed = None, False
         audio_s, stt_ms = getattr(self, "_last_stt", (0.0, -1))
         logger.info("normalcall script judge: call_id=%s 조각=%s 줄=%d 시도=%d 판정=%s 자모=%.2f 내용어=%.2f 말=%.1fs stt_ms=%d "
                     "말끝→판정_ms=%d 대본=«%s» 들음=«%s»",
@@ -419,14 +558,26 @@ class ScriptReadSession(ClipExprSession):
             return
         if r in ("pass", "close"):
             await self._result_card(r)
+            first_try = self.attempt == 1
             nxt = await self._next_line()
             if nxt:
-                await self._turn(nxt, result=r, heard=heard, t_end=t_end)   # 반응 없이 다음 비버 대사
+                # PM-DEC-1019 — 통화 중 발음 점수가 없어 «첫 시도 자모 유사도 높음» 을 발음 고득점 대신으로 쓴다(통화당 2회 상한).
+                # PM-DEC-1021 — 줄 단위 정답 반응: 통과(pass)면 correct(연속이면 짧은 판). 근접(close)은 반응 없이 넘어간다.
+                rx = "pron" if (r == "pass" and first_try and sim >= PRON_SIM) else ("correct" if r == "pass" else None)
+                if rx == "pron" and await self._react("pron") == 0:
+                    rx = "correct"            # 발음 상한·간격에 걸리면 일반 정답 반응으로
+                elif rx == "pron":
+                    rx = None                 # 이미 발음 반응이 나갔다
+                await self._turn(nxt, result=r, heard=heard, t_end=t_end, react=rx)
             else:
+                # PM-DEC-1019 — 완주 축하. 일꾼이 기다리는 동안 종료 명령(close)은 줄에 서서 반응 뒤에 처리된다.
+                await self._react("script")
                 await self._wait()            # 11번 끝 — 종료 요청이 들어가 있다
             return
         if self.attempt == 1:
             await self._result_card("fail")
+            # PM-DEC-1021 — 줄 단위 오답 반응(첫 틀림만 · 두 번째부터는 화냄 클립이 반응이다). 반응 뒤 같은 줄 다시 읽기.
+            await self._react("wrong")
             self.attempt += 1
             await self._card(self._line_msg())   # 같은 줄 다시 읽기(투명도 0.9) — 반응 없음 · 바로 말할 차례
             await self._card(self._turn_msg())
@@ -445,11 +596,36 @@ class ScriptReadSession(ClipExprSession):
         self._line_after_turn = True          # 화냄 클립이 끝나면 같은 줄
         await self._turn([lead], result="fail", heard=heard, t_end=t_end)
 
+    async def _on_quiet(self, n: int, now: float) -> bool:
+        """PM-DEC-1024 — 같은 줄 무음이 길면 비버 줄을 한 번 다시 들려주고, 그래도 무음이면 다음 줄로. 턴을 냈으면 True."""
+        replay_s = float(getattr(self._settings, "SCRIPT_READ_SILENT_REPLAY_S", 15.0) or 0)
+        skip_s = float(getattr(self._settings, "SCRIPT_READ_SILENT_SKIP_S", 30.0) or 0)
+        if self._quiet_t0 is None:
+            self._quiet_t0 = now - self._dunno_s      # 첫 빈 판정은 무음 _dunno_s 뒤에 온다
+        quiet = now - self._quiet_t0
+        if replay_s > 0 and not self._quiet_replayed and quiet >= replay_s:
+            self._quiet_replayed = True
+            self._quiet_t0 = now                       # 다시 들려준 뒤부터 다시 센다
+            logger.info("normalcall script 무음 다시 들려줌: call_id=%s 줄=%d 무음=%.0fs", self._cid(), n, quiet)
+            await self._turn([f"sb_{n}"], result="silent_replay")
+            return True
+        if skip_s > 0 and (self._quiet_replayed or replay_s <= 0) and quiet >= skip_s:
+            logger.info("normalcall script 무음 건너뜀: call_id=%s 줄=%d 무음=%.0fs", self._cid(), n, quiet)
+            await self._result_card("skip")
+            nxt = await self._next_line()
+            if nxt:
+                await self._turn(nxt, result="silent_skip")
+            else:
+                await self._wait()                     # 마지막 줄 — 종료 요청이 들어가 있다
+            return True
+        return False
+
     async def _next_line(self) -> list[str]:
         self.idx += 1
         self.done_items += 1
         self.attempt = 1
         self.empties = 0
+        self._quiet_t0, self._quiet_replayed = None, False
         self.angry_line = False
         if self.idx >= len(self.items):
             self.stage = "done"

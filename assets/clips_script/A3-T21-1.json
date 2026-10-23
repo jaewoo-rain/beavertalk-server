@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T21-1",
+ "no": 63,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 만나서 정말 반가웠어요.",
+   "beaver_en": "It was really nice meeting you today.",
+   "beaver_roman": "oneul mannaseo jeongmal bangawosseoyo.",
+   "learner": "저도요. 연락처를 물어봐도 돼요?",
+   "en": "Me too. Can I ask for your contact info?",
+   "roman": "jeodoyo. yeollakcheoreul mureobwado dwaeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "그럼요. 휴대폰 있어요?",
+   "beaver_en": "Of course. Do you have your phone?",
+   "beaver_roman": "geureomyo. hyudaepon isseoyo?",
+   "learner": "네, 지금 휴대폰을 찾고 있어요.",
+   "en": "Yes, I'm looking for my phone now.",
+   "roman": "ne, jigeum hyudaeponeul chatgo isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "제 번호는 010-2345-6789예요.",
+   "beaver_en": "My number is 010-2345-6789.",
+   "beaver_roman": "je beonhoneun 010-2345-6789yeyo.",
+   "learner": "지금 번호를 저장하고 있어요. 잠깐만요.",
+   "en": "I'm saving the number now. Just a moment.",
+   "roman": "jigeum beonhoreul jeojanghago isseoyo. jamkkanmanyo."
+  },
+  {
+   "n": 4,
+   "beaver": "저한테 메시지 하나 보내 줄래요?",
+   "beaver_en": "Could you send me a message?",
+   "beaver_roman": "jeohante mesiji hana bonae jullaeyo?",
+   "learner": "네, 지금 메시지를 보내고 있어요.",
+   "en": "Sure, I'm sending a message now.",
+   "roman": "ne, jigeum mesijireul bonaego isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "아, 왔어요! 휴대폰 색이 예쁘네요.",
+   "beaver_en": "Oh, it came! Your phone's color is pretty.",
+   "beaver_roman": "a, wasseoyo! hyudaepon saegi yeppeuneyo.",
+   "learner": "고마워요. 오래 썼는데 아직 튼튼해요.",
+   "en": "Thanks. I've used it long, but it's still sturdy.",
+   "roman": "gomawoyo. orae sseonneunde ajik teunteunhaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 저는 답장이 자꾸 늦어요.",
+   "beaver_en": "By the way, I often reply late.",
+   "beaver_roman": "geureonde jeoneun dapjangi jakku neujeoyo.",
+   "learner": "괜찮아요. 저도 답장이 늦을 때가 있어요.",
+   "en": "That's okay. Sometimes I reply late too.",
+   "roman": "gwaenchanayo. jeodo dapjangi neujeul ttaega isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "통화보다 메시지가 편해요?",
+   "beaver_en": "Are messages easier for you than calls?",
+   "beaver_roman": "tonghwaboda mesijiga pyeonhaeyo?",
+   "learner": "네, 저는 통화보다 메시지가 편해요.",
+   "en": "Yes, I prefer messages to calls.",
+   "roman": "ne, jeoneun tonghwaboda mesijiga pyeonhaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저도요. 요즘 무슨 일 해요?",
+   "beaver_en": "Me too. What are you doing these days?",
+   "beaver_roman": "jeodoyo. yojeum museun il haeyo?",
+   "learner": "요즘 한국어를 배우고 있어요.",
+   "en": "I'm learning Korean these days.",
+   "roman": "yojeum hangugeoreul baeugo isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "와, 멋있어요! 자주 소식 전해 줘요.",
+   "beaver_en": "Wow, cool! Keep me posted often.",
+   "beaver_roman": "wa, meosisseoyo! jaju sosik jeonhae jwoyo.",
+   "learner": "좋아요. 서로 자주 연락해요.",
+   "en": "Sure. Let's keep in touch often.",
+   "roman": "joayo. seoro jaju yeollakaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 메시지 기다리고 있을게요. 잘 가요!",
+   "beaver_en": "Then I'll be waiting for your message. Bye!",
+   "beaver_roman": "geureom mesiji gidarigo isseulgeyo. jal gayo!",
+   "learner": "네, 곧 연락할게요. 잘 가요!",
+   "en": "Okay, I'll contact you soon. Bye!",
+   "roman": "ne, got yeollakalgeyo. jal gayo!"
+  }
+ ]
+}

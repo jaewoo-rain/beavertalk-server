@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T53-1",
+ "no": 334,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 뉴스에 시위 이야기가 많네요.",
+   "beaver_en": "There's a lot of protest news lately.",
+   "beaver_roman": "yojeum nyuseue siwi iyagiga manneyo.",
+   "learner": "네, 어제도 광장에서 큰 데모가 있었어요.",
+   "en": "Yes, there was a big demonstration in the square yesterday too.",
+   "roman": "ne, eojedo gwangjangeseo keun demoga isseosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그런 시위는 누가 주도해요?",
+   "beaver_en": "Who leads protests like that?",
+   "beaver_roman": "geureon siwineun nuga judohaeyo?",
+   "learner": "이번에는 대학생들이 주도했다고 들었어요.",
+   "en": "I heard college students led it this time.",
+   "roman": "ibeoneneun daehaksaengdeuri judohaetdago deureosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "정치인들은 그걸 보고 어떻게 반응해요?",
+   "beaver_en": "How do politicians react to that?",
+   "beaver_roman": "jeongchiindeureun geugeol bogo eotteoke baneunghaeyo?",
+   "learner": "대화에 응한 정치가도 있었어요.",
+   "en": "Some politicians agreed to talk.",
+   "roman": "daehwae eunghan jeongchigado isseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "정치가들 의견이 다 같지는 않네요.",
+   "beaver_en": "So politicians don't all agree.",
+   "beaver_roman": "jeongchigadeul uigyeoni da gatjineun anneyo.",
+   "learner": "네, 크게 두 편으로 나뉘어서 싸워요.",
+   "en": "Yes, they're split into two main sides and fight.",
+   "roman": "ne, keuge du pyeoneuro nanwieoseo ssawoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "예를 하나 들어 주시겠어요?",
+   "beaver_en": "Could you give me an example?",
+   "beaver_roman": "yereul hana deureo jusigesseoyo?",
+   "learner": "한국 국회가 정당 싸움의 좋은 예예요.",
+   "en": "Korea's National Assembly is a good example of party fights.",
+   "roman": "hanguk gukoega jeongdang ssaumui joeun yeyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "외교 문제에서도 그래요?",
+   "beaver_en": "Is it the same with diplomatic issues?",
+   "beaver_roman": "oegyo munjeeseodo geuraeyo?",
+   "learner": "네, 외교에서도 의견이 많이 달라요.",
+   "en": "Yes, opinions differ a lot on diplomacy too.",
+   "roman": "ne, oegyoeseodo uigyeoni mani dallayo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 국익은 어떻게 지켜요?",
+   "beaver_en": "Then how do they protect the national interest?",
+   "beaver_roman": "geureom gugigeun eotteoke jikyeoyo?",
+   "learner": "다른 나라와 적절히 교류하면서 지켜야죠.",
+   "en": "By having proper exchanges with other countries.",
+   "roman": "dareun narawa jeokjeolhi gyoryuhamyeonseo jikyeoyajyo."
+  },
+  {
+   "n": 8,
+   "beaver": "정치와 선거에 대해 더 말해 줄래요?",
+   "beaver_en": "Can you tell me more about politics and elections?",
+   "beaver_roman": "jeongchiwa seongeoe daehae deo malhae jullaeyo?",
+   "learner": "작년 선거는 시민의 힘을 보여 주는 좋은 예예요.",
+   "en": "Last year's election is a good example of citizens' power.",
+   "roman": "jangnyeon seongeoneun siminui himeul boyeo juneun joeun yeyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "시위가 선거에도 영향을 줬어요?",
+   "beaver_en": "Did the protests affect the election?",
+   "beaver_roman": "siwiga seongeoedo yeonghyangeul jwosseoyo?",
+   "learner": "네, 그 시위 이후로 투표하는 사람이 늘었어요.",
+   "en": "Yes, more people have voted since those protests.",
+   "roman": "ne, geu siwi ihuro tupyohaneun sarami neureosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "덕분에 많이 배웠어요. 다음에 또 얘기해요.",
+   "beaver_en": "I learned a lot, thanks. Let's talk again.",
+   "beaver_roman": "deokbune mani baewosseoyo. daeume tto yaegihaeyo.",
+   "learner": "좋아요. 국익을 위한 정치가 늘면 좋겠어요.",
+   "en": "Sure. I hope we see more politics for the national interest.",
+   "roman": "joayo. gugigeul wihan jeongchiga neulmyeon jokesseoyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T36-1",
+ "no": 41,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "토요일이 민지 생일이에요. 파티 준비 같이 해요!",
+   "beaver_en": "Saturday is Minji's birthday. Let's prepare the party together!",
+   "beaver_roman": "Toyoiri minji saengirieyo. Pati junbi gachi haeyo!",
+   "learner": "좋아요. 저는 생일 선물을 살게요.",
+   "en": "Okay. I'll buy the birthday gift.",
+   "roman": "Joayo. Jeoneun saengil seonmureul salkkeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "선물은 뭐가 좋아요?",
+   "beaver_en": "What would be a good gift?",
+   "beaver_roman": "Seonmureun mwoga joayo?",
+   "learner": "민지가 책을 좋아해요. 유명한 책을 살게요.",
+   "en": "Minji likes books. I'll buy a famous book.",
+   "roman": "Minjiga chaegeul joahaeyo. Yumyeonghan chaegeul salkkeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요. 친구들 초대는 어떻게 해요?",
+   "beaver_en": "Great. How do we invite our friends?",
+   "beaver_roman": "Joayo. Chingudeul chodaeneun eotteoke haeyo?",
+   "learner": "제가 친구들에게 초대 문자를 보낼게요.",
+   "en": "I'll send the friends an invitation text.",
+   "roman": "Jega chingudeurege chodae munjareul bonaelkkeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "고마워요. 파티는 우리 집에서 해요.",
+   "beaver_en": "Thanks. The party is at my place.",
+   "beaver_roman": "Gomawoyo. Patineun uri jibeseo haeyo.",
+   "learner": "좋아요. 파티는 몇 시에 시작해요?",
+   "en": "Good. What time does the party start?",
+   "roman": "Joayo. Patineun myeot sie sijakaeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "저녁 여섯 시예요. 친구들에게도 알려 주세요.",
+   "beaver_en": "Six in the evening. Please tell the friends too.",
+   "beaver_roman": "Jeonyeok yeoseot siyeyo. Chingudeuregedo allyeo juseyo.",
+   "learner": "네, 시간도 같이 알릴게요.",
+   "en": "Sure, I'll let them know the time too.",
+   "roman": "Ne, sigando gachi allilkkeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "케이크는 제가 살게요. 얼마나 큰 걸 살까요?",
+   "beaver_en": "I'll buy the cake. How big should it be?",
+   "beaver_roman": "Keikeuneun jega salkkeyo. Eolmana keun geol salkkayo?",
+   "learner": "오는 친구가 적어요. 작은 케이크도 괜찮아요.",
+   "en": "Not many friends are coming. A small cake is fine.",
+   "roman": "Oneun chinguga jeogeoyo. Jageun keikeudo gwaenchanayo."
+  },
+  {
+   "n": 7,
+   "beaver": "그런데 할머니 생신도 다음 주지요?",
+   "beaver_en": "By the way, your grandma's birthday is next week too, right?",
+   "beaver_roman": "Geureonde halmeoni saengsindo daeum jujiyo?",
+   "learner": "네, 다음 주가 할머니 생신이에요.",
+   "en": "Yes, next week is my grandma's birthday.",
+   "roman": "Ne, daeum juga halmeoni saengsinieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "할머니 생신 선물도 샀어요?",
+   "beaver_en": "Did you buy a gift for her too?",
+   "beaver_roman": "Halmeoni saengsin seonmuldo sasseoyo?",
+   "learner": "아직요. 주말에 꽃을 살게요.",
+   "en": "Not yet. I'll buy flowers this weekend.",
+   "roman": "Ajingnyo. Jumare kkocheul salkkeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "민지는 파티를 몰라요. 꼭 비밀로 해 주세요!",
+   "beaver_en": "Minji doesn't know about the party. Please keep it a secret!",
+   "beaver_roman": "Minjineun patireul mollayo. Kkok bimillo hae juseyo!",
+   "learner": "알겠어요. 민지한테 말 안 할게요.",
+   "en": "Got it. I won't tell Minji.",
+   "roman": "Algesseoyo. Minjihante mal an halkkeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "민지가 문을 열고 들어오면 같이 축하해요!",
+   "beaver_en": "When Minji opens the door and comes in, let's celebrate together!",
+   "beaver_roman": "Minjiga muneul yeolgo deureoomyeon gachi chukahaeyo!",
+   "learner": "좋아요. 큰 소리로 축하할게요. 토요일에 봐요!",
+   "en": "Okay. I'll cheer loudly. See you Saturday!",
+   "roman": "Joayo. Keun soriro chukahalkkeyo. Toyoire bwayo!"
+  }
+ ]
+}

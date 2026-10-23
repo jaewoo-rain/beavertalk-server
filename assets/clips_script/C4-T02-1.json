@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T02-1",
+ "no": 441,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "형님, 어머니 수발 문제로 전화드렸어요.",
+   "beaver_en": "Brother, I called about taking care of Mom.",
+   "beaver_roman": "hyeongnim, eomeoni subal munjero jeonhwadeuryeosseoyo.",
+   "learner": "아버지 돌아가신 지 벌써 3년이야.",
+   "en": "It's already been three years since Dad passed away.",
+   "roman": "abeoji doragasin ji beolsseo samnyeoniya."
+  },
+  {
+   "n": 2,
+   "beaver": "형님 생각은 어떠십니까? 모시는 게 낫겠죠?",
+   "beaver_en": "What do you think? Should we have her live with one of us?",
+   "beaver_roman": "hyeongnim saenggageun eotteosimnikka? mosineun ge natgetjyo?",
+   "learner": "응, 우리 집에서 모실게. 집사람도 찬성했어.",
+   "en": "Yes, she'll live with us. My wife agreed too.",
+   "roman": "eung, uri jibeseo mosilge. jipsaramdo chanseonghaesseo."
+  },
+  {
+   "n": 3,
+   "beaver": "형수님이 고생이 많으시겠어요. 비용도 만만치 않고요.",
+   "beaver_en": "That'll be hard on your wife. And it's not cheap either.",
+   "beaver_roman": "hyeongsunimi gosaengi maneusigesseoyo. biyongdo manmanchi ankoyo.",
+   "learner": "어디 비용뿐인가? 수발드는 게 더 힘들지.",
+   "en": "It's not just the cost. The caregiving is harder.",
+   "roman": "eodi biyongbuninga? subaldeuneun ge deo himdeulji."
+  },
+  {
+   "n": 4,
+   "beaver": "생활비는 제가 매달 보탤게요.",
+   "beaver_en": "I'll chip in for living costs every month.",
+   "beaver_roman": "saenghwalbineun jega maedal botaelgeyo.",
+   "learner": "고마워. 어머니 수발은 우리 부부가 할게.",
+   "en": "Thanks. My wife and I will take care of Mom.",
+   "roman": "gomawo. eomeoni subareun uri bubuga halge."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 수진이 얘기도 해야죠. 혼자 아기 키우잖아요.",
+   "beaver_en": "We should also talk about Sujin. She's raising the baby alone.",
+   "beaver_roman": "geureonde sujini yaegido haeyajyo. honja agi kiujanayo.",
+   "learner": "미혼모라 혼자서 다 해. 아직 산모인데.",
+   "en": "She's a single mom doing it all alone. She just gave birth.",
+   "roman": "mihonmora honjaseo da hae. ajik sanmoinde."
+  },
+  {
+   "n": 6,
+   "beaver": "아기 물건값도 꽤 든다던데요.",
+   "beaver_en": "I heard baby things cost quite a lot.",
+   "beaver_roman": "agi mulgeongapdo kkwae deundadeondeyo.",
+   "learner": "모유가 잘 안 나와서 분유랑 기저귀값이 꽤 든대.",
+   "en": "She doesn't have much breast milk, so formula and diapers cost a lot.",
+   "roman": "moyuga jal an nawaseo bunyurang gijeogwigapsi kkwae deundae."
+  },
+  {
+   "n": 7,
+   "beaver": "그건 저희가 맡을게요. 매달 보낼게요.",
+   "beaver_en": "We'll handle that. We'll send them every month.",
+   "beaver_roman": "geugeon jeohuiga mameulgeyo. maedal bonaelgeyo.",
+   "learner": "고맙다. 집사람한테 말해서 반찬 좀 보낼게.",
+   "en": "Thanks. I'll tell my wife and send some side dishes.",
+   "roman": "gomapda. jipsaramhante malhaeseo banchan jom bonaelge."
+  },
+  {
+   "n": 8,
+   "beaver": "수진이가 임신 내내 마음고생이 심했죠.",
+   "beaver_en": "Sujin had a really hard time during her pregnancy.",
+   "beaver_roman": "sujiniga imsin naenae maeumgosaengi simhaetjyo.",
+   "learner": "태교도 못 하고 힘들게 낳았잖아. 잘 챙기자.",
+   "en": "She couldn't even do prenatal care and had a hard birth. Let's look after her.",
+   "roman": "taegyodo mo tago himdeulge nadatjana. jal chaenggija."
+  },
+  {
+   "n": 9,
+   "beaver": "어머니가 외로우실까 봐 걱정이에요.",
+   "beaver_en": "I'm worried Mom might feel lonely.",
+   "beaver_roman": "eomeoniga oerousilkka bwa geokjeongieyo.",
+   "learner": "주말엔 다 같이 모이자. 효도해야지.",
+   "en": "Let's all get together on weekends. We should be good to her.",
+   "roman": "jumaren da gachi moija. hyodohaeyaji."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 이번 주말에 다 모여요.",
+   "beaver_en": "Sounds good. Let's all get together this weekend.",
+   "beaver_roman": "joayo. ibeon jumare da moyeoyo.",
+   "learner": "그래. '가족 화목'이 우리 집 가훈이잖아.",
+   "en": "Okay. 'Family harmony' is our family motto, after all.",
+   "roman": "geurae. 'gajok hwamog'i uri jip gahunijana."
+  }
+ ]
+}

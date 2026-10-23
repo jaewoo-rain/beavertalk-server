@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T18-1",
+ "no": 454,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘 일정 안내를 맡은 김민수입니다.",
+   "beaver_en": "Hello. I'm Kim Minsu, your guide for today's schedule.",
+   "beaver_roman": "annyeonghaseyo. oneul iljeong annaereul mateun Gim Minsuimnida.",
+   "learner": "반갑습니다. 오늘 명승지 세 곳을 가는 게 맞지요?",
+   "en": "Nice to meet you. We're visiting three scenic spots today, right?",
+   "roman": "bangapseumnida. oneul myeongseungji se goseul ganeun ge matjiyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "네, 맞습니다. 첫 번째는 산 위 전망대입니다.",
+   "beaver_en": "Yes, that's right. The first is the observatory on the mountain.",
+   "beaver_roman": "ne, matseumnida. cheot beonjjaeneun san wi jeonmangdaeimnida.",
+   "learner": "전망대 개방 여부를 알 수 있을까요?",
+   "en": "Could I find out whether the observatory is open?",
+   "roman": "jeonmangdae gaebang yeobureul al su isseulkkayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "오늘은 열려 있습니다. 오전 시간대가 한적해요.",
+   "beaver_en": "It's open today. The morning hours are quiet.",
+   "beaver_roman": "oneureun yeollyeo itseumnida. ojeon sigandaega hanjeokaeyo.",
+   "learner": "거기서 보는 경관이 아름답다고 들었어요.",
+   "en": "I heard the scenery from there is beautiful.",
+   "roman": "geogiseo boneun gyeonggwani areumdapdago deureosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "네, 이 일대에서 경관이 가장 좋은 곳입니다.",
+   "beaver_en": "Yes, it has the best scenery in this area.",
+   "beaver_roman": "ne, i ildaeeseo gyeonggwani gajang joeun gosimnida.",
+   "learner": "옛날 나그네들도 그곳을 지나갔다고 하던데요.",
+   "en": "I heard travelers long ago passed through there too.",
+   "roman": "yennal nageunedeuldo geugoseul jinagatdago hadeondeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 그래서 옛 기행 글에도 자주 나옵니다.",
+   "beaver_en": "Right. That's why it often appears in old travel writing.",
+   "beaver_roman": "majayo. geuraeseo yet gihaeng geuredo jaju naomnida.",
+   "learner": "저도 이번 여행으로 기행문을 써 보려고 해요.",
+   "en": "I'm planning to write a travel piece about this trip too.",
+   "roman": "jeodo ibeon yeohaengeuro gihaengmuneul sseo boryeogo haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "좋네요. 두 번째 명승지는 옛 마을입니다.",
+   "beaver_en": "Nice. The second scenic spot is an old village.",
+   "beaver_roman": "jonneyo. du beonjjae myeongseungjineun yet maeurimnida.",
+   "learner": "그 마을은 이주해 온 사람들이 만든 곳이지요?",
+   "en": "That village was built by people who migrated there, right?",
+   "roman": "geu maeureun ijuhae on saramdeuri mandeun gosijiyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 백여 년 전에 많은 사람이 이주해 왔습니다.",
+   "beaver_en": "Yes, many people moved there over a hundred years ago.",
+   "beaver_roman": "ne, baegyeo nyeon jeone maneun sarami ijuhae wasseumnida.",
+   "learner": "객지에서 고향을 많이 그리워했겠네요.",
+   "en": "They must have missed home a lot, living so far away.",
+   "roman": "gaekjieseo gohyangeul mani geuriwohaetgenneyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네, 그래서 고향으로 돌아간 사람도 많았어요.",
+   "beaver_en": "Yes, so many people went back to their hometowns.",
+   "beaver_roman": "ne, geuraeseo gohyangeuro doragan saramdo manasseoyo.",
+   "learner": "귀향 여부를 두고 고민이 많았겠어요.",
+   "en": "They must have struggled over whether to go home.",
+   "roman": "gwihyang yeobureul dugo gomini manatgesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "네. 마지막 일정 뒤엔 공항으로 바로 가요.",
+   "beaver_en": "Yes. After the last stop, we go straight to the airport.",
+   "beaver_roman": "ne. majimak iljeong dwien gonghangeuro baro gayo.",
+   "learner": "세관 신고는 공항 어디에서 하나요?",
+   "en": "Where at the airport do I make my customs declaration?",
+   "roman": "segwan singoneun gonghang eodieseo hanayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "공항 이 층 세관 사무소입니다. 제가 모셔 갈게요.",
+   "beaver_en": "It's the customs office on the 2nd floor. I'll take you there.",
+   "beaver_roman": "gonghang i cheung segwan samusoimnida. jega mosyeo galgeyo.",
+   "learner": "감사합니다. 오늘 일정이 정말 기대돼요.",
+   "en": "Thank you. I'm really looking forward to today.",
+   "roman": "gamsahamnida. oneul iljeongi jeongmal gidaedwaeyo."
+  }
+ ]
+}

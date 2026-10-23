@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T29-1",
+ "no": 411,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 요즘 얼굴이 안 좋아 보여. 괜찮아?",
+   "beaver_en": "Minsu, you don't look well lately. Are you okay?",
+   "beaver_roman": "minsuya, yojeum eolguri an joa boyeo. gwaenchana?",
+   "learner": "요즘 기력이 너무 없어. 맥이 다 빠졌어.",
+   "en": "I have no energy these days. I'm totally drained.",
+   "roman": "yojeum giryeogi neomu eopseo. maegi da ppajyeosseo."
+  },
+  {
+   "n": 2,
+   "beaver": "어디가 제일 힘든데? 자세히 말해 봐.",
+   "beaver_en": "What's the hardest part? Tell me more.",
+   "beaver_roman": "eodiga jeil himdeunde? jasehi malhae bwa.",
+   "learner": "계단만 올라가도 숨을 몰아쉬게 돼.",
+   "en": "Even climbing stairs makes me breathe heavily.",
+   "roman": "gyedanman ollagado sumeul morasuige dwae."
+  },
+  {
+   "n": 3,
+   "beaver": "맥박은 정상이야? 재 봤어?",
+   "beaver_en": "Is your pulse normal? Did you check it?",
+   "beaver_roman": "maekppageun jeongsangiya? jae bwasseo?",
+   "learner": "병원에서 맥박이 빠르다는 소리를 들었어.",
+   "en": "The hospital told me my pulse is fast.",
+   "roman": "byeongwoneseo maekppagi ppareudaneun sorireul deureosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "혹시 담배 피우는 건 아니지?",
+   "beaver_en": "You're not smoking, are you?",
+   "beaver_roman": "hoksi dambae piuneun geon aniji?",
+   "learner": "응, 끊었어. 폐는 괜찮대.",
+   "en": "Yeah, I quit. They said my lungs are fine.",
+   "roman": "eung, kkeuneosseo. pyeneun gwaenchantae."
+  },
+  {
+   "n": 5,
+   "beaver": "다행이다. 다른 데 아픈 곳은 없어?",
+   "beaver_en": "That's a relief. Does anything else hurt?",
+   "beaver_roman": "dahaengida. dareun de apeun goseun eopseo?",
+   "learner": "어깨가 뻐근하고 목덜미도 자주 아파.",
+   "en": "My shoulders are stiff and the back of my neck often hurts.",
+   "roman": "eokkaega ppeogeunhago moktteolmido jaju apa."
+  },
+  {
+   "n": 6,
+   "beaver": "컴퓨터를 오래 써서 그런가 봐.",
+   "beaver_en": "Maybe it's from using the computer too long.",
+   "beaver_roman": "keompyuteoreul orae sseoseo geureonga bwa.",
+   "learner": "맞아. 오른팔이 저리고 엄지도 아파.",
+   "en": "Right. My right arm tingles and my thumb hurts too.",
+   "roman": "maja. oreunpari jeorigo eomjido apa."
+  },
+  {
+   "n": 7,
+   "beaver": "소화는 잘 돼? 밥은 잘 먹고?",
+   "beaver_en": "How's your digestion? Are you eating well?",
+   "beaver_roman": "sohwaneun jal dwae? babeun jal meokgo?",
+   "learner": "입맛이 없어서 잘 못 먹어. 속도 더부룩해.",
+   "en": "I have no appetite, so I can't eat much. My stomach feels bloated too.",
+   "roman": "immasi eopseoseo jal mon meogeo. sokdo deoburukae."
+  },
+  {
+   "n": 8,
+   "beaver": "화장실은 잘 가? 그것도 중요해.",
+   "beaver_en": "Are you going to the bathroom okay? That matters too.",
+   "beaver_roman": "hwajangsireun jal ga? geugeotdo jungyohae.",
+   "learner": "화장실도 불규칙해. 몸이 늙는 느낌이야.",
+   "en": "My bathroom trips are irregular too. I feel like my body is aging.",
+   "roman": "hwajangsildo bulgyuchikae. momi neungneun neukkimiya."
+  },
+  {
+   "n": 9,
+   "beaver": "일 때문에 운동을 계속 미룬 거지?",
+   "beaver_en": "You kept putting off exercise because of work, right?",
+   "beaver_roman": "il ttaemune undongeul gyesok mirun geoji?",
+   "learner": "응, 건강을 너무 뒷전으로 미뤘어.",
+   "en": "Yeah, I put my health on the back burner too much.",
+   "roman": "eung, geongangeul neomu dwitjeoneuro mirwosseo."
+  },
+  {
+   "n": 10,
+   "beaver": "무리하지 마. 내일부터 나랑 같이 걷자.",
+   "beaver_en": "Don't overdo it. Let's walk together from tomorrow.",
+   "beaver_roman": "murihaji ma. naeilbuteo narang gachi geotja.",
+   "learner": "고마워. 내일부터 같이 걸을게.",
+   "en": "Thanks. I'll walk with you starting tomorrow.",
+   "roman": "gomawo. naeilbuteo gachi georeulkke."
+  }
+ ]
+}

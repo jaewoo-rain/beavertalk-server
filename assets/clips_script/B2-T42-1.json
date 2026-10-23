@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T42-1",
+ "no": 195,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 인터뷰 파일은 백업했어요?",
+   "beaver_en": "Minji, did you back up the interview file?",
+   "beaver_roman": "Minji ssi, inteobyu paireun baekeopaesseoyo?",
+   "learner": "네, 과학자 인터뷰는 했어요. 그런데 좀 걱정돼요.",
+   "en": "Yes, I backed up the scientist interview. But I'm a bit worried.",
+   "roman": "Ne, gwahakja inteobyuneun haesseoyo. Geureonde jom geokjeongdwaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜요? 무슨 문제가 있어요?",
+   "beaver_en": "Why? Is there a problem?",
+   "beaver_roman": "Waeyo? Museun munjega isseoyo?",
+   "learner": "녹음 파일에 과학자 개인 정보가 있어서요.",
+   "en": "The recording file has the scientist's personal information.",
+   "roman": "Nogeum paire gwahakja gaein jeongboga isseoseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그 우주 과학자 인터뷰요?",
+   "beaver_en": "Oh, that interview with the space scientist?",
+   "beaver_roman": "A, geu uju gwahakja inteobyuyo?",
+   "learner": "네. 파일에 꼭 비밀번호를 걸지 않으면 안 돼요.",
+   "en": "Yes. We must put a password on the file.",
+   "roman": "Ne. Paire kkok bimilbeonhoreul geolji aneumyeon an dwaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "노트북에도 저장했어요?",
+   "beaver_en": "Did you save it on the laptop too?",
+   "beaver_roman": "Noteubugedo jeojanghaesseoyo?",
+   "learner": "네, 노트북에도 저장해 놨어요.",
+   "en": "Yes, I saved it on the laptop too.",
+   "roman": "Ne, noteubugedo jeojanghae nwasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "녹음기에 있는 파일은 어떻게 할 거예요?",
+   "beaver_en": "What will you do with the file on the recorder?",
+   "beaver_roman": "Nogeumgie inneun paireun eotteoke hal kkeoyeyo?",
+   "learner": "노트북에 옮긴 후에 삭제하지 않으면 안 돼요.",
+   "en": "I have to delete it after moving it to the laptop.",
+   "roman": "Noteubuge omgin hue sakjehaji aneumyeon an dwaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "좋네요. 그런데 검색은 잘돼요?",
+   "beaver_en": "Good. But is searching easy?",
+   "beaver_roman": "Jonneyo. Geureonde geomsaegeun jaldwaeyo?",
+   "learner": "네, 파일 이름에 '우주'를 넣어서 검색해요.",
+   "en": "Yes, I put 'universe' in the file name and search.",
+   "roman": "Ne, pail ireume 'uju'reul neoeoseo geomsaekaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "요즘은 자료가 다 컴퓨터에 있죠.",
+   "beaver_en": "These days all our data is on computers.",
+   "beaver_roman": "Yojeumeun jaryoga da keompyuteoe itjyo.",
+   "learner": "맞아요. 메일 보안도 신경 써야 돼요.",
+   "en": "Right. We need to watch email security too.",
+   "roman": "Majayo. Meil boando singyeong sseoya dwaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "다른 신문사에서 정보가 샜대요.",
+   "beaver_en": "I heard information leaked at another newspaper.",
+   "beaver_roman": "Dareun sinmunsaeseo jeongboga saetdaeyo.",
+   "learner": "우리 신문사도 조심하지 않으면 안 돼요.",
+   "en": "Our newspaper has to be careful too.",
+   "roman": "Uri sinmunsado josimhaji aneumyeon an dwaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "아까 민지 씨 자리 화면이 꺼져 있던데요.",
+   "beaver_en": "Your screen was off earlier, though.",
+   "beaver_roman": "Akka Minji ssi jari hwamyeoni kkeojyeo itdeondeyo.",
+   "learner": "그래도 마우스를 움직이면 모니터에 다 보여요.",
+   "en": "Still, if you move the mouse, everything shows on the monitor.",
+   "roman": "Geuraedo mauseureul umjigimyeon moniteoe da boyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "이따 이 얘기 더 해요. 점심 같이 먹을래요?",
+   "beaver_en": "Let's talk more later. Want to have lunch together?",
+   "beaver_roman": "Itta i yaegi deo haeyo. Jeomsim gachi meogeullaeyo?",
+   "learner": "좋아요. 과학 이야기는 점심 먹으면서 해요.",
+   "en": "Sure. Let's talk science over lunch.",
+   "roman": "Joayo. Gwahak iyagineun jeomsim meogeumyeonseo haeyo."
+  }
+ ]
+}

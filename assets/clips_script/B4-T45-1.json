@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T45-1",
+ "no": 283,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 어떻게 지내요? 얼굴이 좀 피곤해 보여요.",
+   "beaver_en": "How are you these days? You look a bit tired.",
+   "beaver_roman": "Yojeum eotteoke jinaeyo? Eolguri jom pigonhae boyeoyo.",
+   "learner": "일이 많은 데다가 현실이 힘들어서 지쳤어요.",
+   "en": "On top of having lots of work, reality is hard, so I'm worn out.",
+   "roman": "Iri maneun dedaga hyeonsiri himdeureoseo jichyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "힘들었겠네요. 그래도 꿈은 있죠?",
+   "beaver_en": "That must have been hard. But you still have a dream, right?",
+   "beaver_roman": "Himdeureotgenneyo. Geuraedo kkumeun itjyo?",
+   "learner": "네, 저는 아직도 작가가 되는 걸 꿈꿔요.",
+   "en": "Yes, I still dream of becoming a writer.",
+   "roman": "Ne, jeoneun ajikdo jakgaga doeneun geol kkumkkwoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 그 꿈을 실현하려면 뭐가 필요해요?",
+   "beaver_en": "That's nice. What do you need to make that dream real?",
+   "beaver_roman": "Jonneyo. Geu kkumeul silhyeonharyeomyeon mwoga piryohaeyo?",
+   "learner": "꿈을 이루려면 기적보다 노력이 필요해요.",
+   "en": "To achieve a dream, you need effort more than a miracle.",
+   "roman": "Kkumeul iruryeomyeon gijeokboda noryeogi piryohaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "맞아요. 로또 당첨만 기다리는 사람도 많죠.",
+   "beaver_en": "Right. Many people just wait to win the lottery.",
+   "beaver_roman": "Majayo. Rotto dangcheomman gidarineun saramdo manchyo.",
+   "learner": "당첨이 돼도 꿈이 없으면 행복하지 않을 거예요.",
+   "en": "Even if you win, you won't be happy without a dream.",
+   "roman": "Dangcheomi dwaedo kkumi eopseumyeon haengbokaji aneul kkeoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 지금은 어때요? 현실에 안주하고 있어요?",
+   "beaver_en": "So how about now? Are you settling for reality?",
+   "beaver_roman": "Geureom jigeumeun eottaeyo? Hyeonsire anjuhago isseoyo?",
+   "learner": "사실 조금 안주했어요. 편한 데다가 안전해서요.",
+   "en": "Honestly, I settled a bit. It's comfortable and safe, too.",
+   "roman": "Sasil jogeum anjuhaesseoyo. Pyeonhan dedaga anjeonhaeseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 작년에 할아버지가 돌아가셨어요.",
+   "beaver_en": "But my grandfather passed away last year.",
+   "beaver_roman": "Geureonde jangnyeone harabeojiga doragasyeosseoyo.",
+   "learner": "아, 할아버지가 돌아가신 후에 생각이 바뀌셨어요?",
+   "en": "Oh, did your thinking change after he passed away?",
+   "roman": "A, harabeojiga doragasin hue saenggagi bakkwisyeosseoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네. 일생이 생각보다 짧다는 걸 알았어요.",
+   "beaver_en": "Yes. I realized a lifetime is shorter than we think.",
+   "beaver_roman": "Ne. Ilsaengi saenggakboda jjaldaneun geol arasseoyo.",
+   "learner": "맞아요. 사람은 언제 떠날지 모르니까요.",
+   "en": "That's true. No one knows when they'll leave us.",
+   "roman": "Majayo. Sarameun eonje tteonalji moreunikkayo."
+  },
+  {
+   "n": 8,
+   "beaver": "가치관과 삶의 의미에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about values and life's meaning?",
+   "beaver_roman": "Gachigwangwa salme uimie daehae deo iyagihae bollaeyo?",
+   "learner": "저한테는 평생 꿈을 꾸는 게 가장 큰 가치예요.",
+   "en": "For me, dreaming my whole life is the greatest value.",
+   "roman": "Jeohanteneun pyeongsaeng kkumeul kkuneun ge gajang keun gachiyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "멋진 생각이에요. 그럼 이제 뭘 할 거예요?",
+   "beaver_en": "What a great thought. So what will you do now?",
+   "beaver_roman": "Meotjin saenggagieyo. Geureom ije mwol hal kkeoyeyo?",
+   "learner": "현실에 안주하지 않고 매일 조금씩 글을 쓸 거예요.",
+   "en": "I won't settle for reality. I'll write a little every day.",
+   "roman": "Hyeonsire anjuhaji anko maeil jogeumssik geureul sseul kkeoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "틀림없이 잘될 거예요. 제가 지켜볼게요.",
+   "beaver_en": "It'll surely go well. I'll be watching.",
+   "beaver_roman": "Teullimeopssi jaldoel kkeoyeyo. Jega jikyeobolkkeyo.",
+   "learner": "감사해요, 선배. 오늘 정말 큰 힘이 됐어요.",
+   "en": "Thank you, sunbae. Today really gave me strength.",
+   "roman": "Gamsahaeyo, seonbae. Oneul jeongmal keun himi dwaesseoyo."
+  }
+ ]
+}

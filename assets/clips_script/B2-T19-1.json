@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T19-1",
+ "no": 177,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 오늘은 예절에 대해 이야기해 볼래요?",
+   "beaver_en": "Minsu, shall we talk about etiquette today?",
+   "beaver_roman": "Minsu ssi, oneureun yejeore daehae iyagihae bollaeyo?",
+   "learner": "네, 선배님. 한국 예절이 궁금했어요.",
+   "en": "Yes, sunbae. I've been curious about Korean etiquette.",
+   "roman": "Ne, seonbaenim. Hanguk yejeori gunggeumhaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "친한 사람에게는 어떻게 말해요?",
+   "beaver_en": "How do you talk to people you're close to?",
+   "beaver_roman": "Chinhan saramegeneun eotteoke malhaeyo?",
+   "learner": "친한 사이에서는 반말을 많이 쓰지요?",
+   "en": "Close friends use a lot of informal speech, right?",
+   "roman": "Chinhan saieseoneun banmareul mani sseujiyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "맞아요. 그런데 친하면 언제나 반말해도 돼요?",
+   "beaver_en": "Right. But if you're close, can you always speak informally?",
+   "beaver_roman": "Majayo. Geureonde chinhamyeon eonjena banmalhaedo dwaeyo?",
+   "learner": "친하다고 해서 다 반말을 하는 것은 아니에요.",
+   "en": "Being close doesn't mean everyone uses informal speech.",
+   "roman": "Chinhadago haeseo da banmareul haneun geoseun anieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "잘 아네요. 그럼 웃어른께는요?",
+   "beaver_en": "You know it well. Then what about elders?",
+   "beaver_roman": "Jal aneyo. Geureom udeoreunkkeneunyo?",
+   "learner": "웃어른께는 존댓말을 쓰고 직함으로 불러요.",
+   "en": "With elders, I use polite speech and call them by their title.",
+   "roman": "Udeoreunkkeneun jondaenmareul sseugo jikameuro bulleoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "처음 만나면 악수도 하지요?",
+   "beaver_en": "You also shake hands when you first meet, right?",
+   "beaver_roman": "Cheoeum mannamyeon aksudo hajiyo?",
+   "learner": "네, 웃어른과는 두 손으로 악수하면 되죠?",
+   "en": "Yes, I should shake hands with elders using both hands, right?",
+   "roman": "Ne, udeoreungwaneun du soneuro aksuhamyeon doejyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "좋아요. 아랫사람에게는 반말해도 될까요?",
+   "beaver_en": "Good. Is it okay to speak informally to juniors?",
+   "beaver_roman": "Joayo. Araetsaramegeneun banmalhaedo doelkkayo?",
+   "learner": "아랫사람이라고 해서 다 반말하는 건 아니죠.",
+   "en": "Not everyone speaks informally just because someone is junior.",
+   "roman": "Araetsaramirago haeseo da banmalhaneun geon anijyo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 그럼 손님은 어떻게 맞아요?",
+   "beaver_en": "Right. Then how do you greet guests?",
+   "beaver_roman": "Majayo. Geureom sonnimeun eotteoke majayo?",
+   "learner": "문 앞에서 웃으면서 손님을 맞이해요.",
+   "en": "I welcome guests at the door with a smile.",
+   "roman": "Mun apeseo useumyeonseo sonnimeul majihaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "손님이 돌아갈 때는요?",
+   "beaver_en": "And when guests leave?",
+   "beaver_roman": "Sonnimi doragal ttaeneunyo?",
+   "learner": "문 밖까지 나가서 배웅을 해요.",
+   "en": "I go outside the door to see them off.",
+   "roman": "Mun bakkaji nagaseo baeungeul haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "아주 잘하네요. 다음 주에 교수님 댁에 가지요?",
+   "beaver_en": "Very good. You're visiting your professor's home next week, right?",
+   "beaver_roman": "Aju jalhaneyo. Daeum jue gyosunim daege gajiyo?",
+   "learner": "네, 교수님을 뵈러 가요. 조금 떨려요.",
+   "en": "Yes, I'm going to see my professor. I'm a bit nervous.",
+   "roman": "Ne, gyosunimeul boereo gayo. Jogeum tteollyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 배운 예절만 기억하면 괜찮을 거예요.",
+   "beaver_en": "Just remember the etiquette you learned today and you'll be fine.",
+   "beaver_roman": "Oneul baeun yejeolman gieokamyeon gwaenchaneul geoyeyo.",
+   "learner": "고마워요, 선배님. 다음에 또 뵐게요.",
+   "en": "Thank you, sunbae. See you next time.",
+   "roman": "Gomawoyo, seonbaenim. Daeume tto boelgeyo."
+  }
+ ]
+}

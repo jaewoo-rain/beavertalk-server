@@ -1,0 +1,96 @@
+{
+ "lesson": "L1-S03-1",
+ "no": 3,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "제니 씨, 날씨 좋네요! 같이 산책할래요?",
+   "beaver_en": "Jenny, the weather's nice! Want to take a walk?",
+   "beaver_roman": "jeni ssi, nalssi jonneyo! gachi sanchaekallaeyo?",
+   "learner": "뭐라고요? 잘 못 들었어요.",
+   "en": "What did you say? I didn't catch that.",
+   "roman": "mworagoyo? jal mot deureosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "아, 미안해요. 같이 산책할래요?",
+   "beaver_en": "Oh, sorry. Want to take a walk together?",
+   "beaver_roman": "a, mianhaeyo. gachi sanchaekallaeyo?",
+   "learner": "미안해요. 천천히 말해 주세요.",
+   "en": "Sorry. Please speak slowly.",
+   "roman": "mianhaeyo. cheoncheonhi malhae juseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "같이... 산책... 할래요?",
+   "beaver_en": "Together... a walk... want to?",
+   "beaver_roman": "gachi... sanchaek... hallaeyo?",
+   "learner": "산책이 뭐예요? 이해 못 했어요.",
+   "en": "What is sanchaek? I didn't understand.",
+   "roman": "sanchaegi mwoyeyo? ihae motaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "산책은 천천히 걷는 거예요. 이렇게요.",
+   "beaver_en": "Sanchaek means walking slowly. Like this.",
+   "beaver_roman": "sanchaegeun cheoncheonhi geonneun geoyeyo. ireokeyo.",
+   "learner": "아, 알았어요. 좋아요!",
+   "en": "Oh, I got it. Sounds good!",
+   "roman": "a, arasseoyo. joayo!"
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 한강 공원에 가요. 거기서 치맥 해요!",
+   "beaver_en": "Then let's go to Hangang Park. Let's have chimaek there!",
+   "beaver_roman": "geureom hangang gongwone gayo. geogiseo chimaek haeyo!",
+   "learner": "미안해요. 다시 말해 주세요.",
+   "en": "Sorry. Please say that again.",
+   "roman": "mianhaeyo. dasi malhae juseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "치맥이요. 치킨하고 맥주예요.",
+   "beaver_en": "Chimaek. It's chicken and beer.",
+   "beaver_roman": "chimaegiyo. chikinhago maekjuyeyo.",
+   "learner": "아! \"picnic\"은 한국어로 어떻게 말해요?",
+   "en": "Oh! How do you say \"picnic\" in Korean?",
+   "roman": "a! \"picnic\"eun hangugeoro eotteoke malhaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "소풍이요. 소, 풍.",
+   "beaver_en": "Sopung. So, pung.",
+   "beaver_roman": "sopungiyo. so, pung.",
+   "learner": "소풍. 소풍! 고마워요.",
+   "en": "Sopung. Sopung! Thank you.",
+   "roman": "sopung. sopung! gomawoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "한강 공원 가는 길 알아요?",
+   "beaver_en": "Do you know the way to Hangang Park?",
+   "beaver_roman": "hangang gongwon ganeun gil arayo?",
+   "learner": "아니요, 몰라요. 도와주세요.",
+   "en": "No, I don't know. Please help me.",
+   "roman": "aniyo, mollayo. dowajuseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 내일 같이 가요. 괜찮아요?",
+   "beaver_en": "Then let's go together tomorrow. Is that okay?",
+   "beaver_roman": "geureom naeil gachi gayo. gwaenchanayo?",
+   "learner": "네, 괜찮아요. 내일 또 봐요!",
+   "en": "Yes, it's okay. See you again tomorrow!",
+   "roman": "ne, gwaenchanayo. naeil tto bwayo!"
+  },
+  {
+   "n": 10,
+   "beaver": "저는 좀 더 있을게요. 잘 가요!",
+   "beaver_en": "I'll stay a bit longer. Bye!",
+   "beaver_roman": "jeoneun jom deo isseulgeyo. jal gayo!",
+   "learner": "안녕히 계세요. 좋은 하루 보내세요!",
+   "en": "Goodbye. Have a good day!",
+   "roman": "annyeonghi gyeseyo. joeun haru bonaeseyo!"
+  }
+ ]
+}

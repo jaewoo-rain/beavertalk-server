@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T13-1",
+ "no": 57,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 냄새 좋아요! 지금 뭐 만들어요?",
+   "beaver_en": "Wow, it smells good! What are you making?",
+   "beaver_roman": "wa, naemsae joayo! jigeum mwo mandeureoyo?",
+   "learner": "된장국하고 감자볶음을 만들어요.",
+   "en": "I'm making soybean paste soup and stir-fried potatoes.",
+   "roman": "doenjanggukago gamjabokkeumeul mandeureoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "된장국에는 뭘 넣어요?",
+   "beaver_en": "What do you put in the soup?",
+   "beaver_roman": "doenjanggugeneun mwol neoeoyo?",
+   "learner": "두부하고 무하고 배추를 넣고 끓여요.",
+   "en": "I add tofu, radish, and napa cabbage and boil it.",
+   "roman": "dubuhago muhago baechureul neoko kkeuryeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "무는 벌써 다 썰었어요?",
+   "beaver_en": "Did you already cut the radish?",
+   "beaver_roman": "muneun beolsseo da sseoreosseoyo?",
+   "learner": "네, 껍질을 깎고 다 썰었어요.",
+   "en": "Yes, I peeled it and cut it all up.",
+   "roman": "ne, kkeopjireul kkakkko da sseoreosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "감자볶음은 어떻게 만들어요?",
+   "beaver_en": "How do you make the stir-fried potatoes?",
+   "beaver_roman": "gamjabokkeumeun eotteoke mandeureoyo?",
+   "learner": "기름에 감자하고 야채를 볶아요.",
+   "en": "I stir-fry potatoes and vegetables in oil.",
+   "roman": "gireume gamjahago yachaereul bokkayo."
+  },
+  {
+   "n": 5,
+   "beaver": "설탕도 넣어요?",
+   "beaver_en": "Do you add sugar too?",
+   "beaver_roman": "seoltangdo neoeoyo?",
+   "learner": "아니요, 설탕은 넣지 않아요.",
+   "en": "No, I don't add sugar.",
+   "roman": "aniyo, seoltangeun neochi anayo."
+  },
+  {
+   "n": 6,
+   "beaver": "계란도 있어요?",
+   "beaver_en": "Do you have eggs too?",
+   "beaver_roman": "gyerando isseoyo?",
+   "learner": "네, 계란말이도 만들어요.",
+   "en": "Yes, I'm making a rolled omelet too.",
+   "roman": "ne, gyeranmarido mandeureoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "국은요? 국도 맵지 않아요?",
+   "beaver_en": "What about the soup? Isn't it spicy?",
+   "beaver_roman": "gugeunyo? gukdo maepji anayo?",
+   "learner": "네, 국도 안 맵고 안 짜요.",
+   "en": "Right, the soup isn't spicy or salty either.",
+   "roman": "ne, gukdo an maepgo an jjayo."
+  },
+  {
+   "n": 8,
+   "beaver": "다른 요리도 만들어요?",
+   "beaver_en": "Are you making any other dishes?",
+   "beaver_roman": "dareun yorido mandeureoyo?",
+   "learner": "오이하고 토마토로 샐러드도 만들어요.",
+   "en": "I'm also making a salad with cucumber and tomato.",
+   "roman": "oihago tomatoro saelleodeudo mandeureoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "콩도 있네요? 콩은 어디에 써요?",
+   "beaver_en": "There are beans too? What are they for?",
+   "beaver_roman": "kongdo inneyo? kongeun eodie sseoyo?",
+   "learner": "콩은 밥에 넣어요. 몸에 좋아요.",
+   "en": "I put the beans in the rice. They're healthy.",
+   "roman": "kongeun babe neoeoyo. mome joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "와, 정말 맛있겠네요! 저도 도와줄까요?",
+   "beaver_en": "Wow, it looks delicious! Shall I help?",
+   "beaver_roman": "wa, jeongmal masitgenneyo! jeodo dowajulkkayo?",
+   "learner": "괜찮아요. 금방 끝나요. 같이 먹어요!",
+   "en": "It's okay. I'm almost done. Let's eat together!",
+   "roman": "gwaenchanayo. geumbang kkeunnayo. gachi meogeoyo!"
+  }
+ ]
+}

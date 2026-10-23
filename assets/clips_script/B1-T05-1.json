@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T05-1",
+ "no": 118,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "수진 씨 소식 들었어요? 요즘 어떻대요?",
+   "beaver_en": "Did you hear about Sujin? How is she these days?",
+   "beaver_roman": "Sujin ssi sosik deureosseoyo? Yojeum eotteotaeyo?",
+   "learner": "네, 요즘 아주 신났대요. 얼굴에 미소가 가득해요.",
+   "en": "Yes, she says she's really excited lately. She's all smiles.",
+   "roman": "Ne, yojeum aju sinnatdaeyo. Eolgure misoga gadeukaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 지난주에는 속상해했잖아요.",
+   "beaver_en": "Really? She was upset last week, though.",
+   "beaver_roman": "Jeongmallyo? Jinanjueneun soksanghaehaetjanayo.",
+   "learner": "맞아요. 많이 속상해서 한숨만 쉬었대요.",
+   "en": "Right. She says she was so upset she just kept sighing.",
+   "roman": "Majayo. Mani soksanghaeseo hansumman swieotdaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "왜 그렇게 속상했대요?",
+   "beaver_en": "Why was she so upset?",
+   "beaver_roman": "Wae geureoke soksanghaetdaeyo?",
+   "learner": "발표 때 실수해서 창피했대요. 자기가 미웠대요.",
+   "en": "She made a mistake in her presentation and was embarrassed. She says she hated herself.",
+   "roman": "Balpyo ttae silsuhaeseo changpihaetdaeyo. Jagiga miwotdaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아이고, 많이 힘들었겠네요.",
+   "beaver_en": "Oh no, that must have been hard.",
+   "beaver_roman": "Aigo, mani himdeureotgenneyo.",
+   "learner": "겁도 나고 공부에도 싫증이 났대요.",
+   "en": "She says she got scared and got tired of studying too.",
+   "roman": "Geopdo nago gongbuedo silcheungi natdaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 어떻게 기분이 좋아졌대요?",
+   "beaver_en": "So how did she start feeling better?",
+   "beaver_roman": "Geureonde eotteoke gibuni joajyeotdaeyo?",
+   "learner": "주말에 본 영화가 큰 감동이었대요.",
+   "en": "She says a movie she saw on the weekend really moved her.",
+   "roman": "Jumare bon yeonghwaga keun gamdongieotdaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "영화는 어땠대요?",
+   "beaver_en": "What did she say about the movie?",
+   "beaver_roman": "Yeonghwaneun eottaetdaeyo?",
+   "learner": "정말 감동적이었대요. 보면서 많이 울었대요.",
+   "en": "She says it was really touching. She cried a lot watching it.",
+   "roman": "Jeongmal gamdongjeogieotdaeyo. Bomyeonseo mani ureotdaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 무슨 이야기래요?",
+   "beaver_en": "Wow, what's it about?",
+   "beaver_roman": "Wa, museun iyagiraeyo?",
+   "learner": "어둠을 무서워하는 아이 이야기래요.",
+   "en": "She says it's a story about a kid who's afraid of the dark.",
+   "roman": "Eodumeul museowohaneun ai iyagiraeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그래서 수진 씨도 힘을 얻었군요.",
+   "beaver_en": "So that's how Sujin got her strength back.",
+   "beaver_roman": "Geuraeseo Sujin ssido himeul eodeotgunnyo.",
+   "learner": "네, 이제 다시 힘이 났대요. 정말 다행이에요.",
+   "en": "Yes, she says she's got her energy back. What a relief.",
+   "roman": "Ne, ije dasi himi natdaeyo. Jeongmal dahaengieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "수진 씨 요즘 다른 고민은 없대요?",
+   "beaver_en": "Does Sujin have any other worries these days?",
+   "beaver_roman": "Sujin ssi yojeum dareun gomineun eopdaeyo?",
+   "learner": "감정이 자주 바뀌는 게 고민이래요.",
+   "en": "She says her worry is that her feelings change often.",
+   "roman": "Gamjeongi jaju bakkwineun ge gominiraeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그렇군요. 오늘 같이 만날 수 있대요?",
+   "beaver_en": "I see. Did she say she can meet up today?",
+   "beaver_roman": "Geureokunnyo. Oneul gachi mannal su itdaeyo?",
+   "learner": "아쉽지만 오늘은 시험이래요. 다음 주에 봐요!",
+   "en": "Too bad, she says she has an exam today. Let's meet next week!",
+   "roman": "Aswipjiman oneureun siheomiraeyo. Daeum jue bwayo!"
+  }
+ ]
+}

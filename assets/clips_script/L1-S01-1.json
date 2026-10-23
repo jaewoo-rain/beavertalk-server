@@ -1,0 +1,96 @@
+{
+ "lesson": "L1-S01-1",
+ "no": 1,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요? 처음 보는 분이네요.",
+   "beaver_en": "Hello! I haven't seen you before.",
+   "beaver_roman": "annyeonghaseyo? cheoeum boneun bunineyo.",
+   "learner": "안녕하세요? 처음 뵙겠습니다.",
+   "en": "Hello. How do you do?",
+   "roman": "annyeonghaseyo? cheoeum boepgetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "저는 김민지예요. 이름이 뭐예요?",
+   "beaver_en": "I'm Kim Minji. What's your name?",
+   "beaver_roman": "jeoneun gimminjiyeyo. ireumi mwoyeyo?",
+   "learner": "저는 마이클이에요. 만나서 반갑습니다.",
+   "en": "I'm Michael. Nice to meet you.",
+   "roman": "jeoneun maikeurieyo. mannaseo bangapseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "저도 반가워요. 어느 나라 사람이에요?",
+   "beaver_en": "Nice to meet you too. Where are you from?",
+   "beaver_roman": "jeodo bangawoyo. eoneu nara saramieyo?",
+   "learner": "저는 미국 사람이에요.",
+   "en": "I'm from the United States.",
+   "roman": "jeoneun miguk saramieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "미국이요? 저는 미국에 가 봤어요.",
+   "beaver_en": "The US? I've been to the US.",
+   "beaver_roman": "migugiyo? jeoneun miguge ga bwasseoyo.",
+   "learner": "와, 진짜요? 반가워요!",
+   "en": "Wow, really? That's great to hear!",
+   "roman": "wa, jinjjayo? bangawoyo!"
+  },
+  {
+   "n": 5,
+   "beaver": "마이클 씨, 오늘 처음 왔어요?",
+   "beaver_en": "Michael, is today your first day?",
+   "beaver_roman": "maikeul ssi, oneul cheoeum wasseoyo?",
+   "learner": "네, 맞아요. 오늘 처음 왔어요.",
+   "en": "Yes, that's right. It's my first day.",
+   "roman": "ne, majayo. oneul cheoeum wasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "한국어 공부, 재미있어요?",
+   "beaver_en": "Is studying Korean fun?",
+   "beaver_roman": "hangugeo gongbu, jaemiisseoyo?",
+   "learner": "네, 좋아요. 정말 재미있어요.",
+   "en": "Yes, I like it. It's really fun.",
+   "roman": "ne, joayo. jeongmal jaemiisseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 한국어 정말 잘해요!",
+   "beaver_en": "Wow, your Korean is really good!",
+   "beaver_roman": "wa, hangugeo jeongmal jalhaeyo!",
+   "learner": "아니에요. 감사합니다.",
+   "en": "Not at all. Thank you.",
+   "roman": "anieyo. gamsahamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "여기 교과서예요. 같이 봐요.",
+   "beaver_en": "Here's the textbook. Let's share.",
+   "beaver_roman": "yeogi gyogwaseoyeyo. gachi bwayo.",
+   "learner": "고마워요, 민지 씨.",
+   "en": "Thanks, Minji.",
+   "roman": "gomawoyo, minji ssi."
+  },
+  {
+   "n": 9,
+   "beaver": "아니에요. 모르면 물어보세요.",
+   "beaver_en": "No problem. Ask me if you don't know something.",
+   "beaver_roman": "anieyo. moreumyeon mureoboseyo.",
+   "learner": "네, 잘 부탁드립니다.",
+   "en": "Okay, please take good care of me.",
+   "roman": "ne, jal butakdeurimnida."
+  },
+  {
+   "n": 10,
+   "beaver": "저도 잘 부탁해요. 아, 선생님 오셨어요!",
+   "beaver_en": "Same here. Oh, the teacher is here!",
+   "beaver_roman": "jeodo jal butakaeyo. a, seonsaengnim osyeosseoyo!",
+   "learner": "선생님, 안녕하세요? 처음 뵙겠습니다.",
+   "en": "Hello, teacher. How do you do?",
+   "roman": "seonsaengnim, annyeonghaseyo? cheoeum boepgetseumnida."
+  }
+ ]
+}

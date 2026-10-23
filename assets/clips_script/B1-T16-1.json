@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T16-1",
+ "no": 131,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지수 씨, 벌써 열한 시예요. 집에 어떻게 가요?",
+   "beaver_en": "Jisu, it's already eleven. How are you getting home?",
+   "beaver_roman": "Jisu ssi, beolsseo yeolhan siyeyo. Jibe eotteoke gayo?",
+   "learner": "막차가 걱정돼요. 회의하느라고 시간을 못 봤어요.",
+   "en": "I'm worried about the last train. I was in a meeting and didn't check the time.",
+   "roman": "Makchaga geokjeongdwaeyo. Hoeuihaneurago siganeul mot bwasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "지하철 막차는 몇 시예요?",
+   "beaver_en": "What time is the last subway?",
+   "beaver_roman": "Jihacheol makchaneun myeot siyeyo?",
+   "learner": "수원행 막차가 열한 시 사십 분이에요.",
+   "en": "The last train to Suwon is at 11:40.",
+   "roman": "Suwonhaeng makchaga yeolhan si sasip buniyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "환승역에서 갈아타야 해요?",
+   "beaver_en": "Do you have to transfer at a transfer station?",
+   "beaver_roman": "Hwanseungyeogeseo garataya haeyo?",
+   "learner": "네, 노선도를 보니까 사당역이 환승역이에요.",
+   "en": "Yes, the route map shows Sadang is the transfer station.",
+   "roman": "Ne, noseondoreul bonikka sadangyeogi hwanseungyeogieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "시내버스는 어때요? 정류장이 가까워요.",
+   "beaver_en": "How about the city bus? The stop is close.",
+   "beaver_roman": "Sinaebeoseuneun eottaeyo? Jeongnyujangi gakkawoyo.",
+   "learner": "버스는 멀미가 나서 좀 힘들어요.",
+   "en": "I get motion sickness on buses, so it's hard.",
+   "roman": "Beoseuneun meolmiga naseo jom himdeureoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "제 차가 근처에 있어요. 사당역까지 태워 줄까요?",
+   "beaver_en": "My car is nearby. Shall I give you a ride to Sadang Station?",
+   "beaver_roman": "Je chaga geuncheoe isseoyo. Sadangyeokkkaji taewo julkkayo?",
+   "learner": "좋아요! 팀장님도 빨리 들어가라고 하셨어요.",
+   "en": "Great! The team leader also told us to head home early.",
+   "roman": "Joayo! Timjangnimdo ppalli deureogarago hasyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "차가 좀 지저분해요. 세차를 못 했어요.",
+   "beaver_en": "The car is a bit messy. I didn't get a car wash.",
+   "beaver_roman": "Chaga jom jijeobunhaeyo. Sechareul mo taesseoyo.",
+   "learner": "괜찮아요. 태워 주는 것만으로도 고마워요.",
+   "en": "It's fine. I'm just grateful you're giving me a ride.",
+   "roman": "Gwaenchanayo. Taewo juneun geonmaneurodo gomawoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "주차권은 어디서 받아요?",
+   "beaver_en": "Where do we get the parking ticket?",
+   "beaver_roman": "Juchagwoneun eodiseo badayo?",
+   "learner": "식당 카운터에서 주차권을 받으면 돼요.",
+   "en": "We can get the parking ticket at the restaurant counter.",
+   "roman": "Sikdang kaunteoeseo juchagwoneul badeumyeon dwaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "제 차가 좀 오래돼서 느려요.",
+   "beaver_en": "My car is a bit old, so it's slow.",
+   "beaver_roman": "Je chaga jom oraedwaeseo neuryeoyo.",
+   "learner": "괜찮아요. 길이 안 막히면 금방 가요.",
+   "en": "It's okay. If the roads aren't jammed, we'll get there quickly.",
+   "roman": "Gwaenchanayo. Giri an makimyeon geumbang gayo."
+  },
+  {
+   "n": 9,
+   "beaver": "역에 도착하면 바로 내려 줄게요.",
+   "beaver_en": "I'll drop you off right when we reach the station.",
+   "beaver_roman": "Yeoge dochakamyeon baro naeryeo julgeyo.",
+   "learner": "내리자마자 뛰어가서 승차권을 살게요.",
+   "en": "As soon as I get out, I'll run and buy a ticket.",
+   "roman": "Naerijamaja ttwieogaseo seungchagwoneul salgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "승객이 많을 거예요. 조심히 가요.",
+   "beaver_en": "There'll be lots of passengers. Get home safe.",
+   "beaver_roman": "Seunggaegi maneul geoyeyo. Josimhi gayo.",
+   "learner": "고마워요. 집에 도착하자마자 문자 보낼게요.",
+   "en": "Thanks. I'll text you as soon as I get home.",
+   "roman": "Gomawoyo. Jibe dochakajamaja munja bonaelgeyo."
+  }
+ ]
+}

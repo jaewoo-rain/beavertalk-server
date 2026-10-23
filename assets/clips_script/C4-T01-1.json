@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T01-1",
+ "no": 440,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 자기소개 부탁드립니다.",
+   "beaver_en": "Hello. Please introduce yourself.",
+   "beaver_roman": "Annyeonghasimnikka? Jagisogae butakdeurimnida.",
+   "learner": "안녕하십니까? 저는 한국계 미국인 김유나입니다.",
+   "en": "Hello. I'm Yuna Kim, a Korean-American.",
+   "roman": "Annyeonghasimnikka? Jeoneun hangukgye migugin gimyunaimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "성장기를 외국에서 보내셨습니까?",
+   "beaver_en": "Did you spend your growing years abroad?",
+   "beaver_roman": "Seongjanggireul oegugeseo bonaesyeotseumnikka?",
+   "learner": "네, 성장기는 시애틀에서 보냈습니다.",
+   "en": "Yes, I grew up in Seattle.",
+   "roman": "Ne, seongjanggineun siaeteureseo bonaetseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "이전 회사에서는 어떤 일을 하셨습니까?",
+   "beaver_en": "What did you do at your previous company?",
+   "beaver_roman": "Ijeon hoesaeseoneun eotteon ireul hasyeotseumnikka?",
+   "learner": "최연소 팀장으로 인적 자원 관리를 맡았습니다.",
+   "en": "As the youngest team leader, I managed human resources.",
+   "roman": "Choeyeonso timjangeuro injeok jawon gwallireul matasseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "최연소 팀장이라니 대단하시네요. 몇 살 때였습니까?",
+   "beaver_en": "The youngest leader, impressive. How old were you?",
+   "beaver_roman": "Choeyeonso timjangirani daedanhasineyo. Myeot sal ttaeyeotseumnikka?",
+   "learner": "스물여섯 살 때였습니다. 차곡차곡 경력을 쌓았죠.",
+   "en": "I was twenty-six. I built my career step by step.",
+   "roman": "Seumullyeoseot sal ttaeyeotseumnida. Chagokchagok gyeongnyeogeul ssaatjyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저희 팀에는 연배가 높은 직원이 많은데 괜찮으십니까?",
+   "beaver_en": "Our team has many senior staff. Is that okay?",
+   "beaver_roman": "Jeohui timeneun yeonbaega nopeun jigwoni maneunde gwaenchaneusimnikka?",
+   "learner": "그럼요. 선배님들의 경험을 존중합니다.",
+   "en": "Of course. I respect my seniors' experience.",
+   "roman": "Geureomyo. Seonbaenimdeurui gyeongheomeul jonjunghamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "젊은 팀장이라 갈등이 생기지 않을까요?",
+   "beaver_en": "Won't conflicts arise since you're a young leader?",
+   "beaver_roman": "Jeolmeun timjangira galdeungi saenggiji aneulkkayo?",
+   "learner": "대화를 중시하기 때문에 갈등도 잘 풀 수 있습니다.",
+   "en": "I value dialogue, so I can resolve conflicts well.",
+   "roman": "Daehwareul jungsihagi ttaemune galdeungdo jal pul su itseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "지원서에 여성적 리더십이라고 쓰셨던데요.",
+   "beaver_en": "You wrote 'feminine leadership' in your application.",
+   "beaver_roman": "Jiwonseoe yeoseongjeok rideosibirago sseusyeotdeondeyo.",
+   "learner": "네, 부드럽게 소통하는 리더십이 제 강점입니다.",
+   "en": "Yes, gentle, communicative leadership is my strength.",
+   "roman": "Ne, budeureopge sotonghaneun rideosibi je gangjeomimnida."
+  },
+  {
+   "n": 8,
+   "beaver": "저희 일은 야근이 많아 힘들 수 있습니다.",
+   "beaver_en": "Our work has lots of overtime, so it can be hard.",
+   "beaver_roman": "Jeohui ireun yageuni mana himdeul su itseumnida.",
+   "learner": "체력에는 자신 있습니다. 잘 해낼 수 있습니다.",
+   "en": "I'm confident in my stamina. I can handle it.",
+   "roman": "Cheryeogeneun jasin itseumnida. Jal haenael su itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "마지막으로 하고 싶은 말씀 있으십니까?",
+   "beaver_en": "Anything you'd like to say at the end?",
+   "beaver_roman": "Majimageuro hago sipeun malsseum isseusimnikka?",
+   "learner": "인사 관리에서 꼭 좋은 성과를 내겠습니다.",
+   "en": "I will surely achieve good results in HR management.",
+   "roman": "Insa gwallieseo kkok joeun seonggwareul naegetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 결과는 다음 주에 알려 드리겠습니다.",
+   "beaver_en": "Good. We'll let you know the result next week.",
+   "beaver_roman": "Jotseumnida. Gyeolgwaneun daeum jue allyeo deurigetseumnida.",
+   "learner": "감사합니다. 좋은 소식 기다리겠습니다.",
+   "en": "Thank you. I'll look forward to good news.",
+   "roman": "Gamsahamnida. Joeun sosik gidarigetseumnida."
+  }
+ ]
+}

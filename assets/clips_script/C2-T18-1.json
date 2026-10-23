@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T18-1",
+ "no": 363,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 제주도 여행, 일주를 할까, 한 곳에 머물까?",
+   "beaver_en": "For our Jeju trip, should we go around the island or stay in one place?",
+   "beaver_roman": "Ibeon jejudo yeohaeng, iljureul halkka, han gose meomulkka?",
+   "learner": "섬 일주도 좋지만, 명소만 도는 건 바쁘기 짝이 없어.",
+   "en": "A tour of the island is nice, but just hitting famous spots is way too hectic.",
+   "roman": "Seom iljudo jochiman, myeongsoman doneun geon bappeugi jjagi eopseo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 체류형으로 할까? 서귀포에 오래 있는 거야.",
+   "beaver_en": "Then should we just stay put? We'd stay in Seogwipo for a while.",
+   "beaver_roman": "Geureom cheryuhyeongeuro halkka? Seogwipoe orae inneun geoya.",
+   "learner": "좋아. 서귀포에서 체류하면 해수욕도 실컷 하겠다.",
+   "en": "Sounds good. If we stay in Seogwipo, we can swim in the sea all we want.",
+   "roman": "Joa. Seogwipoeseo cheryuhamyeon haesuyokdo silkeot hagetda."
+  },
+  {
+   "n": 3,
+   "beaver": "해변에서 일광욕도 하자. 나는 그게 제일 좋아.",
+   "beaver_en": "Let's sunbathe on the beach too. That's my favorite.",
+   "beaver_roman": "Haebyeoneseo ilgwangyokdo haja. Naneun geuge jeil joa.",
+   "learner": "그래. 그런데 바다니 숲이니 하다가 결정을 못 했잖아.",
+   "en": "Sure. But we went back and forth between the sea and the forest and never decided.",
+   "roman": "Geurae. Geureonde badani supini hadaga gyeoljeongeul mot haetjana."
+  },
+  {
+   "n": 4,
+   "beaver": "맞아. 하루는 한라산 숲길을 걸어 보는 건 어때?",
+   "beaver_en": "Right. How about spending one day walking the Hallasan forest trails?",
+   "beaver_roman": "Maja. Haruneun hallasan supgireul georeo boneun geon eottae?",
+   "learner": "좋아, 숲 탐험도 재미있겠다. 나침반도 챙길게.",
+   "en": "Great, exploring the forest sounds fun. I'll bring a compass too.",
+   "roman": "Joa, sup tamheomdo jaemiitgetda. Nachimbando chaenggilge."
+  },
+  {
+   "n": 5,
+   "beaver": "길이 잘 표시돼 있어서 괜찮을 거야. 숙소는?",
+   "beaver_en": "The trails are well marked, so it'll be fine. What about lodging?",
+   "beaver_roman": "Giri jal pyosidwae isseoseo gwaenchaneul geoya. Suksoneun?",
+   "learner": "숙식이 다 되는 민박이 편할 것 같아.",
+   "en": "I think a guesthouse with room and board would be easiest.",
+   "roman": "Suksigi da doeneun minbagi pyeonhal geot gata."
+  },
+  {
+   "n": 6,
+   "beaver": "아침이랑 저녁을 주는 곳이면 좋겠다.",
+   "beaver_en": "It'd be nice if they serve breakfast and dinner.",
+   "beaver_roman": "Achimirang jeonyeogeul juneun gosimyeon joketda.",
+   "learner": "응, 예약 가능 여부부터 오늘 확인해 볼게.",
+   "en": "Yeah, I'll check today whether we can book first.",
+   "roman": "Eung, yeyak ganeung yeobubuteo oneul hwaginhae bolge."
+  },
+  {
+   "n": 7,
+   "beaver": "참, 민지도 같이 가고 싶대. 괜찮아?",
+   "beaver_en": "Oh, Minji says she wants to come too. Is that okay?",
+   "beaver_roman": "Cham, minjido gachi gago sipdae. Gwaenchana?",
+   "learner": "물론이지. 민지가 동행하면 더 즐거울 거야.",
+   "en": "Of course. It'll be more fun if Minji comes along.",
+   "roman": "Mulloniji. Minjiga donghaenghamyeon deo jeulgeoul geoya."
+  },
+  {
+   "n": 8,
+   "beaver": "민지가 강아지도 데려가고 싶어 하던데.",
+   "beaver_en": "Minji wants to bring her dog too, though.",
+   "beaver_roman": "Minjiga gangajido deryeogago sipeo hadeonde.",
+   "learner": "반려견 동반 여부를 숙소에 물어봐야겠다.",
+   "en": "I'd better ask the guesthouse whether pets are allowed.",
+   "roman": "Ballyeogyeon dongban yeobureul suksoe mureobwayagetda."
+  },
+  {
+   "n": 9,
+   "beaver": "고마워. 그럼 전체 일정을 정리해 줄래?",
+   "beaver_en": "Thanks. Then can you sum up the whole schedule?",
+   "beaver_roman": "Gomawo. Geureom jeonche iljeongeul jeongnihae jullae?",
+   "learner": "첫날 해수욕, 둘째 날 숲길, 셋째 날 명소 구경이야.",
+   "en": "Day one is swimming, day two the forest trail, day three sightseeing.",
+   "roman": "Cheonnal haesuyok, duljjae nal supgil, setjjae nal myeongso gugyeongiya."
+  },
+  {
+   "n": 10,
+   "beaver": "완벽해! 이번 여행 정말 기대된다.",
+   "beaver_en": "Perfect! I'm really looking forward to this trip.",
+   "beaver_roman": "Wanbyeokae! Ibeon yeohaeng jeongmal gidaedoenda.",
+   "learner": "나도! 이번 여행은 정말 즐거울 거야.",
+   "en": "Me too! This trip is going to be really fun.",
+   "roman": "Nado! Ibeon yeohaengeun jeongmal jeulgeoul geoya."
+  }
+ ]
+}

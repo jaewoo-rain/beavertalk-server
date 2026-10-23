@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T37-1",
+ "no": 468,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 너무 더워서 잠을 못 자겠어요.",
+   "beaver_en": "It's so hot these days I can't sleep.",
+   "beaver_roman": "yojeum neomu deowoseo jameul mot jagesseoyo.",
+   "learner": "삼복더위라서 그래요. 폭염이 계속되고 있어요.",
+   "en": "It's the peak of summer heat. The heat wave keeps going.",
+   "roman": "sambokdeowiraseo geuraeyo. pogyeomi gyesokdoego isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "낮에 밖에 나가도 괜찮을까요?",
+   "beaver_en": "Is it okay to go out during the day?",
+   "beaver_roman": "naje bakke nagado gwaenchaneulkkayo?",
+   "learner": "폭염이 계속되니까 낮에는 집에서 쉬세요.",
+   "en": "The heat wave keeps going, so rest at home during the day.",
+   "roman": "pogyeomi gyesokdoenikka najeneun jibeseo swiseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 언제 산책하면 좋을까요?",
+   "beaver_en": "Then when should I take a walk?",
+   "beaver_roman": "geureom eonje sanchaekamyeon joeulkkayo?",
+   "learner": "일몰 후에 어둑어둑해지면 나가세요.",
+   "en": "Go out after sunset, when it gets dusky.",
+   "roman": "ilmol hue eodugeodukaejimyeon nagaseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "물은 얼마나 마셔야 해요?",
+   "beaver_en": "How much water should I drink?",
+   "beaver_roman": "mureun eolmana masyeoya haeyo?",
+   "learner": "삼복더위에는 목이 안 말라도 자주 마시세요.",
+   "en": "In peak summer, drink often even if you're not thirsty.",
+   "roman": "sambokdeowieneun mogi an mallado jaju masiseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 비는 안 와요?",
+   "beaver_en": "By the way, isn't it going to rain?",
+   "beaver_roman": "geureonde bineun an wayo?",
+   "learner": "내일 먹구름이 끼고 비가 퍼붓는대요.",
+   "en": "They say dark clouds will gather and rain will pour tomorrow.",
+   "roman": "naeil meokgureumi kkigo biga peobunneundaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "정말요? 비가 많이 오면 걱정이에요.",
+   "beaver_en": "Really? I worry when it rains a lot.",
+   "beaver_roman": "jeongmallyo? biga mani omyeon geokjeongieyo.",
+   "learner": "비가 억수같이 퍼부을 때는 나가지 마세요.",
+   "en": "Don't go out when it's pouring in buckets.",
+   "roman": "biga eoksugachi peobueul ttaeneun nagaji maseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "바닷가 친척 집은 괜찮을까요?",
+   "beaver_en": "Will my relatives' house by the sea be okay?",
+   "beaver_roman": "badatga chincheok jibeun gwaenchaneulkkayo?",
+   "learner": "태풍이 오면 해일도 올 수 있으니 조심하세요.",
+   "en": "A typhoon can bring a storm surge too, so be careful.",
+   "roman": "taepungi omyeon haeildo ol su isseuni josimhaseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "겨울은 어떨까요?",
+   "beaver_en": "What about winter?",
+   "beaver_roman": "gyeoureun eotteolkkayo?",
+   "learner": "올겨울에는 한파가 심할 거라고 해요.",
+   "en": "They say there'll be a harsh cold wave this winter.",
+   "roman": "olgyeoureneun hanpaga simhal georago haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "날씨가 해마다 더 심해지는 것 같죠?",
+   "beaver_en": "The weather seems to get worse every year, right?",
+   "beaver_roman": "nalssiga haemada deo simhaejineun geot gatjyo?",
+   "learner": "여름엔 폭염, 겨울엔 한파가 점점 심해져요.",
+   "en": "Heat waves in summer and cold waves in winter keep getting worse.",
+   "roman": "yeoreumen pogyeom, gyeouren hanpaga jeomjeom simhaejyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "덕분에 잘 준비할 수 있겠어요. 고마워요.",
+   "beaver_en": "Thanks to you, I can prepare well. Thank you.",
+   "beaver_roman": "deokbune jal junbihal su itgesseoyo. gomawoyo.",
+   "learner": "별말씀을요. 일몰 뒤에 같이 산책해요.",
+   "en": "Not at all. Let's take a walk together after sunset.",
+   "roman": "byeolmalsseumeullyo. ilmol dwie gachi sanchaekaeyo."
+  }
+ ]
+}

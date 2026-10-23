@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T43-1",
+ "no": 150,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민준 씨, 이 마을은 뭐로 유명해요?",
+   "beaver_en": "Minjun, what is this village famous for?",
+   "beaver_roman": "Minjun ssi, i maeureun mworo yumyeonghaeyo?",
+   "learner": "여기는 한옥으로 유명해요. 집이 다 예뻐요.",
+   "en": "It's famous for hanok. All the houses are pretty.",
+   "roman": "Yeogineun hanogeuro yumyeonghaeyo. Jibi da yeppeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "와, 정말 멋있네요. 다른 볼거리는요?",
+   "beaver_en": "Wow, it's really nice. What else is there to see?",
+   "beaver_roman": "Wa, jeongmal meosinneyo. Dareun bolgeorineunyo?",
+   "learner": "저 위에 오래된 절이 있어요. 경치가 좋기로 유명해요.",
+   "en": "There's an old temple up there. It's famous for its great view.",
+   "roman": "Jeo wie oraedoen jeori isseoyo. Gyeongchiga jokiro yumyeonghaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "절에서는 뭘 해요?",
+   "beaver_en": "What do people do at the temple?",
+   "beaver_roman": "Jeoreseoneun mwol haeyo?",
+   "learner": "스님들이 기도하고 공부해요. 조용히 구경해야 해요.",
+   "en": "The monks pray and study. We have to look around quietly.",
+   "roman": "Seunimdeuri gidohago gongbuhaeyo. Joyonghi gugyeonghaeya haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "알겠어요. 저 건물은 뭐예요?",
+   "beaver_en": "Got it. What's that building?",
+   "beaver_roman": "Algesseoyo. Jeo geonmureun mwoyeyo?",
+   "learner": "저건 교회예요. 백 년 전에 지었어요.",
+   "en": "That's a church. It was built 100 years ago.",
+   "roman": "Jeogeon gyohoeyeyo. Baeng nyeon jeone jieosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "집마다 태극기가 있네요!",
+   "beaver_en": "Every house has a Korean flag!",
+   "beaver_roman": "Jimmada taegeukgiga inneyo!",
+   "learner": "네, 오늘이 삼일절이라서 태극기를 달았어요.",
+   "en": "Yes, today is Independence Movement Day, so they hung flags.",
+   "roman": "Ne, oneuri samiljjeoriraseo taegeukgireul darasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "명절에는요? 사람이 많아요?",
+   "beaver_en": "What about holidays? Are there many people?",
+   "beaver_roman": "Myeongjeoreneunyo? Sarami manayo?",
+   "learner": "네, 설날에 민속놀이를 해서 사람이 많아요.",
+   "en": "Yes, there are lots of people because of folk games on Lunar New Year.",
+   "roman": "Ne, seollare minsongnorireul haeseo sarami manayo."
+  },
+  {
+   "n": 7,
+   "beaver": "어떤 민속놀이를 해요?",
+   "beaver_en": "What folk games do they play?",
+   "beaver_roman": "Eotteon minsongnorireul haeyo?",
+   "learner": "윷놀이를 해요. 꼭 같이 해 보세요.",
+   "en": "They play yut. You should definitely try it with us.",
+   "roman": "Yunnorireul haeyo. Kkok gachi hae boseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요! 명절에 또 뭘 해요?",
+   "beaver_en": "Great! What else do they do on holidays?",
+   "beaver_roman": "Joayo! Myeongjeore tto mwol haeyo?",
+   "learner": "아침에 차례를 지내요. 중요한 전통이에요.",
+   "en": "They hold an ancestral rite in the morning. It's an important tradition.",
+   "roman": "Achime charyereul jinaeyo. Jungyohan jeontongieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "문화와 전통에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Can you tell me more about culture and tradition?",
+   "beaver_roman": "Munhwawa jeontonge daehae deo iyagihae bollaeyo?",
+   "learner": "한국에는 띠가 있어요. 저는 호랑이띠예요.",
+   "en": "Korea has zodiac signs. I'm a Tiger.",
+   "roman": "Hangugeneun ttiga isseoyo. Jeoneun horangittiyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "재미있네요. 저는 무슨 띠인지 확인해 볼게요.",
+   "beaver_en": "Interesting. I'll check which sign I am.",
+   "beaver_roman": "Jaemiinneyo. Jeoneun museun ttiinji hwaginhae bolkkeyo.",
+   "learner": "좋아요. 이제 한옥 카페에서 차 마셔요.",
+   "en": "Sounds good. Now let's have tea at a hanok café.",
+   "roman": "Joayo. Ije hanok kapeeseo cha masyeoyo."
+  }
+ ]
+}

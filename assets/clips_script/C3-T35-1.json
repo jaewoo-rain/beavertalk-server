@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T35-1",
+ "no": 416,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "수고했어요. 이번 성적은 어떻습니까?",
+   "beaver_en": "Good work. How were your results this time?",
+   "beaver_roman": "sugohaesseoyo. ibeon seongjeogeun eotteoseumnikka?",
+   "learner": "오늘 경기에서 동메달을 땄습니다. 나쁘지 않아요.",
+   "en": "I won a bronze medal in today's competition. Not bad.",
+   "roman": "oneul gyeonggieseo dongmedareul ttatseumnida. nappeuji anayo."
+  },
+  {
+   "n": 2,
+   "beaver": "결승 경기는 어땠어요? 막상막하였죠?",
+   "beaver_en": "How was the final? Neck and neck, right?",
+   "beaver_roman": "gyeolseung gyeonggineun eottaesseoyo? maksangmakayeotjyo?",
+   "learner": "네, 막상막하였어요. 사격에서 밀렸어요.",
+   "en": "Yes, it was neck and neck. I fell behind in shooting.",
+   "roman": "ne, maksangmakayeosseoyo. sagyeogeseo millyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "관중 함성이 컸는데, 긴장했어요?",
+   "beaver_en": "The crowd was loud. Were you nervous?",
+   "beaver_roman": "gwanjung hamseongi keonneunde, ginjanghaesseoyo?",
+   "learner": "네, 함성에 신경이 쓰여서 과녁을 놓쳤어요.",
+   "en": "Yes, the cheering bothered me and I missed the target.",
+   "roman": "ne, hamseonge singyeongi sseuyeoseo gwanyeogeul nochyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "승자는 누구였어요? 아는 선수예요?",
+   "beaver_en": "Who was the winner? Someone you know?",
+   "beaver_roman": "seungjaneun nuguyeosseoyo? aneun seonsuyeyo?",
+   "learner": "작년 리그를 제패한 선수였어요. 대단했어요.",
+   "en": "The player who dominated last year's league. Amazing.",
+   "roman": "jangnyeon rigeureul jepaehan seonsuyeosseoyo. daedanhaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그렇군요. 다른 종목도 합니까?",
+   "beaver_en": "I see. Do you do other sports too?",
+   "beaver_roman": "geureokunyo. dareun jongmokdo hamnikka?",
+   "learner": "네, 승마 같은 여러 종목을 해요.",
+   "en": "Yes, I do various sports, like horse riding.",
+   "roman": "ne, seungma gateun yeoreo jongmogeul haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "구기 종목은 안 해요? 야구 같은 거요.",
+   "beaver_en": "No ball sports? Like baseball?",
+   "beaver_roman": "gugi jongmogeun an haeyo? yagu gateun geoyo.",
+   "learner": "어릴 때 야구를 했어요. 홈런도 쳤어요.",
+   "en": "I played baseball as a kid. I even hit home runs.",
+   "roman": "eoril ttae yagureul haesseoyo. homneondo cheosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "운동 신경이 좋네요. 다른 건요?",
+   "beaver_en": "You're athletic. Anything else?",
+   "beaver_roman": "undong singyeongi jonneyo. dareun geonyo?",
+   "learner": "역도와 요트도 해 봤어요. 활도 쏴 봤고요.",
+   "en": "I've tried weightlifting and sailing. Archery too.",
+   "roman": "yeokdowa yoteudo hae bwasseoyo. hwaldo sswa bwatgoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "마지막 달리기에서 기권할 생각은 없었어요?",
+   "beaver_en": "Did you think of quitting in the last run?",
+   "beaver_roman": "majimak dalligieseo gigwonhal saenggageun eopseosseoyo?",
+   "learner": "기권은 안 했어요. 결승선까지 완주했어요.",
+   "en": "I didn't withdraw. I ran all the way to the finish line.",
+   "roman": "gigwoneun an haesseoyo. gyeolseungseonkkaji wanjuhaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "아쉬움은 없어요? 솔직하게 말해 봐요.",
+   "beaver_en": "Any regrets? Tell me honestly.",
+   "beaver_roman": "aswiumeun eopseoyo? soljikage malhae bwayo.",
+   "learner": "승자는 못 됐지만 패자도 아니라고 생각해요.",
+   "en": "I wasn't the winner, but I don't think I'm a loser.",
+   "roman": "seungjaneun mot dwaetjiman paejado anirago saenggakaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 마음가짐이에요. 오늘은 푹 쉬어요.",
+   "beaver_en": "Good attitude. Get some good rest today.",
+   "beaver_roman": "joeun maeumgajimieyo. oneureun puk swieoyo.",
+   "learner": "감사합니다, 코치님. 다음엔 꼭 이길게요.",
+   "en": "Thank you, coach. I'll win next time for sure.",
+   "roman": "gamsahamnida, kochinim. daeumen kkok igilgeyo."
+  }
+ ]
+}

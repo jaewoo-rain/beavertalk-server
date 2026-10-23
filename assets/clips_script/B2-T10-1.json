@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T10-1",
+ "no": 170,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지야, 이 쇼핑센터 크다! 뭐 살 거야?",
+   "beaver_en": "Minji, this shopping center is big! What are you buying?",
+   "beaver_roman": "minjiya, i syopingsenteo keuda! mwo sal geoya?",
+   "learner": "지난주에 구입한 헤드폰을 환불해야겠어.",
+   "en": "I should get a refund for the headphones I bought last week.",
+   "roman": "jinanjue guipan hedeuponeul hwanbulhaeyagesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜? 무슨 문제 있어?",
+   "beaver_en": "Why? Is something wrong?",
+   "beaver_roman": "wae? museun munje isseo?",
+   "learner": "한쪽 줄이 끊어졌어. 이 매장에서 샀어.",
+   "en": "One side's cord broke. I bought it at this store.",
+   "roman": "hanjjok juri kkeuneojyeosseo. i maejangeseo sasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "영수증은 있어? 없으면 어려울 텐데.",
+   "beaver_en": "Do you have the receipt? It'll be hard without it.",
+   "beaver_roman": "yeongsujeungeun isseo? eopseumyeon eoryeoul tende.",
+   "learner": "깜빡하고 집에 두고 왔어. 잃어버린 건 아니야.",
+   "en": "I forgot and left it at home. I didn't lose it.",
+   "roman": "kkamppakago jibe dugo wasseo. ireobeorin geon aniya."
+  },
+  {
+   "n": 4,
+   "beaver": "고객 센터에 먼저 물어보자.",
+   "beaver_en": "Let's ask customer service first.",
+   "beaver_roman": "gogaek senteoe meonjeo mureoboja.",
+   "learner": "응, 카드 내역으로 확인된다고 들었어.",
+   "en": "Yeah, I heard they can check it with my card history.",
+   "roman": "eung, kadeu naeyeogeuro hwagindoendago deureosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "환불되면 새 헤드폰은 어디서 살 거야?",
+   "beaver_en": "If you get the refund, where will you buy new headphones?",
+   "beaver_roman": "hwanbuldoemyeon sae hedeuponeun eodiseo sal geoya?",
+   "learner": "전문점이 제품이 많다고 들었어.",
+   "en": "I heard specialty stores have lots of products.",
+   "roman": "jeonmunjeomi jepumi mantago deureosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "근데 전문점은 비싸지 않아? 할인점이 싸.",
+   "beaver_en": "But aren't specialty stores pricey? Discount stores are cheap.",
+   "beaver_roman": "geunde jeonmunjeomeun bissaji ana? harinjeomi ssa.",
+   "learner": "할인점은 저렴한데 모델이 적어.",
+   "en": "Discount stores are cheap, but they have few models.",
+   "roman": "harinjeomeun jeoryeomhande modeli jeogeo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 중고는 어때? 새것으로 살 거야?",
+   "beaver_en": "Then how about secondhand? Will you buy new?",
+   "beaver_roman": "geureom junggoneun eottae? saegeoseuro sal geoya?",
+   "learner": "중고는 좀 걱정돼. 새 제품을 사야겠어.",
+   "en": "Secondhand worries me a bit. I'd better buy a new product.",
+   "roman": "junggoneun jom geokjeongdwae. sae jepumeul sayagesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아. 그 전에 슈퍼에서 장도 봐야 해.",
+   "beaver_en": "Okay. Before that, we need to shop at the supermarket.",
+   "beaver_roman": "joa. geu jeone syupeoeseo jangdo bwaya hae.",
+   "learner": "맞다, 정육점에서 고기도 사야겠다.",
+   "en": "Oh right, I should buy meat at the butcher shop too.",
+   "roman": "matda, jeongyukjeomeseo gogido sayagetda."
+  },
+  {
+   "n": 9,
+   "beaver": "문방구도 들르자. 동생 학용품 사야 해.",
+   "beaver_en": "Let's stop by the stationery store. I need school supplies for my sibling.",
+   "beaver_roman": "munbanggudo deulleuja. dongsaeng hagyongpum saya hae.",
+   "learner": "저기 제과점 옆에 문방구가 있다고 들었어.",
+   "en": "I heard there's a stationery store next to that bakery.",
+   "roman": "jeogi jegwajeom yeope munbangguga itdago deureosseo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아! 먼저 고객 센터부터 가자.",
+   "beaver_en": "Great! Let's go to customer service first.",
+   "beaver_roman": "joa! meonjeo gogaek senteobuteo gaja.",
+   "learner": "응, 빨리 가자. 인기 모델은 금방 품절된대.",
+   "en": "Yeah, let's hurry. They say popular models sell out fast.",
+   "roman": "eung, ppalli gaja. ingi modereun geumbang pumjeoldoendae."
+  }
+ ]
+}

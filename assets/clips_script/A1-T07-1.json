@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T07-1",
+ "no": 6,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새 집 어때요? 어디에 살아요?",
+   "beaver_en": "How's your new place? Where do you live?",
+   "beaver_roman": "sae jip eottaeyo? eodie sarayo?",
+   "learner": "학교 앞 하숙집에 살아요.",
+   "en": "I live in a boarding house in front of the school.",
+   "roman": "hakgyo ap hasukjibe sarayo."
+  },
+  {
+   "n": 2,
+   "beaver": "하숙집이요? 몇 층에 있어요?",
+   "beaver_en": "A boarding house? What floor are you on?",
+   "beaver_roman": "hasukjibiyo? myeot cheunge isseoyo?",
+   "learner": "삼 층에 있어요. 302호예요.",
+   "en": "I'm on the third floor. It's unit 302.",
+   "roman": "sam cheunge isseoyo. sambaegihoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "방은 몇 개예요?",
+   "beaver_en": "How many rooms are there?",
+   "beaver_roman": "bangeun myeot gaeyeyo?",
+   "learner": "제 방은 하나예요. 작은 방이에요.",
+   "en": "I have one room. It's a small room.",
+   "roman": "je bangeun hanayeyo. jageun bangieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "화장실은요?",
+   "beaver_en": "What about the bathroom?",
+   "beaver_roman": "hwajangsireunyo?",
+   "learner": "화장실은 방에 있어요.",
+   "en": "The bathroom is in my room.",
+   "roman": "hwajangsireun bange isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "거실도 있어요?",
+   "beaver_en": "Is there a living room too?",
+   "beaver_roman": "geosildo isseoyo?",
+   "learner": "네, 거실은 일 층에 있어요.",
+   "en": "Yes, the living room is on the first floor.",
+   "roman": "ne, geosireun il cheunge isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "하숙집에 몇 명 살아요?",
+   "beaver_en": "How many people live in the boarding house?",
+   "beaver_roman": "hasukjibe myeot myeong sarayo?",
+   "learner": "네 명이 살아요. 방도 네 개예요.",
+   "en": "Four people live there. There are four rooms too.",
+   "roman": "ne myeongi sarayo. bangdo ne gaeyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "주인 아주머니도 집에 계세요?",
+   "beaver_en": "Is the landlady in the house too?",
+   "beaver_roman": "juin ajumeonido jibe gyeseyo?",
+   "learner": "아니요, 옆집에 계세요.",
+   "en": "No, she lives next door.",
+   "roman": "aniyo, yeopjibe gyeseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "집이 좋네요. 언제 이사했어요?",
+   "beaver_en": "Sounds nice. When did you move?",
+   "beaver_roman": "jibi jonneyo. eonje isahaesseoyo?",
+   "learner": "지난주 토요일에 이사했어요.",
+   "en": "I moved last Saturday.",
+   "roman": "jinanju toyoire isahaesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "저도 놀러 가고 싶어요.",
+   "beaver_en": "I want to come visit too.",
+   "beaver_roman": "jeodo nolleo gago sipeoyo.",
+   "learner": "좋아요. 일요일에 우리 집에 와요.",
+   "en": "Sure. Come to my place on Sunday.",
+   "roman": "joayo. iryoire uri jibe wayo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요! 302호로 갈게요.",
+   "beaver_en": "Great! I'll come to unit 302.",
+   "beaver_roman": "joayo! sambaegihoro galgeyo.",
+   "learner": "네, 일요일에 만나요!",
+   "en": "Okay, see you on Sunday!",
+   "roman": "ne, iryoire mannayo!"
+  }
+ ]
+}

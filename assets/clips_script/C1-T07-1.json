@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T07-1",
+ "no": 298,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 어떤 집을 찾으십니까?",
+   "beaver_en": "Welcome. What kind of home are you looking for?",
+   "beaver_roman": "Eoseo oseyo. Eotteon jibeul chajeusimnikka?",
+   "learner": "조용한 주택가에 남향인 집을 찾아요.",
+   "en": "I'm looking for a south-facing home in a quiet residential area.",
+   "roman": "Joyonghan jutaekgae namhyangin jibeul chajayo."
+  },
+  {
+   "n": 2,
+   "beaver": "임대를 원하십니까, 매매를 원하십니까?",
+   "beaver_en": "Would you like to rent or to buy?",
+   "beaver_roman": "Imdaereul wonhasimnikka, maemaereul wonhasimnikka?",
+   "learner": "임대요. 보증금은 적은 편이 좋아요.",
+   "en": "Rent. I'd prefer a smaller deposit.",
+   "roman": "Imdaeyo. Bojeunggeumeun jeogeun pyeoni joayo."
+  },
+  {
+   "n": 3,
+   "beaver": "방향은 어떠십니까? 동향도 괜찮으세요?",
+   "beaver_en": "What about the direction? Is east-facing okay?",
+   "beaver_roman": "Banghyangeun eotteosimnikka? Donghyangdo gwaenchaneuseyo?",
+   "learner": "동향도 좋지만 북향, 서향은 싫어요.",
+   "en": "East is fine, but I don't want north or west.",
+   "roman": "Donghyangdo jochiman bukhyang, seohyangeun sireoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "방은 몇 개 필요하십니까?",
+   "beaver_en": "How many rooms do you need?",
+   "beaver_roman": "Bangeun myeot gae piryohasimnikka?",
+   "learner": "방 세 개요. 서재로 쓸 방이 필요해요.",
+   "en": "Three rooms. I need one to use as a study.",
+   "roman": "Bang se gaeyo. Seojaero sseul bangi piryohaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "층은 어떠세요? 높은 층도 괜찮으세요?",
+   "beaver_en": "What about the floor? Is a high floor okay?",
+   "beaver_roman": "Cheungeun eotteoseyo? Nopeun cheungdo gwaenchaneuseyo?",
+   "learner": "승강기가 있으면 높은 층도 괜찮아요.",
+   "en": "If there's an elevator, a high floor is fine.",
+   "roman": "Seunggangiga isseumyeon nopeun cheungdo gwaenchanayo."
+  },
+  {
+   "n": 6,
+   "beaver": "재개발 지역은 어떠세요?",
+   "beaver_en": "How about redevelopment areas?",
+   "beaver_roman": "Jaegaebal jiyeogeun eotteoseyo?",
+   "learner": "재개발 지역은 공사 때문에 시끄러워서 싫어요.",
+   "en": "Redevelopment areas are noisy from construction, so no.",
+   "roman": "Jaegaebal jiyeogeun gongsa ttaemune sikkeureowoseo sireoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "다른 조건도 있으세요?",
+   "beaver_en": "Do you have any other requirements?",
+   "beaver_roman": "Dareun jogeondo isseuseyo?",
+   "learner": "전에 소음에 시달려서 방음이 중요해요.",
+   "en": "I suffered from noise before, so soundproofing matters.",
+   "roman": "Jeone soeume sidallyeoseo bangeumi jungyohaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "난방은 어떤 걸 원하십니까?",
+   "beaver_en": "What kind of heating would you like?",
+   "beaver_roman": "Nanbangeun eotteon geol wonhasimnikka?",
+   "learner": "온돌이 좋아요. 베란다 난간도 튼튼해야 해요.",
+   "en": "I like ondol. The balcony railing must be sturdy too.",
+   "roman": "Ondori joayo. Beranda nangando teunteunhaeya haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "마침 거주자 평이 좋은 집이 있습니다.",
+   "beaver_en": "As it happens, there's a place residents rate highly.",
+   "beaver_roman": "Machim geojuja pyeongi joeun jibi itseumnida.",
+   "learner": "오래 거주할 집이니까 꼭 보고 싶어요.",
+   "en": "I'll live there a long time, so I'd love to see it.",
+   "roman": "Orae geojuhal jibinikka kkok bogo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "내일 오전에 같이 보러 가실까요?",
+   "beaver_en": "Shall we go see it together tomorrow morning?",
+   "beaver_roman": "Naeil ojeone gachi boreo gasilkkayo?",
+   "learner": "네, 좋아요. 내일 뵙겠습니다.",
+   "en": "Yes, great. See you tomorrow.",
+   "roman": "Ne, joayo. Naeil boepgetseumnida."
+  }
+ ]
+}

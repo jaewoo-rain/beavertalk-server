@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T05-1",
+ "no": 49,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "영화 끝났네요. 민지 씨는 어땠어요?",
+   "beaver_en": "The movie's over. How was it, Minji?",
+   "beaver_roman": "yeonghwa kkeunnanneyo. minji ssineun eottaesseoyo?",
+   "learner": "정말 재미있게 봤어요. 마음이 따뜻했어요.",
+   "en": "I really enjoyed it. It warmed my heart.",
+   "roman": "jeongmal jaemiitge bwasseoyo. maeumi ttatteutaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "저도요. 즐거운 장면도 있었지요?",
+   "beaver_en": "Me too. There were some fun scenes, right?",
+   "beaver_roman": "jeodoyo. jeulgeoun jangmyeondo isseotjiyo?",
+   "learner": "네, 강아지가 너무 귀여웠어요. 많이 웃었어요.",
+   "en": "Yes, the puppy was so cute. I laughed a lot.",
+   "roman": "ne, gangajiga neomu gwiyeowosseoyo. mani useosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "맞아요. 극장에 웃음소리가 많았어요.",
+   "beaver_en": "Right. There was a lot of laughing in the theater.",
+   "beaver_roman": "majayo. geukjange useumsoriga manasseoyo.",
+   "learner": "아이가 강아지를 귀여워하고 즐거워했어요.",
+   "en": "The kid adored the puppy and was so happy.",
+   "roman": "aiga gangajireul gwiyeowohago jeulgeowohaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 중간에 강아지가 없어졌잖아요.",
+   "beaver_en": "But the puppy went missing in the middle.",
+   "beaver_roman": "geureonde junggane gangajiga eopseojyeotjanayo.",
+   "learner": "갑자기 없어져서 놀랐어요. 좀 무서웠어요.",
+   "en": "It vanished suddenly, so I was surprised. It was a bit scary.",
+   "roman": "gapjagi eopseojyeoseo nollasseoyo. jom museowosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저도 그 장면은 좀 무서웠어요.",
+   "beaver_en": "That scene was a bit scary for me too.",
+   "beaver_roman": "jeodo geu jangmyeoneun jom museowosseoyo.",
+   "learner": "아이가 슬퍼해서 저도 눈물이 났어요.",
+   "en": "The kid was so sad that I cried too.",
+   "roman": "aiga seulpeohaeseo jeodo nunmuri nasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "아이가 화를 내는 장면도 기억나요?",
+   "beaver_en": "Do you remember the scene where the kid got angry?",
+   "beaver_roman": "aiga hwareul naeneun jangmyeondo gieongnayo?",
+   "learner": "네, 아빠한테 짜증을 내고 화를 냈어요.",
+   "en": "Yes, she got irritated and angry at her dad.",
+   "roman": "ne, appahante jjajeungeul naego hwareul naesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "아빠는 아이 마음을 잘 몰랐지요.",
+   "beaver_en": "The dad didn't really understand her feelings.",
+   "beaver_roman": "appaneun ai maeumeul jal mollatjiyo.",
+   "learner": "그래서 아이의 슬픔이 더 크게 느껴졌어요.",
+   "en": "So her sorrow felt even bigger.",
+   "roman": "geuraeseo aiui seulpeumi deo keuge neukkyeojyeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "마지막에 강아지가 돌아와서 좋았어요.",
+   "beaver_en": "I was glad the puppy came back at the end.",
+   "beaver_roman": "majimage gangajiga dorawaseo joasseoyo.",
+   "learner": "아이가 정말 기뻐했어요. 울다가 웃었어요.",
+   "en": "The kid was so happy. She cried, then laughed.",
+   "roman": "aiga jeongmal gippeohaesseoyo. uldaga useosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "영화 전체는 어땠어요?",
+   "beaver_en": "How was the movie overall?",
+   "beaver_roman": "yeonghwa jeoncheneun eottaesseoyo?",
+   "learner": "기쁘고 슬펐어요. 하나도 안 지루했어요.",
+   "en": "It was happy and sad. It wasn't boring at all.",
+   "roman": "gippeugo seulpeosseoyo. hanado an jiruhaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "영화가 끝나서 좀 아쉽네요.",
+   "beaver_en": "It's a shame the movie is over.",
+   "beaver_roman": "yeonghwaga kkeunnaseo jom aswimneyo.",
+   "learner": "저도 아쉬워요. 다음에도 같이 봐요!",
+   "en": "Me too. Let's watch one together again!",
+   "roman": "jeodo aswiwoyo. daeumedo gachi bwayo!"
+  }
+ ]
+}

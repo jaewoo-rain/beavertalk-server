@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T01-1",
+ "no": 397,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김만덕 자료를 찾는데 신상 기록이 별로 없네요.",
+   "beaver_en": "I'm looking into Kim Man-deok, but there aren't many personal records.",
+   "beaver_roman": "Gimmandeok jaryoreul channeunde sinsang girogi byeollo eomneyo.",
+   "learner": "기록은 적어도 제주 사람인 건 확실해요.",
+   "en": "Records are few, but she was definitely from Jeju.",
+   "roman": "Girogeun jeogeodo jeju saramin geon hwaksilhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "생몰 연도 기록은 남아 있어요?",
+   "beaver_en": "Are records of her birth and death years left?",
+   "beaver_roman": "Saengmol yeondo girogeun nama isseoyo?",
+   "learner": "1739년생이고 일흔셋까지 살았으니 장수했죠.",
+   "en": "Born in 1739, she lived to 73, so she lived long.",
+   "roman": "1739nyeonsaengigo ilheunsetkkaji sarasseuni jangsuhaetjyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그 시대 제주에서는 최고령에 가까웠겠네요?",
+   "beaver_en": "In Jeju back then, she must have been close to the oldest.",
+   "beaver_roman": "Geu sidae jejueseoneun choegoryeonge gakkawotgenneyo?",
+   "learner": "최고령은 아니어도 꽤 나이 많은 편이었을 거예요.",
+   "en": "Maybe not the oldest, but she was probably fairly old.",
+   "roman": "Choegoryeongeun anieodo kkwae nai maneun pyeonieosseul geoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "어릴 때 부모를 잃고 기녀가 됐다던데요.",
+   "beaver_en": "I heard she lost her parents young and became a gisaeng.",
+   "beaver_roman": "Eoril ttae bumoreul ilko ginyeoga dwaetdadeondeyo.",
+   "learner": "가난했어도 꿈을 쉽게 버리지 않았나 봐요.",
+   "en": "Though poor, she seems not to have given up her dreams.",
+   "roman": "Gananhaesseodo kkumeul swipge beoriji ananna bwayo."
+  },
+  {
+   "n": 5,
+   "beaver": "나중엔 큰 상인이 돼서 돈을 많이 벌었대요.",
+   "beaver_en": "Later she became a big merchant and earned a lot.",
+   "beaver_roman": "Najungen keun sangini dwaeseo doneul mani beoreotdaeyo.",
+   "learner": "부유하면서도 검소하게 살았을 것 같아요.",
+   "en": "I think she lived simply even though she was rich.",
+   "roman": "Buyuhamyeonseodo geomsohage sarasseul geot gatayo."
+  },
+  {
+   "n": 6,
+   "beaver": "흉년에 전 재산으로 쌀을 사서 나눴다고 해요.",
+   "beaver_en": "In a famine, she used her whole fortune to buy and share rice.",
+   "beaver_roman": "Hyungnyeone jeon jaesaneuro ssareul saseo nanwotdago haeyo.",
+   "learner": "돈만 아는 사람이었다면 선뜻 못 했겠죠.",
+   "en": "Someone who only cared about money couldn't have done that so readily.",
+   "roman": "Donman aneun saramieotdamyeon seontteut mot taetgetjyo."
+  },
+  {
+   "n": 7,
+   "beaver": "후대 평가는 어때요? 다 좋은가요?",
+   "beaver_en": "How do later generations judge her? All positive?",
+   "beaver_roman": "Hudae pyeongganeun eottaeyo? Da joeungayo?",
+   "learner": "대체로 좋지만 과장됐다는 분석도 있어요.",
+   "en": "Mostly good, but some analyses say it's exaggerated.",
+   "roman": "Daechero jochiman gwajangdwaetdaneun bunseokdo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "당시 여성으로서는 정말 드문 삶이었겠어요.",
+   "beaver_en": "For a woman then, it must have been a rare life.",
+   "beaver_roman": "Dangsi yeoseongeuroseoneun jeongmal deumun salmieotgesseoyo.",
+   "learner": "그 시대 여성상과는 많이 달랐을 거예요.",
+   "en": "She was probably very different from that era's ideal woman.",
+   "roman": "Geu sidae yeoseongsanggwaneun mani dallasseul geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "혼자 그 일을 다 해냈을까요?",
+   "beaver_en": "Did she manage all of that alone?",
+   "beaver_roman": "Honja geu ireul da haenaesseulkkayo?",
+   "learner": "다른 상인들과 손잡았을 수도 있겠네요.",
+   "en": "She might have teamed up with other merchants.",
+   "roman": "Dareun sangindeulgwa sonjabasseul sudo itgenneyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요, 그 짐작들도 발표 자료에 넣을게요.",
+   "beaver_en": "Great, I'll add those guesses to the presentation.",
+   "beaver_roman": "Joayo, geu jimjakdeuldo balpyo jaryoe neoeulgeyo.",
+   "learner": "네, 출처는 꼭 따로 표시해 주세요.",
+   "en": "Okay, just be sure to mark the sources separately.",
+   "roman": "Ne, chulcheoneun kkok ttaro pyosihae juseyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T34-1",
+ "no": 39,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "모레 콘서트, 정말 기대돼요!",
+   "beaver_en": "I'm so excited about the concert the day after tomorrow!",
+   "beaver_roman": "more konseoteu, jeongmal gidaedwaeyo!",
+   "learner": "저도요. 빨리 콘서트에 가고 싶어요.",
+   "en": "Me too. I want to go to the concert soon.",
+   "roman": "jeodoyo. ppalli konseoteue gago sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "무슨 음악을 좋아해요?",
+   "beaver_en": "What kind of music do you like?",
+   "beaver_roman": "museun eumageul joahaeyo?",
+   "learner": "가요를 좋아해요. 신나는 음악이 좋아요.",
+   "en": "I like K-pop songs. I like upbeat music.",
+   "roman": "gayoreul joahaeyo. sinnaneun eumagi joayo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아하는 노래가 있어요?",
+   "beaver_en": "Do you have a favorite song?",
+   "beaver_roman": "joahaneun noraega isseoyo?",
+   "learner": "네, 봄날이라는 노래를 좋아해요.",
+   "en": "Yes, I like a song called Spring Day.",
+   "roman": "ne, bomnariraneun noraereul joahaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "콘서트에서 그 노래도 부를까요?",
+   "beaver_en": "Will they sing that song at the concert?",
+   "beaver_roman": "konseoteueseo geu noraedo bureulkkayo?",
+   "learner": "그 노래를 부르면 정말 좋겠어요.",
+   "en": "It would be great if they sing that song.",
+   "roman": "geu noraereul bureumyeon jeongmal joketseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 춤도 출 거예요?",
+   "beaver_en": "Then will you dance too?",
+   "beaver_roman": "geureom chumdo chul geoyeyo?",
+   "learner": "네, 그 노래가 나오면 춤을 추고 싶어요.",
+   "en": "Yes, when that song plays, I want to dance.",
+   "roman": "ne, geu noraega naomyeon chumeul chugo sipeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "드라마나 연극은요?",
+   "beaver_en": "What about TV dramas or plays?",
+   "beaver_roman": "deuramana yeongeugeunyo?",
+   "learner": "드라마를 자주 봐요. 연극은 아직 안 봤어요.",
+   "en": "I often watch dramas. I haven't seen a play yet.",
+   "roman": "deuramareul jaju bwayo. yeongeugeun ajik an bwasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "좋아하는 배우도 있어요?",
+   "beaver_en": "Do you have a favorite actor?",
+   "beaver_roman": "joahaneun baeudo isseoyo?",
+   "learner": "네, 노래도 잘하는 배우를 좋아해요.",
+   "en": "Yes, I like actors who are also good at singing.",
+   "roman": "ne, noraedo jalhaneun baeureul joahaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저는 연극을 보고 싶어요. 다음에 같이 가요.",
+   "beaver_en": "I want to see a play. Let's go together next time.",
+   "beaver_roman": "jeoneun yeongeugeul bogo sipeoyo. daeume gachi gayo.",
+   "learner": "좋아요. 저도 연극을 보고 싶어요.",
+   "en": "Sounds good. I want to see a play too.",
+   "roman": "joayo. jeodo yeongeugeul bogo sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "모레 여섯 시에 공연장 앞에서 만나요.",
+   "beaver_en": "Let's meet in front of the venue at six, the day after tomorrow.",
+   "beaver_roman": "more yeoseot sie gongyeonjang apeseo mannayo.",
+   "learner": "네, 늦으면 전화할게요.",
+   "en": "Okay, if I'm late, I'll call you.",
+   "roman": "ne, neujeumyeon jeonhwahalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 모레 봐요!",
+   "beaver_en": "Great. See you the day after tomorrow!",
+   "beaver_roman": "joayo. geureom more bwayo!",
+   "learner": "네, 모레 같이 춤춰요!",
+   "en": "Yes, let's dance together then!",
+   "roman": "ne, more gachi chumchwoyo!"
+  }
+ ]
+}

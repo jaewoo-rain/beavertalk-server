@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T15-1",
+ "no": 262,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "현장 위치는 다 정리했어요?",
+   "beaver_en": "Have you sorted out the locations at the site?",
+   "beaver_roman": "hyeonjang wichineun da jeongnihaesseoyo?",
+   "learner": "네, 현장을 동서남북으로 다 돌아봤어요.",
+   "en": "Yes, I walked around the site in all four directions.",
+   "roman": "ne, hyeonjangeul dongseonambugeuro da dorabwasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "건물 안은 다 보셨어요?",
+   "beaver_en": "Did you check the whole inside of the building?",
+   "beaver_roman": "geonmul aneun da bosyeosseoyo?",
+   "learner": "네, 내부는 위아래 층까지 다 봤어요.",
+   "en": "Yes, I checked the inside, upstairs and downstairs too.",
+   "roman": "ne, naebuneun wiarae cheungkkaji da bwasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "행사장은 어디에 있어요?",
+   "beaver_en": "Where is the event space?",
+   "beaver_roman": "haengsajangeun eodie isseoyo?",
+   "learner": "전시관 한가운데에 있어요. 정면에 입구가 있어요.",
+   "en": "It's in the very middle of the exhibition hall. The entrance is at the front.",
+   "roman": "jeonsigwan hangaundee isseoyo. jeongmyeone ipguga isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "건물 밖은 어때요?",
+   "beaver_en": "What about outside the building?",
+   "beaver_roman": "geonmul bakkeun eottaeyo?",
+   "learner": "종로2가 부근이라서 안팎이 늘 붐벼요.",
+   "en": "It's near Jongno 2-ga, so it's always busy inside and out.",
+   "roman": "jongnoiga bugeuniraseo anpakki neul bumbyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "역에서 가까워요?",
+   "beaver_en": "Is it close to the station?",
+   "beaver_roman": "yeogeseo gakkawoyo?",
+   "learner": "역에서 오 분이니까 역세권인 셈이에요.",
+   "en": "It's five minutes from the station, so you could say it's in the station area.",
+   "roman": "yeogeseo o buninikka yeoksegwonin semieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "근교에서 오기 멀지요?",
+   "beaver_en": "Isn't it far to come from the outskirts?",
+   "beaver_roman": "geungyoeseo ogi meoljiyo?",
+   "learner": "아니요, 수도권 근교에서도 한 시간이면 와요.",
+   "en": "No, even from the outskirts of the capital region it takes an hour.",
+   "roman": "aniyo, sudogwon geungyoeseodo han siganimyeon wayo."
+  },
+  {
+   "n": 7,
+   "beaver": "주차장은 어디예요?",
+   "beaver_en": "Where is the parking lot?",
+   "beaver_roman": "juchajangeun eodiyeyo?",
+   "learner": "건물 맨 아래, 지하 3층에 있어요.",
+   "en": "At the very bottom of the building, on basement level 3.",
+   "roman": "geonmul maen arae, jiha samcheunge isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "전망대도 있다고 들었어요.",
+   "beaver_en": "I heard there's an observation deck too.",
+   "beaver_roman": "jeonmangdaedo itdago deureosseoyo.",
+   "learner": "네, 꼭대기 층이에요. 엘리베이터로 가요.",
+   "en": "Yes, it's on the top floor. You get there by elevator.",
+   "roman": "ne, kkokdaegi cheungieyo. ellibeiteoro gayo."
+  },
+  {
+   "n": 9,
+   "beaver": "건물 주변에는 뭐가 있어요?",
+   "beaver_en": "What's around the building?",
+   "beaver_roman": "geonmul jubyeoneneun mwoga isseoyo?",
+   "learner": "동쪽은 식당가, 서쪽은 공원이에요.",
+   "en": "The east side is a restaurant street, and the west is a park.",
+   "roman": "dongjjogeun sikdangga, seojjogeun gongwonieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정리 고마워요. 이제 준비 다 된 거죠?",
+   "beaver_en": "Thanks for summing it up. So we're all ready now, right?",
+   "beaver_roman": "jeongni gomawoyo. ije junbi da doen geojyo?",
+   "learner": "네, 위치 정리는 다 끝났어요. 참고해 주세요.",
+   "en": "Yes, the location summary is all done. Please refer to it.",
+   "roman": "ne, wichi jeongnineun da kkeunnasseoyo. chamgohae juseyo."
+  }
+ ]
+}

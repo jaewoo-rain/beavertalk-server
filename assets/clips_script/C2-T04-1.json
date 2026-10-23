@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T04-1",
+ "no": 350,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새 팀장님 말투가 너무 직설적이에요.",
+   "beaver_en": "The new team leader talks so bluntly.",
+   "beaver_roman": "Sae timjangnim maltuga neomu jikseoljeogieyo.",
+   "learner": "무뚝뚝하고 사무적이지만 속은 따뜻한 분 같아요.",
+   "en": "He's curt and businesslike, but warm inside.",
+   "roman": "Muttukttukago samujeogijiman sogeun ttatteutan bun gatayo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 회의 때는 좀 권위적으로 보였어요.",
+   "beaver_en": "Really? He seemed a bit authoritarian in the meeting.",
+   "beaver_roman": "Geuraeyo? Hoeui ttaeneun jom gwonwijeogeuro boyeosseoyo.",
+   "learner": "원래 보수적이고 이성적인 성격이라 그래요.",
+   "en": "That's because he's naturally conservative and rational.",
+   "roman": "Wollae bosujeogigo iseongjeogin seonggyeogira geuraeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "제 아이디어도 바로 거절당했어요. 속상해요.",
+   "beaver_en": "My idea got rejected right away too. I'm upset.",
+   "beaver_roman": "Je aidieodo baro geojeoldanghaesseoyo. Soksanghaeyo.",
+   "learner": "기발해도 근거 없이 들이밀면 거절당하기 십상이에요.",
+   "en": "Even clever ideas get rejected if you push them without evidence.",
+   "roman": "Gibalhaedo geungeo eopsi deurimilmyeon geojeoldanghagi sipsangieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 어떻게 하면 좋을까요? 더 말씀해 주세요.",
+   "beaver_en": "Then what should I do? Tell me more.",
+   "beaver_roman": "Geureom eotteoke hamyeon joeulkkayo? Deo malsseumhae juseyo.",
+   "learner": "숫자로 확실히 보여 주세요. 감정에 호소하면 안 돼요.",
+   "en": "Show it clearly with numbers. Don't appeal to emotions.",
+   "roman": "Sutjaro hwaksilhi boyeo juseyo. Gamjeonge hosohamyeon an dwaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저는 그냥 웃으면서 부탁하면 될 줄 알았어요.",
+   "beaver_en": "I thought I could just ask with a smile.",
+   "beaver_roman": "Jeoneun geunyang useumyeonseo butakamyeon doel jul arasseoyo.",
+   "learner": "애교는 그분한테 안 통해요. 침착하게 말하세요.",
+   "en": "Charm doesn't work on him. Speak calmly.",
+   "roman": "Aegyoneun geubunhante an tonghaeyo. Chimchakage malhaseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "팀장님이 오만한 건 아닐까요? 좀 무서워요.",
+   "beaver_en": "Isn't he just arrogant? He's a bit scary.",
+   "beaver_roman": "Timjangnimi omanhan geon anilkkayo? Jom museowoyo.",
+   "learner": "오만한 게 아니라 원래 말투가 그런 거예요.",
+   "en": "He's not arrogant. That's just how he talks.",
+   "roman": "Omanhan ge anira wollae maltuga geureon geoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "근데 점심은 늘 김밥만 드시던데요. 구두쇠일까요?",
+   "beaver_en": "But he always eats just gimbap for lunch. Is he a miser?",
+   "beaver_roman": "Geunde jeomsimeun neul gimbamman deusideondeyo. Gudusoeilkkayo?",
+   "learner": "구두쇠가 아니라 소박한 거예요. 기부도 많이 하세요.",
+   "en": "He's not a miser, just simple. He donates a lot, too.",
+   "roman": "Gudusoega anira sobakan geoyeyo. Gibudo mani haseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 몰랐어요. 제가 성급하게 단정했네요.",
+   "beaver_en": "Wow, I didn't know. I judged him too quickly.",
+   "beaver_roman": "Wa, mollasseoyo. Jega seonggeupage danjeonghaenneyo.",
+   "learner": "그럴 수 있죠. 좀 더 긍정적으로 봐요.",
+   "en": "That happens. Try to see it more positively.",
+   "roman": "Geureol su itjyo. Jom deo geungjeongjeogeuro bwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "알겠어요. 저는 결정을 잘 못 내려서 걱정이에요.",
+   "beaver_en": "Okay. I'm worried because I'm bad at making decisions.",
+   "beaver_roman": "Algesseoyo. Jeoneun gyeoljeongeul jal mon naeryeoseo geokjeongieyo.",
+   "learner": "신중한 거죠. 여러 의견을 듣는 건 좋은 거예요.",
+   "en": "You're just careful. Listening to many opinions is good.",
+   "roman": "Sinjunghan geojyo. Yeoreo uigyeoneul deunneun geon joeun geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 덕분에 마음이 편해졌어요. 커피 살게요.",
+   "beaver_en": "Thanks. I feel better now. Coffee's on me.",
+   "beaver_roman": "Gomawoyo. Deokbune maeumi pyeonhaejyeosseoyo. Keopi salgeyo.",
+   "learner": "좋아요. 힘내서 내일 다시 해 봐요.",
+   "en": "Great. Cheer up and try again tomorrow.",
+   "roman": "Joayo. Himnaeseo naeil dasi hae bwayo."
+  }
+ ]
+}

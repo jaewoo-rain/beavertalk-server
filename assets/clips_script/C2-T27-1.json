@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T27-1",
+ "no": 369,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 인사팀 김민수 과장입니다.",
+   "beaver_en": "Hello. I'm Kim Minsu, manager in HR.",
+   "beaver_roman": "Annyeonghasimnikka? Insatim Gim Minsu gwajangimnida.",
+   "learner": "안녕하십니까? 지원자 이서연입니다.",
+   "en": "Hello. I'm the applicant, Lee Seoyeon.",
+   "roman": "Annyeonghasimnikka? Jiwonja I Seoyeonimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "지금까지 하신 일을 소개해 주시겠습니까?",
+   "beaver_en": "Could you tell me about your work so far?",
+   "beaver_roman": "Jigeumkkaji hasin ireul sogaehae jusigetseumnikka?",
+   "learner": "영업부에서 시작해 기획부를 거쳐 팀장을 맡았습니다.",
+   "en": "I started in sales, went through planning, and became team leader.",
+   "roman": "Yeongeopbueseo sijakae gihoekbureul geochyeo timjangeul matatseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "실적은 어떻습니까?",
+   "beaver_en": "How were your results?",
+   "beaver_roman": "Siljeogeun eotteoseumnikka?",
+   "learner": "작년 실적이 팀에서 가장 좋았습니다.",
+   "en": "My results last year were the best on the team.",
+   "roman": "Jangnyeon siljeogi timeseo gajang joatseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "팀장일 때 팀원은 몇 명이었습니까?",
+   "beaver_en": "When you were team leader, how many team members did you have?",
+   "beaver_roman": "Timjangil ttae timwoneun myeot myeongieotseumnikka?",
+   "learner": "팀원은 여덟 명이었습니다.",
+   "en": "I had eight team members.",
+   "roman": "Timwoneun yeodeol myeongieotseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "팀장이면 실무는 덜 하셨겠네요.",
+   "beaver_en": "As a team leader, you must have done less hands-on work.",
+   "beaver_roman": "Timjangimyeon silmuneun deol hasyeotgenneyo.",
+   "learner": "아니요, 실무도 직접 많이 했습니다.",
+   "en": "No, I did a lot of hands-on work myself.",
+   "roman": "Aniyo, silmudo jikjeop mani haetseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "직장 생활에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about your work life?",
+   "beaver_roman": "Jikjang saenghware daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "재택근무를 할 때도 팀을 잘 이끌었습니다.",
+   "en": "I led the team well even while working from home.",
+   "roman": "Jaetaekgeunmureul hal ttaedo timeul jal ikkeureotseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "이전 회사는 왜 그만두셨습니까?",
+   "beaver_en": "Why did you leave your previous company?",
+   "beaver_roman": "Ijeon hoesaneun wae geumandusyeotseumnikka?",
+   "learner": "새로 오신 상사와 업무 방향이 달랐습니다.",
+   "en": "My new boss and I had different views on the work.",
+   "roman": "Saero osin sangsawa eommu banghyangi dallatseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "퇴사 절차는 잘 마무리되었습니까?",
+   "beaver_en": "Was your resignation process wrapped up well?",
+   "beaver_roman": "Toesa jeolchaneun jal mamuridoeeotseumnikka?",
+   "learner": "네, 퇴직금도 다 받고 잘 정리했습니다.",
+   "en": "Yes, I received all my severance pay and settled everything.",
+   "roman": "Ne, toejikgeumdo da batgo jal jeongnihaetseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "앞으로 계획은 있으십니까?",
+   "beaver_en": "Do you have plans for the future?",
+   "beaver_roman": "Apeuro gyehoegeun isseusimnikka?",
+   "learner": "이 회사에서 정년퇴직까지 일하고 싶습니다.",
+   "en": "I'd like to work here until retirement.",
+   "roman": "I hoesaeseo jeongnyeontoejikkkaji ilhago sipseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 결과는 다음 주에 알려 드리겠습니다.",
+   "beaver_en": "Good. We'll let you know the result next week.",
+   "beaver_roman": "Jotseumnida. Gyeolgwaneun daeum jue allyeo deurigetseumnida.",
+   "learner": "감사합니다. 이 자리에 꼭 맞는 사람이 되겠습니다.",
+   "en": "Thank you. I'll be the right person for this role.",
+   "roman": "Gamsahamnida. I jarie kkok manneun sarami doegetseumnida."
+  }
+ ]
+}

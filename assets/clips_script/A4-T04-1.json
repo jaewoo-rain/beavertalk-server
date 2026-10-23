@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T04-1",
+ "no": 88,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새 룸메이트 생겼죠? 성격이 어때요?",
+   "beaver_en": "You got a new roommate, right? What's their personality like?",
+   "beaver_roman": "sae rummeiteu saenggyeotjyo? seonggyeogi eottaeyo?",
+   "learner": "이름은 민수예요. 성격이 정말 좋아요.",
+   "en": "His name is Minsu. He has a really good personality.",
+   "roman": "ireumeun minsuyeyo. seonggyeogi jeongmal joayo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 어떤 점이 좋아요?",
+   "beaver_en": "Really? What's good about him?",
+   "beaver_roman": "geuraeyo? eotteon jeomi joayo?",
+   "learner": "아주 착해요. 친절해서 늘 고마워요.",
+   "en": "He's very kind-hearted. He's so kind that I'm always grateful.",
+   "roman": "aju chakaeyo. chinjeolhaeseo neul gomawoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "부지런해요?",
+   "beaver_en": "Is he diligent?",
+   "beaver_roman": "bujireonhaeyo?",
+   "learner": "네, 부지런해요. 평소에 여섯 시에 일어나요.",
+   "en": "Yes, he's diligent. He usually gets up at six.",
+   "roman": "ne, bujireonhaeyo. pyeongsoe yeoseot sie ireonayo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 대단하네요. 공부도 잘해요?",
+   "beaver_en": "Wow, impressive. Is he good at studying too?",
+   "beaver_roman": "wa, daedanhaneyo. gongbudo jalhaeyo?",
+   "learner": "네, 똑똑해요. 저한테 수학을 가르쳐 줬어요.",
+   "en": "Yes, he's smart. He taught me math.",
+   "roman": "ne, ttokttokaeyo. jeohante suhageul gareuchyeo jwosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "자랑은 안 해요?",
+   "beaver_en": "Doesn't he brag?",
+   "beaver_roman": "jarangeun an haeyo?",
+   "learner": "자랑은 한 번도 들은 적이 없어요.",
+   "en": "I've never once heard him brag.",
+   "roman": "jarangeun han beondo deureun jeogi eopseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 단점은 없어요?",
+   "beaver_en": "Then doesn't he have any faults?",
+   "beaver_roman": "geureom danjeomeun eopseoyo?",
+   "learner": "입이 좀 싸요. 제 비밀을 말한 적이 있어요.",
+   "en": "He's a bit loose-lipped. He once told my secret.",
+   "roman": "ibi jom ssayo. je bimireul malhan jeogi isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "아, 그런 건 좀 곤란하겠네요.",
+   "beaver_en": "Oh, that must be a bit awkward.",
+   "beaver_roman": "a, geureon geon jom gollanhagenneyo.",
+   "learner": "네, 그래서 민수도 고치고 싶어 해요.",
+   "en": "Yes, so Minsu wants to fix that too.",
+   "roman": "ne, geuraeseo minsudo gochigo sipeo haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "혹시 다른 단점도 있어요?",
+   "beaver_en": "Does he have any other faults, by any chance?",
+   "beaver_roman": "hoksi dareun danjeomdo isseoyo?",
+   "learner": "아니요, 하나도 안 게을러요. 저보다 나아요.",
+   "en": "No, he's not lazy at all. He's better than me.",
+   "roman": "aniyo, hanado an geeulleoyo. jeoboda naayo."
+  },
+  {
+   "n": 9,
+   "beaver": "또 어떤 성격이에요?",
+   "beaver_en": "What else is his personality like?",
+   "beaver_roman": "tto eotteon seonggyeogieyo?",
+   "learner": "조용하지만 밝아요. 마음이 맑은 사람이에요.",
+   "en": "He's quiet but cheerful. He has a pure heart.",
+   "roman": "joyonghajiman balgayo. maeumi malgeun saramieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 룸메이트네요. 저도 만나 보고 싶어요.",
+   "beaver_en": "What a good roommate. I'd like to meet him too.",
+   "beaver_roman": "joeun rummeiteuneyo. jeodo manna bogo sipeoyo.",
+   "learner": "그럼 이번 주말에 같이 밥 먹어요!",
+   "en": "Then let's eat together this weekend!",
+   "roman": "geureom ibeon jumare gachi bap meogeoyo!"
+  }
+ ]
+}

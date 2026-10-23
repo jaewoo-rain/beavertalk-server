@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T08-1",
+ "no": 168,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "대청소 힘들지? 거기서 뭐 해?",
+   "beaver_en": "Cleaning is tough, right? What are you doing there?",
+   "beaver_roman": "daecheongso himdeulji? geogiseo mwo hae?",
+   "learner": "바닥에 얼룩이 있어. 아무리 닦아도 안 지워져.",
+   "en": "There's a stain on the floor. It won't come off no matter how much I wipe.",
+   "roman": "badage eollugi isseo. amuri dakkado an jiwojyeo."
+  },
+  {
+   "n": 2,
+   "beaver": "세제를 바꿔 볼까? 다른 거 있어.",
+   "beaver_en": "Should we try a different detergent? I have another one.",
+   "beaver_roman": "sejereul bakkwo bolkka? dareun geo isseo.",
+   "learner": "응, 이 세제는 아무리 많이 써도 소용없어.",
+   "en": "Yeah, this detergent is useless no matter how much I use.",
+   "roman": "eung, i sejeneun amuri mani sseodo soyongeopseo."
+  },
+  {
+   "n": 3,
+   "beaver": "이거 써 봐. 그런데 무슨 얼룩이야?",
+   "beaver_en": "Try this. But what kind of stain is it?",
+   "beaver_roman": "igeo sseo bwa. geureonde museun eollugiya?",
+   "learner": "풀 같아. 지난번에 장식 만들다가 흘렸어.",
+   "en": "I think it's glue. I spilled it making decorations last time.",
+   "roman": "pul gata. jinanbeone jangsik mandeuldaga heullyeosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 칼 같은 걸로 긁어 보는 게 어때?",
+   "beaver_en": "Then how about scraping it with something like a knife?",
+   "beaver_roman": "geureom kal gateun geollo geulgeo boneun ge eottae?",
+   "learner": "칼은 위험하니까 막대기로 긁어 볼게.",
+   "en": "A knife is dangerous, so I'll scrape it with a stick.",
+   "roman": "kareun wiheomhanikka makdaegiro geulgeo bolge."
+  },
+  {
+   "n": 5,
+   "beaver": "오, 조금 지워진다! 참, 그릇은 정리했어?",
+   "beaver_en": "Oh, it's coming off a bit! By the way, did you put the dishes away?",
+   "beaver_roman": "o, jogeum jiwojinda! cham, geureuseun jeongnihaesseo?",
+   "learner": "응, 그릇은 찬장 위 칸에 넣어 뒀어.",
+   "en": "Yes, I put the dishes on the top shelf of the cupboard.",
+   "roman": "eung, geureuseun chanjang wi kane neoeo dwosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "고마워. 거실 바닥은 누가 쓸까?",
+   "beaver_en": "Thanks. Who's going to sweep the living room floor?",
+   "beaver_roman": "gomawo. geosil badageun nuga sseulkka?",
+   "learner": "내가 쓸고 나서 청소기를 돌릴게.",
+   "en": "I'll sweep and then run the vacuum cleaner.",
+   "roman": "naega sseulgo naseo cheongsogireul dollilge."
+  },
+  {
+   "n": 7,
+   "beaver": "좋아. 소파 밑에도 먼지가 많아.",
+   "beaver_en": "Good. There's a lot of dust under the sofa too.",
+   "beaver_roman": "joa. sopa mitedo meonjiga mana.",
+   "learner": "어? 소파 밑에서 열쇠고리랑 바늘이 나왔어.",
+   "en": "Huh? A key ring and a needle came out from under the sofa.",
+   "roman": "eo? sopa miteseo yeolsoegorirang baneuri nawasseo."
+  },
+  {
+   "n": 8,
+   "beaver": "바늘은 위험하니까 빨리 치우자.",
+   "beaver_en": "The needle is dangerous, so let's put it away quickly.",
+   "beaver_roman": "baneureun wiheomhanikka ppalli chiuja.",
+   "learner": "응, 바로 치울게. 생활용품 상자에 넣을게.",
+   "en": "Okay, I'll clear it right away. I'll put it in the household goods box.",
+   "roman": "eung, baro chiulge. saenghwallyongpum sangjae neoeulge."
+  },
+  {
+   "n": 9,
+   "beaver": "가전제품 뒤도 닦아야 하지 않아?",
+   "beaver_en": "Shouldn't we wipe behind the home appliances too?",
+   "beaver_roman": "gajeonjepum dwido dakkaya haji ana?",
+   "learner": "응, 히터 뒤는 아무리 닦아도 먼지가 나와.",
+   "en": "Yeah, no matter how much I wipe behind the heater, dust keeps coming out.",
+   "roman": "eung, hiteo dwineun amuri dakkado meonjiga nawa."
+  },
+  {
+   "n": 10,
+   "beaver": "와, 얼룩도 다 지워졌네! 깨끗하다.",
+   "beaver_en": "Wow, the stain is all gone too! It's so clean.",
+   "beaver_roman": "wa, eollukdo da jiwojyeonne! kkaekkeutada.",
+   "learner": "드디어! 힘들었지만 대청소하니까 좋다.",
+   "en": "Finally! It was tiring, but it feels good to do a big cleaning.",
+   "roman": "deudieo! himdeureotjiman daecheongsohanikka jota."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T15-1",
+ "no": 305,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 행사장 배치 정리됐어요?",
+   "beaver_en": "Minji, is the venue layout sorted out?",
+   "beaver_roman": "Minji ssi, haengsajang baechi jeongnidwaesseoyo?",
+   "learner": "네, 다 정리했어요. 한번 들어 보세요.",
+   "en": "Yes, it's all sorted. Have a listen.",
+   "roman": "Ne, da jeongnihaesseoyo. Hanbeon deureo boseyo."
+  },
+  {
+   "n": 2,
+   "beaver": "무대는 어디에 둬요?",
+   "beaver_en": "Where do we put the stage?",
+   "beaver_roman": "Mudaeneun eodie dwoyo?",
+   "learner": "무대는 시청 광장 한복판에 둘 거예요.",
+   "en": "The stage goes right in the middle of City Hall Plaza.",
+   "roman": "Mudaeneun sicheong gwangjang hanbokpane dul kkeoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "입지는 괜찮아요? 사람이 많이 와요?",
+   "beaver_en": "Is the location good? Will many people come?",
+   "beaver_roman": "Ipjineun gwaenchanayo? Sarami mani wayo?",
+   "learner": "네, 입지가 좋아요. 각지에서 사람들이 와요.",
+   "en": "Yes, the location is great. People come from all over.",
+   "roman": "Ne, ipjiga joayo. Gakjieseo saramdeuri wayo."
+  },
+  {
+   "n": 4,
+   "beaver": "통로는 넓어요?",
+   "beaver_en": "Are the aisles wide?",
+   "beaver_roman": "Tongnoneun neolbeoyo?",
+   "learner": "네, 무대 양쪽 통로를 넓게 비워 뒀어요.",
+   "en": "Yes, I left wide aisles on both sides of the stage.",
+   "roman": "Ne, mudae yangjjok tongnoreul neolge biwo dwosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "안내는 어떻게 해요?",
+   "beaver_en": "How will we guide people?",
+   "beaver_roman": "Annaeneun eotteoke haeyo?",
+   "learner": "안내판은 눈높이에 맞춰 출입구에 세워요.",
+   "en": "We put signs at the entrance, at eye level.",
+   "roman": "Annaepaneun nunnopie matchwo churipgue sewoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "위치와 방향에 대해 더 말해 줄래요?",
+   "beaver_en": "Can you tell me more about positions and directions?",
+   "beaver_roman": "Wichiwa banghyange daehae deo malhae jullaeyo?",
+   "learner": "광장 가장자리에 부스를 빙 둘러 세울 거예요.",
+   "en": "We'll set up booths all around the edge of the plaza.",
+   "roman": "Gwangjang gajangjarie buseureul bing dulleo seul kkeoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "풍선 장식은요?",
+   "beaver_en": "What about the balloon decorations?",
+   "beaver_roman": "Pungseon jangsigeunyo?",
+   "learner": "풍선은 무대 위 공중에 높이 달 거예요.",
+   "en": "The balloons will hang high in the air above the stage.",
+   "roman": "Pungseoneun mudae wi gongjunge nopi dal kkeoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "주차는 어디서 해요?",
+   "beaver_en": "Where do people park?",
+   "beaver_roman": "Juchaneun eodiseo haeyo?",
+   "learner": "지하 주차장을 쓰고, 지상은 보행자 공간이에요.",
+   "en": "We'll use the underground parking; above ground is for pedestrians.",
+   "roman": "Jiha juchajangeul sseugo, jisangeun bohaengja gongganieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "손님 대기 장소는요?",
+   "beaver_en": "And the guest waiting area?",
+   "beaver_roman": "Sonnim daegi jangsoneunyo?",
+   "learner": "대기실은 강가 쪽 분수 옆에 있어요.",
+   "en": "The waiting room is next to the fountain by the riverside.",
+   "roman": "Daegisireun gangga jjok bunsu yeope isseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "와, 꼼꼼하네요. 고마워요.",
+   "beaver_en": "Wow, so thorough. Thanks.",
+   "beaver_roman": "Wa, kkomkkomhaneyo. Gomawoyo.",
+   "learner": "내일 구석구석 한 번 더 확인할게요.",
+   "en": "I'll check every corner once more tomorrow.",
+   "roman": "Naeil guseokguseok han beon deo hwaginhalgeyo."
+  }
+ ]
+}

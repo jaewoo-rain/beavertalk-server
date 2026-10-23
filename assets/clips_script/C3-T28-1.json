@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T28-1",
+ "no": 410,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김 대리님, 회의 준비 상황을 알려 주시겠습니까?",
+   "beaver_en": "Mr. Kim, could you update me on the meeting preparations?",
+   "beaver_roman": "Gim daerinim, hoeui junbi sanghwangeul allyeo jusigetseumnikka?",
+   "learner": "네, 안건 세 개를 정리해서 어제 제출했습니다.",
+   "en": "Yes, I organized three agenda items and submitted them yesterday.",
+   "roman": "Ne, angeon se gaereul jeongnihaeseo eoje jechulhaetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "자료는 준비되셨습니까?",
+   "beaver_en": "Are the materials ready?",
+   "beaver_roman": "Jaryoneun junbidoesyeotseumnikka?",
+   "learner": "네, 작성자별로 자료를 묶어 두었습니다.",
+   "en": "Yes, I grouped the materials by author.",
+   "roman": "Ne, jakseongjabyeollo jaryoreul mukkeo dueotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "발표도 하시겠습니까?",
+   "beaver_en": "Will you be presenting too?",
+   "beaver_roman": "Balpyodo hasigetseumnikka?",
+   "learner": "아니요, 발표자는 박 과장님으로 정했습니다.",
+   "en": "No, we chose Manager Park as the presenter.",
+   "roman": "Aniyo, balpyojaneun bak gwajangnimeuro jeonghaetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "참석 인원은 어떻게 됩니까?",
+   "beaver_en": "How many people are attending?",
+   "beaver_roman": "Chamseok inwoneun eotteoke doemnikka?",
+   "learner": "열 명 중 두 명이 출장으로 불참합니다.",
+   "en": "Two of the ten will be absent due to business trips.",
+   "roman": "Yeol myeong jung du myeongi chuljangeuro bulchamhamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "회의실 비품은 확인하셨습니까?",
+   "beaver_en": "Did you check the meeting room supplies?",
+   "beaver_roman": "Hoeuisil bipumeun hwaginhasyeotseumnikka?",
+   "learner": "네, 마이크와 백지를 넉넉히 준비했습니다.",
+   "en": "Yes, I prepared mics and plenty of blank paper.",
+   "roman": "Ne, maikeuwa baekjireul neongneoki junbihaetseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "백지는 어디에 쓰려고 하십니까?",
+   "beaver_en": "What is the blank paper for?",
+   "beaver_roman": "Baekjineun eodie sseuryeogo hasimnikka?",
+   "learner": "참석자들이 의견을 자유롭게 적도록 준비했습니다.",
+   "en": "I prepared it so attendees can freely write their opinions.",
+   "roman": "Chamseokjadeuri uigyeoneul jayuropge jeokdorok junbihaetseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "회의실 문 앞에 붙인 종이는 뭡니까?",
+   "beaver_en": "What's the paper posted on the meeting room door?",
+   "beaver_roman": "Hoeuisil mun ape buchin jongineun mwomnikka?",
+   "learner": "녹음 금지 경고문입니다. 보안 때문입니다.",
+   "en": "It's a no-recording warning notice, for security.",
+   "roman": "Nogeum geumji gyeonggomunimnida. Boan ttaemunimnida."
+  },
+  {
+   "n": 8,
+   "beaver": "회의 말고 소통을 위한 계획도 있습니까?",
+   "beaver_en": "Besides the meeting, are there any plans for communication?",
+   "beaver_roman": "Hoeui malgo sotongeul wihan gyehoekdo itseumnikka?",
+   "learner": "소통을 늘리고자 다음 주에 간담회를 엽니다.",
+   "en": "To improve communication, we'll hold an informal meeting next week.",
+   "roman": "Sotongeul neulligoja daeum jue gandamhoereul yeomnida."
+  },
+  {
+   "n": 9,
+   "beaver": "좋습니다. 회의가 끝나면 무엇을 정리합니까?",
+   "beaver_en": "Good. What will you organize after the meeting?",
+   "beaver_roman": "Josseumnida. Hoeuiga kkeunnamyeon mueoseul jeongnihamnikka?",
+   "learner": "결정 사항을 회의록으로 정리하겠습니다.",
+   "en": "I'll organize the decisions into the meeting minutes.",
+   "roman": "Gyeoljeong sahangeul hoeuirogeuro jeongnihagetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "준비가 완벽하네요. 수고 많으셨습니다.",
+   "beaver_en": "Your preparation is perfect. Great work.",
+   "beaver_roman": "Junbiga wanbyeokaneyo. Sugo maneusyeotseumnida.",
+   "learner": "감사합니다. 내일 회의에서 뵙겠습니다.",
+   "en": "Thank you. See you at the meeting tomorrow.",
+   "roman": "Gamsahamnida. Naeil hoeuieseo boepgetseumnida."
+  }
+ ]
+}

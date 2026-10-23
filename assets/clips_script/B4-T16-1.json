@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T16-1",
+ "no": 263,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "공항까지 태워 줘서 고마워요.",
+   "beaver_en": "Thanks for giving me a ride to the airport.",
+   "beaver_roman": "gonghangkkaji taewo jwoseo gomawoyo.",
+   "learner": "아니에요, 어서 타세요. 국제선이죠?",
+   "en": "No problem, get in. It's an international flight, right?",
+   "roman": "anieyo, eoseo taseyo. gukjeseonijyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "네, 출장이에요. 차선 공사는 끝났대요?",
+   "beaver_en": "Yes, it's a business trip. Is the lane construction finished?",
+   "beaver_roman": "ne, chuljangieyo. chaseon gongsaneun kkeunnatdaeyo?",
+   "learner": "아직이요. 한 차선만 통행할 수 있대요.",
+   "en": "Not yet. They say only one lane is open to traffic.",
+   "roman": "ajigiyo. han chaseonman tonghaenghal su itdaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "늦을까 봐 걱정이지만 과속은 안 돼요.",
+   "beaver_en": "I'm worried we'll be late, but no speeding.",
+   "beaver_roman": "neujeulkka bwa geokjeongijiman gwasogeun an dwaeyo.",
+   "learner": "네, 과속 안 해요. 면허 딴 지 십 년이에요.",
+   "en": "Right, I won't speed. I've had my license for ten years.",
+   "roman": "ne, gwasok an haeyo. myeonheo ttan ji simnyeonieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "공항버스 차비는 얼마예요?",
+   "beaver_en": "How much is the airport bus fare?",
+   "beaver_roman": "gonghangbeoseu chabineun eolmayeyo?",
+   "learner": "차비는 만 오천 원이에요. 꽤 비싸요.",
+   "en": "The fare is 15,000 won. It's pretty expensive.",
+   "roman": "chabineun man ocheon wonieyo. kkwae bissayo."
+  },
+  {
+   "n": 5,
+   "beaver": "차로 가면 더 싸요?",
+   "beaver_en": "Is it cheaper to go by car?",
+   "beaver_roman": "charo gamyeon deo ssayo?",
+   "learner": "네, 차로 가면 기름값이 만 원밖에 안 들어요.",
+   "en": "Yes, by car the gas only costs 10,000 won.",
+   "roman": "ne, charo gamyeon gireumkkapsi man wonbakke an deureoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "앞에 터널이 있네요. 공기가 안 좋겠어요.",
+   "beaver_en": "There's a tunnel ahead. The air will be bad.",
+   "beaver_roman": "ape teoneori inneyo. gonggiga an jokesseoyo.",
+   "learner": "네, 창문 닫을게요.",
+   "en": "Yes, I'll close the windows.",
+   "roman": "ne, changmun dadeulgeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 터널을 나오니까 바다가 펼쳐지네요.",
+   "beaver_en": "Wow, the sea opens up after the tunnel.",
+   "beaver_roman": "wa, teoneoreul naonikka badaga pyeolchyeojineyo.",
+   "learner": "예쁘죠? 밤에는 터널 불빛도 예뻐요.",
+   "en": "Pretty, right? The tunnel lights are pretty at night too.",
+   "roman": "yeppeujyo? bameneun teoneol bulbitdo yeppeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "여기는 대중교통이 편해요?",
+   "beaver_en": "Is public transportation convenient here?",
+   "beaver_roman": "yeogineun daejunggyotongi pyeonhaeyo?",
+   "learner": "아니요. 버스는 밤에 운행을 안 해서 불편해요.",
+   "en": "No. Buses don't run at night, so it's inconvenient.",
+   "roman": "aniyo. beoseuneun bame unhaengeul an haeseo bulpyeonhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그래서 다들 차를 가지고 나오는군요.",
+   "beaver_en": "So that's why everyone drives.",
+   "beaver_roman": "geuraeseo dadeul chareul gajigo naoneungunyo.",
+   "learner": "네, 그래서 이 길은 늘 막혀요.",
+   "en": "Yes, that's why this road is always jammed.",
+   "roman": "ne, geuraeseo i gireun neul makyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "벌써 공항이네요. 덕분에 무사히 왔어요.",
+   "beaver_en": "We're at the airport already. Thanks to you, we made it safely.",
+   "beaver_roman": "beolsseo gonghangineyo. deokbune musahi wasseoyo.",
+   "learner": "다행이에요. 출장 잘 다녀오세요!",
+   "en": "Glad to hear it. Have a good business trip!",
+   "roman": "dahaengieyo. chuljang jal danyeooseyo!"
+  }
+ ]
+}

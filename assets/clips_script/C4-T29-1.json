@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T29-1",
+ "no": 461,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 요즘 컨디션은 어떠십니까?",
+   "beaver_en": "Hello. How is your physical condition these days?",
+   "beaver_roman": "Annyeonghaseyo. Yojeum keondisyeoneun eotteosimnikka?",
+   "learner": "요즘 피곤해서 아침에도 개운하지 않아요.",
+   "en": "I'm tired lately, so I don't feel refreshed even in the morning.",
+   "roman": "Yojeum pigonhaeseo achimedo gaeunhaji anayo."
+  },
+  {
+   "n": 2,
+   "beaver": "그렇군요. 잠은 충분히 주무십니까?",
+   "beaver_en": "I see. Do you get enough sleep?",
+   "beaver_roman": "Geureokunyo. Jameun chungbunhi jumusimnikka?",
+   "learner": "네, 그런데 눈꺼풀이 자꾸 떨려요.",
+   "en": "Yes, but my eyelid keeps twitching.",
+   "roman": "Ne, geureonde nunkkeopuri jakku tteollyeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "피로 때문일 수 있어요. 관절은 어떻습니까?",
+   "beaver_en": "It may be from fatigue. How are your joints?",
+   "beaver_roman": "Piro ttaemunil su isseoyo. Gwanjeoreun eotteoseumnikka?",
+   "learner": "무릎 관절이 아프고 척추도 좀 뻐근해요.",
+   "en": "My knee joints hurt, and my spine is a bit stiff too.",
+   "roman": "Mureup gwanjeori apeugo cheokchudo jom ppeogeunhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "하반신이 저리거나 차가운 적은 있습니까?",
+   "beaver_en": "Has your lower body ever felt numb or cold?",
+   "beaver_roman": "Habansini jeorigeona chagaun jeogeun itseumnikka?",
+   "learner": "네, 다리가 차서 혈액순환이 안 된대요.",
+   "en": "Yes, my legs are cold, and I was told my blood circulation is poor.",
+   "roman": "Ne, dariga chaseo hyeoraeksunhwani an doendaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "동맥 검사도 하겠습니다. 소화는 잘되세요?",
+   "beaver_en": "We'll check your arteries too. Is your digestion good?",
+   "beaver_roman": "Dongmaek geomsado hagetseumnida. Sohwaneun jaldoeseyo?",
+   "learner": "식후에 복부가 더부룩하고 트림이 자주 나요.",
+   "en": "After meals my abdomen feels bloated, and I burp often.",
+   "roman": "Sikhue bokbuga deoburukago teurimi jaju nayo."
+  },
+  {
+   "n": 6,
+   "beaver": "속에 가스가 찬 것 같네요. 기침은요?",
+   "beaver_en": "It seems gas has built up inside. Any cough?",
+   "beaver_roman": "Soge gaseuga chan geot ganneyo. Gichimeunyo?",
+   "learner": "기관지가 약해서 기침하면 목도 아파요.",
+   "en": "My bronchial tubes are weak, so my throat hurts when I cough.",
+   "roman": "Gigwanjiga yakaeseo gichimhamyeon mokdo apayo."
+  },
+  {
+   "n": 7,
+   "beaver": "목이 많이 불편하셨겠네요. 다른 감각은요?",
+   "beaver_en": "Your throat must have been very uncomfortable. How about other senses?",
+   "beaver_roman": "Mogi mani bulpyeonhasyeotgenneyo. Dareun gamgageunyo?",
+   "learner": "감기 후 후각이 떨어졌고 촉각은 괜찮아요.",
+   "en": "My sense of smell got worse after a cold, but my touch is fine.",
+   "roman": "Gamgi hu hugagi tteoreojyeotgo chokgageun gwaenchanayo."
+  },
+  {
+   "n": 8,
+   "beaver": "손 힘도 볼게요. 이걸 꽉 쥐어 보세요.",
+   "beaver_en": "Let me check your hand strength. Squeeze this tightly.",
+   "beaver_roman": "Son himdo bolgeyo. Igeol kkwak jwieo boseyo.",
+   "learner": "손아귀 힘이 약하다는 소리를 자주 들어요.",
+   "en": "I'm often told my grip is weak.",
+   "roman": "Sonagwi himi yakadaneun sorireul jaju deureoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "기구는 살균했습니다. 본인 확인용 지문도 찍어 주세요.",
+   "beaver_en": "The device has been sterilized. Please scan your fingerprint for ID.",
+   "beaver_roman": "Giguneun salgyunhaetseumnida. Bonin hwaginyong jimundo jjigeo juseyo.",
+   "learner": "네, 여기 지문 찍을게요.",
+   "en": "Okay, I'll scan my fingerprint here.",
+   "roman": "Ne, yeogi jimun jjigeulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "결과는 일주일 뒤에 나옵니다. 수고하셨습니다.",
+   "beaver_en": "Results will be out in a week. Thank you for your effort.",
+   "beaver_roman": "Gyeolgwaneun iljuil dwie naomnida. Sugohasyeotseumnida.",
+   "learner": "감사합니다. 말하고 나니 마음이 개운해요.",
+   "en": "Thank you. I feel refreshed after talking about it.",
+   "roman": "Gamsahamnida. Malhago nani maeumi gaeunhaeyo."
+  }
+ ]
+}

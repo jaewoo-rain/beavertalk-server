@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T60-1",
+ "no": 82,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "외국어 시험 점수 나왔어요?",
+   "beaver_en": "Did your foreign language test score come out?",
+   "beaver_roman": "oegugeo siheom jeomsu nawasseoyo?",
+   "learner": "네, 나왔어요. 제 점수는 칠십 점이에요.",
+   "en": "Yes, it did. My score is 70 points.",
+   "roman": "ne, nawasseoyo. je jeomsuneun chilsip jeomieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 어느 문제가 어려웠어요?",
+   "beaver_en": "Really? Which question was hard?",
+   "beaver_roman": "geuraeyo? eoneu munjega eoryeowosseoyo?",
+   "learner": "듣기 문제가 어려웠어요. 말이 빨랐어요.",
+   "en": "The listening questions were hard. They spoke fast.",
+   "roman": "deutgi munjega eoryeowosseoyo. mari ppallasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "저도 듣기가 제일 어려웠어요.",
+   "beaver_en": "Listening was the hardest for me too.",
+   "beaver_roman": "jeodo deutgiga jeil eoryeowosseoyo.",
+   "learner": "점수가 더 높았으면 좋겠어요.",
+   "en": "I wish my score were higher.",
+   "roman": "jeomsuga deo nopasseumyeon jokesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "괜찮아요. 다음에는 잘할 거예요.",
+   "beaver_en": "It's okay. You'll do well next time.",
+   "beaver_roman": "gwaenchanayo. daeumeneun jalhal kkeoyeyo.",
+   "learner": "앞으로 문제를 더 많이 연습하고 싶어요.",
+   "en": "From now on, I want to practice more problems.",
+   "roman": "apeuro munjereul deo mani yeonseupago sipeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 교과서를 다시 봐요. 문제가 많아요.",
+   "beaver_en": "Then let's look at the textbook again. It has lots of problems.",
+   "beaver_roman": "geureom gyogwaseoreul dasi bwayo. munjega manayo.",
+   "learner": "좋아요. 교과서로 같이 연습해요.",
+   "en": "Good. Let's practice together with the textbook.",
+   "roman": "joayo. gyogwaseoro gachi yeonseupaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "선생님께도 물어볼까요?",
+   "beaver_en": "Should we ask the teacher too?",
+   "beaver_roman": "seonsaengnimkkedo mureobolkkayo?",
+   "learner": "네, 선생님이 도와주셨으면 좋겠어요.",
+   "en": "Yes, I hope the teacher will help us.",
+   "roman": "ne, seonsaengnimi dowajusyeosseumyeon jokesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "다음 시험도 걱정돼요?",
+   "beaver_en": "Are you worried about the next test too?",
+   "beaver_roman": "daeum siheomdo geokjeongdwaeyo?",
+   "learner": "네. 다음 시험은 쉬웠으면 좋겠어요.",
+   "en": "Sure. I hope the next test is easy.",
+   "roman": "ne. daeum siheomeun swiwosseumyeon jokesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "다음 시험은 다음 주 화요일이에요.",
+   "beaver_en": "The next test is next Tuesday.",
+   "beaver_roman": "daeum siheomeun daeum ju hwayoirieyo.",
+   "learner": "그럼 매일 한 시간씩 연습해요.",
+   "en": "Then let's practice an hour every day.",
+   "roman": "geureom maeil han siganssik yeonseupaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 내일 도서관에서 만날까요?",
+   "beaver_en": "Okay. Shall we meet at the library tomorrow?",
+   "beaver_roman": "joayo. naeil doseogwaneseo mannalkkayo?",
+   "learner": "네, 교과서하고 공책을 가져갈게요.",
+   "en": "Yes, I'll bring my textbook and notebook.",
+   "roman": "ne, gyogwaseohago gongchaegeul gajyeogalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 내일 열 시에 봐요!",
+   "beaver_en": "Then see you tomorrow at ten!",
+   "beaver_roman": "geureom naeil yeol sie bwayo!",
+   "learner": "네, 우리 둘 다 점수가 좋았으면 좋겠어요!",
+   "en": "Okay, I hope we both get good scores!",
+   "roman": "ne, uri dul da jeomsuga joasseumyeon jokesseoyo!"
+  }
+ ]
+}

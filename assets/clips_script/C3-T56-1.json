@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T56-1",
+ "no": 432,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "경찰서 앞입니다. 사건 경위를 말씀해 주시겠습니까?",
+   "beaver_en": "We're outside the police station. Could you explain what happened?",
+   "beaver_roman": "gyeongchalseo abimnida. sageon gyeongwireul malsseumhae jusigetseumnikka?",
+   "learner": "어젯밤 군부대 철조망 쪽에서 침입 경보가 울렸습니다.",
+   "en": "Last night, an intrusion alarm went off near a military base fence.",
+   "roman": "eojetbam gunbudae cheoljomang jjogeseo chimip gyeongboga ullyeotseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "경찰은 언제 현장에 도착했습니까?",
+   "beaver_en": "When did the police arrive at the scene?",
+   "beaver_roman": "gyeongchareun eonje hyeonjange dochakaetseumnikka?",
+   "learner": "경보 직후 출동해 10분 만에 도착했습니다.",
+   "en": "We were dispatched right after the alarm and arrived in 10 minutes.",
+   "roman": "gyeongbo jikhu chuldonghae sipbun mane dochakaetseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "용의자는 어떻게 됐습니까?",
+   "beaver_en": "What happened to the suspect?",
+   "beaver_roman": "yonguijaneun eotteoke dwaetseumnikka?",
+   "learner": "철조망을 넘던 남성 한 명을 현장에서 검거했습니다.",
+   "en": "We caught a man climbing over the fence at the scene.",
+   "roman": "cheoljomangeul neomdeon namseong han myeongeul hyeonjangeseo geomgeohaetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "그 남성이 군사 구역을 침범한 이유는요?",
+   "beaver_en": "Why did the man trespass into the military zone?",
+   "beaver_roman": "geu namseongi gunsa guyeogeul chimbeomhan iyuneunyo?",
+   "learner": "사진을 찍으려고 들어왔다고 진술했습니다.",
+   "en": "He stated that he came in to take photos.",
+   "roman": "sajineul jjigeuryeogo deureowatdago jinsulhaetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "일부에서는 간첩 의혹도 나오고 있는데요.",
+   "beaver_en": "Some people suspect he may be a spy.",
+   "beaver_roman": "ilbueseoneun gancheop uihokdo naogo inneundeyo.",
+   "learner": "간첩 가능성도 열어 두고 수사하고 있습니다.",
+   "en": "We're investigating without ruling out that he's a spy.",
+   "roman": "gancheop ganeungseongdo yeoreo dugo susahago itseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "배후는 밝혀졌습니까?",
+   "beaver_en": "Has anyone behind it been identified?",
+   "beaver_roman": "baehuneun balkyeojyeotseumnikka?",
+   "learner": "아직입니다. 배후 세력이 있는지 조사 중입니다.",
+   "en": "Not yet. We're checking if there's a group behind it.",
+   "roman": "ajigimnida. baehu seryeogi inneunji josa jungimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "추가 가담자는 어떻습니까?",
+   "beaver_en": "What about other people involved?",
+   "beaver_roman": "chuga gadamjaneun eotteoseumnikka?",
+   "learner": "범행에 가담한 사람이 한 명 더 있는 것 같습니다.",
+   "en": "It seems one more person took part in the crime.",
+   "roman": "beomhaenge gadamhan sarami han myeong deo inneun geot gatseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "그 사람은 아직 잡히지 않았습니까?",
+   "beaver_en": "Hasn't that person been caught yet?",
+   "beaver_roman": "geu sarameun ajik japiji anatseumnikka?",
+   "learner": "네, 현재 수배 중이며 검거에 주력하고 있습니다.",
+   "en": "Right, he's wanted, and we're focused on catching him.",
+   "roman": "ne, hyeonjae subae jungimyeo geomgeoe juryeokago itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "현장 대응은 누가 지휘했습니까?",
+   "beaver_en": "Who commanded the response at the scene?",
+   "beaver_roman": "hyeonjang daeeungeun nuga jihwihaetseumnikka?",
+   "learner": "제가 직접 지휘했고 군과도 협조했습니다.",
+   "en": "I commanded it myself and also worked with the military.",
+   "roman": "jega jikjeop jihwihaetgo gungwado hyeopjohaetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막으로 시민들께 한 말씀 해 주시겠습니까?",
+   "beaver_en": "Lastly, would you say a word to the public?",
+   "beaver_roman": "majimageuro simindeulkke han malsseum hae jusigetseumnikka?",
+   "learner": "수상한 사람은 바로 신고해 주십시오. 감사합니다.",
+   "en": "Please report anyone suspicious right away. Thank you.",
+   "roman": "susanghan sarameun baro singohae jusipsio. gamsahamnida."
+  }
+ ]
+}

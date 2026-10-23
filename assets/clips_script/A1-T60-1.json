@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T60-1",
+ "no": 20,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 다음 주에 시험이 있습니까?",
+   "beaver_en": "Hello! Do you have an exam next week?",
+   "beaver_roman": "annyeonghasimnikka? daeum jue siheomi itseumnikka?",
+   "learner": "네, 있습니다. 영어 시험입니다.",
+   "en": "Yes, I do. It's an English exam.",
+   "roman": "ne, itseumnida. yeongeo siheomimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "무엇을 공부합니까?",
+   "beaver_en": "What do you study?",
+   "beaver_roman": "mueoseul gongbuhamnikka?",
+   "learner": "영어 단어를 공부합니다.",
+   "en": "I study English vocabulary.",
+   "roman": "yeongeo daneoreul gongbuhamnida."
+  },
+  {
+   "n": 3,
+   "beaver": "단어를 어떻게 공부합니까?",
+   "beaver_en": "How do you study words?",
+   "beaver_roman": "daneoreul eotteoke gongbuhamnikka?",
+   "learner": "사전을 봅니다. 그리고 단어를 씁니다.",
+   "en": "I look at the dictionary. Then I write the words.",
+   "roman": "sajeoneul bomnida. geurigo daneoreul sseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "하루에 단어를 몇 개 공부합니까?",
+   "beaver_en": "How many words do you study a day?",
+   "beaver_roman": "harue daneoreul myeot gae gongbuhamnikka?",
+   "learner": "하루에 단어를 오십 개 배웁니다.",
+   "en": "I learn fifty words a day.",
+   "roman": "harue daneoreul osip gae baeumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "와, 많습니다. 숙제도 많습니까?",
+   "beaver_en": "Wow, that's a lot. Do you have a lot of homework too?",
+   "beaver_roman": "wa, manseumnida. sukjedo manseumnikka?",
+   "learner": "네, 숙제도 많습니다. 매일 숙제를 합니다.",
+   "en": "Yes, lots of homework too. I do homework every day.",
+   "roman": "ne, sukjedo manseumnida. maeil sukjereul hamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "누가 영어를 가르칩니까?",
+   "beaver_en": "Who teaches you English?",
+   "beaver_roman": "nuga yeongeoreul gareuchimnikka?",
+   "learner": "김 선생님이 영어를 가르치십니다.",
+   "en": "Mr. Kim teaches English.",
+   "roman": "gim seonsaengnimi yeongeoreul gareuchisimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "선생님은 어떻습니까?",
+   "beaver_en": "How is the teacher?",
+   "beaver_roman": "seonsaengnimeun eotteoseumnikka?",
+   "learner": "아주 좋습니다. 잘 가르치십니다.",
+   "en": "Very good. He teaches well.",
+   "roman": "aju joseumnida. jal gareuchisimnida."
+  },
+  {
+   "n": 8,
+   "beaver": "저도 사전이 필요합니다. 어디에 있습니까?",
+   "beaver_en": "I need a dictionary too. Where is one?",
+   "beaver_roman": "jeodo sajeoni piryohamnida. eodie itseumnikka?",
+   "learner": "저기 도서관에 사전이 있습니다.",
+   "en": "There's a dictionary in the library over there.",
+   "roman": "jeogi doseogwane sajeoni itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "시험은 언제 칩니까?",
+   "beaver_en": "When do you take the exam?",
+   "beaver_roman": "siheomeun eonje chimnikka?",
+   "learner": "다음 주 월요일에 시험을 칩니다.",
+   "en": "I take the exam next Monday.",
+   "roman": "daeum ju woryoire siheomeul chimnida."
+  },
+  {
+   "n": 10,
+   "beaver": "고맙습니다. 우리 같이 공부합시다!",
+   "beaver_en": "Thank you. Let's study together!",
+   "beaver_roman": "gomapseumnida. uri gachi gongbuhapsida!",
+   "learner": "좋습니다. 같이 열심히 공부합시다!",
+   "en": "Sounds good. Let's study hard together!",
+   "roman": "joseumnida. gachi yeolsimhi gongbuhapsida!"
+  }
+ ]
+}

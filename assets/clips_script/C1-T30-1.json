@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T30-1",
+ "no": 318,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 어디가 불편해서 오셨습니까?",
+   "beaver_en": "Come in. What brings you here today?",
+   "beaver_roman": "eoseo oseyo. eodiga bulpyeonhaeseo osyeotseumnikka?",
+   "learner": "어젯밤에 독버섯을 먹고 응급실에 갔어요.",
+   "en": "Last night I ate a poisonous mushroom and went to the ER.",
+   "roman": "eojetbame dokbeoseoseul meokgo eunggeupsire gasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "저런, 많이 놀라셨겠네요. 어떻게 가셨습니까?",
+   "beaver_en": "Oh no, you must have been scared. How did you get there?",
+   "beaver_roman": "jeoreon, mani nollasyeotgenneyo. eotteoke gasyeotseumnikka?",
+   "learner": "너무 아파서 생각다 못해 구급차를 불렀어요.",
+   "en": "It hurt so much that I had no choice but to call an ambulance.",
+   "roman": "neomu apaseo saenggakda motae gugeupchareul bulleosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "응급실에서는 어떤 진료를 받으셨습니까?",
+   "beaver_en": "What treatment did you get in the ER?",
+   "beaver_roman": "eunggeupsireseoneun eotteon jillyoreul badeusyeotseumnikka?",
+   "learner": "몸속의 독을 빼려고 해독제를 맞았어요.",
+   "en": "I got an antidote to get the poison out of my body.",
+   "roman": "momsogui dogeul ppaeryeogo haedokjereul majasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그 전에 집에서 약은 드셨습니까?",
+   "beaver_en": "Did you take any medicine at home before that?",
+   "beaver_roman": "geu jeone jibeseo yageun deusyeotseumnikka?",
+   "learner": "열이 나서 비상약으로 해열제를 먹었어요.",
+   "en": "I had a fever, so I took a fever reducer from my emergency kit.",
+   "roman": "yeori naseo bisangyageuro haeyeoljereul meogeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "부작용은 없었습니까?",
+   "beaver_en": "Were there any side effects?",
+   "beaver_roman": "bujagyongeun eopseotseumnikka?",
+   "learner": "좀 어지러웠는데 부작용인지 모르겠어요.",
+   "en": "I was a bit dizzy, but I'm not sure if it was a side effect.",
+   "roman": "jom eojireowonneunde bujagyonginji moreugesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "진단 결과는 들으셨습니까?",
+   "beaver_en": "Did you hear the diagnosis?",
+   "beaver_roman": "jindan gyeolgwaneun deureusyeotseumnikka?",
+   "learner": "네, 식중독이라는 진단을 받았어요.",
+   "en": "Yes, I was diagnosed with food poisoning.",
+   "roman": "ne, sikjungdogiraneun jindaneul badasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "지금은 좀 어떠십니까?",
+   "beaver_en": "How are you feeling now?",
+   "beaver_roman": "jigeumeun jom eotteosimnikka?",
+   "learner": "많이 회복됐지만 아직 조금 어지러워요.",
+   "en": "I've recovered a lot, but I'm still a little dizzy.",
+   "roman": "mani hoebokdwaetjiman ajik jogeum eojireowoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "혹시 다른 약도 드시고 있습니까?",
+   "beaver_en": "Are you taking any other medicine?",
+   "beaver_roman": "hoksi dareun yakdo deusigo itseumnikka?",
+   "learner": "회복에 좋다고 해서 한약을 먹고 있어요.",
+   "en": "I'm taking herbal medicine because it's said to help recovery.",
+   "roman": "hoeboge jotago haeseo hanyageul meokgo isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "당분간 한약은 쉬시고 이 약을 드세요.",
+   "beaver_en": "Stop the herbal medicine for now and take this instead.",
+   "beaver_roman": "dangbungan hanyageun swisigo i yageul deuseyo.",
+   "learner": "이 약은 약효가 좋아요? 완치될 수 있을까요?",
+   "en": "Does this medicine work well? Can I be fully cured?",
+   "roman": "i yageun yakyoga joayo? wanchidoel su isseulkkayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 일주일쯤 드시면 완치될 겁니다.",
+   "beaver_en": "Yes, if you take it for about a week, you'll be fully cured.",
+   "beaver_roman": "ne, iljuiljjeum deusimyeon wanchidoel geomnida.",
+   "learner": "정말 다행이에요. 감사합니다, 선생님.",
+   "en": "What a relief. Thank you, doctor.",
+   "roman": "jeongmal dahaengieyo. gamsahamnida, seonsaengnim."
+  }
+ ]
+}

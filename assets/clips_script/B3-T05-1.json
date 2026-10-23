@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T05-1",
+ "no": 211,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지야, 지금은 괜찮아? 어제 일 들었어.",
+   "beaver_en": "Minji, are you okay now? I heard about yesterday.",
+   "beaver_roman": "Minjiya, jigeumeun gwaenchana? Eoje il deureosseo.",
+   "learner": "아직 좀 억울해. 내 실수가 아니었거든.",
+   "en": "I still feel wronged. It wasn't my mistake.",
+   "roman": "Ajik jom eogulhae. Nae silsuga anieotgeodeun."
+  },
+  {
+   "n": 2,
+   "beaver": "큰 충격이었겠다. 팀장님이 너만 혼냈다며?",
+   "beaver_en": "That must have been a big shock. I heard the team leader scolded only you.",
+   "beaver_roman": "Keun chunggyeogieotgetda. Timjangnimi neoman honnaetdamyeo?",
+   "learner": "응, 충격이 커서 밤새 괴로워했어.",
+   "en": "Yeah, the shock was so big that I suffered all night.",
+   "roman": "Eung, chunggyeogi keoseo bamsae goerowohaesseo."
+  },
+  {
+   "n": 3,
+   "beaver": "진짜 안타깝다. 다른 사람들은 뭐래?",
+   "beaver_en": "That's really unfortunate. What did the others say?",
+   "beaver_roman": "Jinjja antakkapda. Dareun saramdeureun mworae?",
+   "learner": "아무도 내 편을 안 들어서 서운했어.",
+   "en": "Nobody took my side, so I felt hurt.",
+   "roman": "Amudo nae pyeoneul an deureoseo seounhaesseo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 많이 쓸쓸했겠다.",
+   "beaver_en": "Then you must have felt really lonely.",
+   "beaver_roman": "Geureom mani sseulsseulhaetgetda.",
+   "learner": "응, 혼자 집에 오는데 너무 서럽더라.",
+   "en": "Yeah, coming home alone, I felt so sad.",
+   "roman": "Eung, honja jibe oneunde neomu seoreopdeora."
+  },
+  {
+   "n": 5,
+   "beaver": "회사 가는 게 두렵지는 않아?",
+   "beaver_en": "Aren't you afraid of going to work?",
+   "beaver_roman": "Hoesa ganeun ge duryeopjineun ana?",
+   "learner": "솔직히 겁나. 또 혼날까 봐 두려워.",
+   "en": "Honestly, I'm scared. I'm afraid I'll get scolded again.",
+   "roman": "Soljiki geomna. Tto honnalkka bwa duryeowo."
+  },
+  {
+   "n": 6,
+   "beaver": "실수한 동료한테 화나지 않아?",
+   "beaver_en": "Aren't you angry at the coworker who made the mistake?",
+   "beaver_roman": "Silsuhan dongnyohante hwanaji ana?",
+   "learner": "화는 나지만 미워하고 싶진 않아.",
+   "en": "I'm angry, but I don't want to hate them.",
+   "roman": "Hwaneun najiman miwohago sipjin ana."
+  },
+  {
+   "n": 7,
+   "beaver": "너 진짜 대단하다. 그래도 힘들면 쉬어.",
+   "beaver_en": "You're really amazing. Still, rest if it's hard.",
+   "beaver_roman": "Neo jinjja daedanhada. Geuraedo himdeulmyeon swieo.",
+   "learner": "힘들더라도 내일은 출근할 거야.",
+   "en": "Even if it's hard, I'll go to work tomorrow.",
+   "roman": "Himdeuldeorado naeireun chulgeunhal geoya."
+  },
+  {
+   "n": 8,
+   "beaver": "그동안 열심히 한 게 아깝잖아.",
+   "beaver_en": "It would be a waste of all your hard work.",
+   "beaver_roman": "Geudongan yeolsimhi han ge akkapjana.",
+   "learner": "맞아. 그만두면 아쉬움이 클 것 같아.",
+   "en": "Right. If I quit, I think I'd have big regrets.",
+   "roman": "Maja. Geumandumyeon aswiumi keul geot gata."
+  },
+  {
+   "n": 9,
+   "beaver": "내가 팀장님한테 말해 줄까?",
+   "beaver_en": "Should I talk to the team leader for you?",
+   "beaver_roman": "Naega timjangnimhante malhae julkka?",
+   "learner": "아니, 그건 부담스러워. 내가 말해 볼게.",
+   "en": "No, that feels like too much. I'll talk to him.",
+   "roman": "Ani, geugeon budamseureowo. Naega malhae bolge."
+  },
+  {
+   "n": 10,
+   "beaver": "알았어. 네가 자랑스러워. 언제든 연락해.",
+   "beaver_en": "Okay. I'm proud of you. Call me anytime.",
+   "beaver_roman": "Arasseo. Nega jarangseureowo. Eonjedeun yeollakae.",
+   "learner": "고마워. 네가 위로해 줘서 정말 든든해.",
+   "en": "Thanks. You comforted me, so I feel really reassured.",
+   "roman": "Gomawo. Nega wirohae jwoseo jeongmal deundeunhae."
+  }
+ ]
+}

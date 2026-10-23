@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T53-1",
+ "no": 428,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 선거 공약 보셨어요? 말이 많더라고요.",
+   "beaver_en": "Did you see the campaign pledges this election? People are talking a lot.",
+   "beaver_roman": "ibeon seongeo gongyak bosyeosseoyo? mari manteoragoyo.",
+   "learner": "네, 공약은 화려한데 실현 가능성은 낮아 보여요.",
+   "en": "Yes, the pledges are flashy, but they don't look very realistic.",
+   "roman": "ne, gongyageun hwaryeohande siryeon ganeungseongeun naja boyeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 공약이 특히 문제라고 생각하세요?",
+   "beaver_en": "Which pledge do you think is especially problematic?",
+   "beaver_roman": "eotteon gongyagi teuki munjerago saenggakaseyo?",
+   "learner": "영토 분쟁을 협상으로 금방 끝내겠다는 거요.",
+   "en": "The one about ending the territorial dispute quickly through negotiation.",
+   "roman": "yeongto bunjaengeul hyeopsangeuro geumbang kkeunnaegetdaneun geoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "국경 문제는 정말 복잡하잖아요.",
+   "beaver_en": "Border issues are really complicated, after all.",
+   "beaver_roman": "gukgyeong munjeneun jeongmal bokjapajanayo.",
+   "learner": "맞아요. 지금 정세가 불안정한데 너무 쉽게 말해요.",
+   "en": "Right. The political situation is unstable, yet he talks too lightly.",
+   "roman": "majayo. jigeum jeongsega buranjeonghande neomu swipge malhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그래도 출마했으니 기대해 봅시다.",
+   "beaver_en": "Still, he's running, so let's have some hope.",
+   "beaver_roman": "geuraedo chulmahaesseuni gidaehae bopsida.",
+   "learner": "출마는 자유이되 유권자를 속여선 안 되죠.",
+   "en": "Running is his right, but he shouldn't deceive voters.",
+   "roman": "chulmaneun jayuidoe yugwonjareul sogyeoseon an doejyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그 후보는 과거 경력이 화려하던데요.",
+   "beaver_en": "That candidate has an impressive past, though.",
+   "beaver_roman": "geu huboneun gwageo gyeongnyeogi hwaryeohadeondeyo.",
+   "learner": "독재 정권에 대항한 민주화 투쟁은 인정해요.",
+   "en": "I do respect his fight for democracy against the dictatorship.",
+   "roman": "dokjae jeonggwone daehanghan minjuhwa tujaengeun injeonghaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 무엇이 마음에 걸리세요?",
+   "beaver_en": "Then what bothers you?",
+   "beaver_roman": "geureom mueosi maeume geolliseyo?",
+   "learner": "과거는 존중하되 지금 공약은 따로 봐야죠.",
+   "en": "Respect the past, but judge today's pledges separately.",
+   "roman": "gwageoneun jonjunghadoe jigeum gongyageun ttaro bwayajyo."
+  },
+  {
+   "n": 7,
+   "beaver": "다른 후보 쪽은 어때요? 거긴 좀 낫나요?",
+   "beaver_en": "What about the other candidate? Any better?",
+   "beaver_roman": "dareun hubo jjogeun eottaeyo? geogin jom nannayo?",
+   "learner": "그쪽은 사회주의 색이 짙은데 계획이 없어요.",
+   "en": "That side leans strongly socialist, but has no plan.",
+   "roman": "geujjogeun sahoejuui saegi jiteunde gyehoegi eopseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "요즘 거리 분위기도 뜨겁던데요.",
+   "beaver_en": "The mood on the streets is heated these days.",
+   "beaver_roman": "yojeum geori bunwigido tteugeopdeondeyo.",
+   "learner": "집회는 보장하고 탄압은 절대 없어야죠.",
+   "en": "Rallies should be guaranteed, and there must never be oppression.",
+   "roman": "jipoeneun bojanghago tanabeun jeoldae eopseoyajyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그렇죠. 결국 유권자가 판단하겠죠.",
+   "beaver_en": "Exactly. In the end, the voters will decide.",
+   "beaver_roman": "geureochyo. gyeolguk yugwonjaga pandanhagetjyo.",
+   "learner": "네, 국왕이 다스리는 시대가 아니니까요.",
+   "en": "Yes, we're not in an age ruled by a king.",
+   "roman": "ne, gugwangi daseurineun sidaega aninikkayo."
+  },
+  {
+   "n": 10,
+   "beaver": "이야기 즐거웠어요. 투표 꼭 하세요.",
+   "beaver_en": "I enjoyed the talk. Be sure to vote.",
+   "beaver_roman": "iyagi jeulgeowosseoyo. tupyo kkok haseyo.",
+   "learner": "네, 공약을 꼼꼼히 비교하고 투표할게요.",
+   "en": "Sure, I'll compare the pledges carefully and vote.",
+   "roman": "ne, gongyageul kkomkkomhi bigyohago tupyohalgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T41-1",
+ "no": 280,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 경제신문 김수진 기자입니다.",
+   "beaver_en": "Hello, I'm Kim Sujin, a reporter from the Economic Daily.",
+   "beaver_roman": "Annyeonghaseyo, gyeongjesinmun Gim Sujin gijaimnida.",
+   "learner": "네, 반갑습니다. 가격 인상에 대해 말씀드릴게요.",
+   "en": "Yes, nice to meet you. I'll explain the price increase.",
+   "roman": "Ne, bangapseumnida. Gagyeok insange daehae malsseumdeurilkkeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "요즘 커피값이 왜 이렇게 올랐나요?",
+   "beaver_en": "Why has the price of coffee gone up so much lately?",
+   "beaver_roman": "Yojeum keopikkapsi wae ireoke ollannayo?",
+   "learner": "최근 수입 원두 가격이 급등했기 때문입니다.",
+   "en": "It's because imported coffee bean prices have soared recently.",
+   "roman": "Choegeun suip wondu gagyeogi geupdeunghaetkki ttaemunimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "수입품 값은 왜 올랐어요?",
+   "beaver_en": "Why did the prices of imported goods go up?",
+   "beaver_roman": "Suippum gapsseun wae ollasseoyo?",
+   "learner": "원두 공급이 줄어서 값이 크게 뛰었어요.",
+   "en": "The supply of coffee beans dropped, so prices jumped.",
+   "roman": "Wondu gonggeubi jureoseo gapssi keuge ttwieosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "공급은요? 왜 줄었나요?",
+   "beaver_en": "And the supply? Why did it drop?",
+   "beaver_roman": "Gonggeubeunyo? Wae jureonnayo?",
+   "learner": "가뭄으로 대다수 농장의 생산량이 줄었어요.",
+   "en": "Because of drought, most farms produced less.",
+   "roman": "Gamumeuro daedasu nongjangui saengsannyangi jureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 수요는 어떤가요?",
+   "beaver_en": "Then what about demand?",
+   "beaver_roman": "Geureom suyoneun eotteongayo?",
+   "learner": "수요는 오히려 늘어서 값이 더 올랐어요.",
+   "en": "Demand actually rose, so prices went up even more.",
+   "roman": "Suyoneun ohiryeo neureoseo gapssi deo ollasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "유통 과정에도 문제가 있었나요?",
+   "beaver_en": "Were there problems in distribution too?",
+   "beaver_roman": "Yutong gwajeongedo munjega isseonnayo?",
+   "learner": "네, 유통 비용 상승도 원인으로 꼽혀요.",
+   "en": "Yes, rising distribution costs are named as a cause too.",
+   "roman": "Ne, yutong biyong sangseungdo wonineuro kkopyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "금융 쪽은 어떤가요?",
+   "beaver_en": "What about the financial side?",
+   "beaver_roman": "Geumnyung jjogeun eotteongayo?",
+   "learner": "환율이 오르면서 수입 비용도 커졌어요.",
+   "en": "As the exchange rate rose, import costs grew too.",
+   "roman": "Hwanyuri oreumyeonseo suip biyongdo keojeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "주식 시장은요?",
+   "beaver_en": "And the stock market?",
+   "beaver_roman": "Jusik ssijangeunyo?",
+   "learner": "커피 회사 주가는 오히려 올랐어요.",
+   "en": "Coffee company stock prices actually went up.",
+   "roman": "Keopi hoesa jukkaneun ohiryeo ollasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "작은 카페들은 괜찮을까요?",
+   "beaver_en": "Will small cafés be okay?",
+   "beaver_roman": "Jageun kapedeureun gwaenchaneulkkayo?",
+   "learner": "큰 회사보다 경쟁력이 약해서 걱정이에요.",
+   "en": "They're less competitive than big companies, so I'm worried.",
+   "roman": "Keun hoesaboda gyeongjaengnyeogi yakaeseo geokjjeongieyo."
+  },
+  {
+   "n": 10,
+   "beaver": "설명이 아주 논리적이네요. 감사합니다.",
+   "beaver_en": "Your explanation is very logical. Thank you.",
+   "beaver_roman": "Seolmyeongi aju nollijeogineyo. Gamsahamnida.",
+   "learner": "감사합니다. 기사 잘 부탁드립니다.",
+   "en": "Thank you. I look forward to your article.",
+   "roman": "Gamsahamnida. Gisa jal butakdeurimnida."
+  }
+ ]
+}

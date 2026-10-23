@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T22-1",
+ "no": 364,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 요즘 모임에 통 안 나오네요.",
+   "beaver_en": "Minsu, you've hardly come to our meetings lately.",
+   "beaver_roman": "Minsu ssi, yojeum moime tong an naoneyo.",
+   "learner": "죄송해요. 일이 바쁜 탓에 못 갔어요.",
+   "en": "I'm sorry. I couldn't go because work was busy.",
+   "roman": "Joesonghaeyo. Iri bappeun tase mot gasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "혹시 서먹해서 그런 건 아니에요?",
+   "beaver_en": "Is it maybe because you felt awkward?",
+   "beaver_roman": "Hoksi seomeokaeseo geureon geon anieyo?",
+   "learner": "네, 솔직히 아직도 좀 서먹해요.",
+   "en": "Yes, honestly it still feels a bit awkward.",
+   "roman": "Ne, soljiki ajikdo jom seomeokaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "왜 그렇게 느꼈어요? 편하게 말해 봐요.",
+   "beaver_en": "Why did you feel that way? Tell me freely.",
+   "beaver_roman": "Wae geureoke neukkyeosseoyo? Pyeonhage malhae bwayo.",
+   "learner": "선후배 사이에 공감대가 없는 탓인 것 같아요.",
+   "en": "I think it's because seniors and juniors lack common ground.",
+   "roman": "Seonhubae saie gonggamdaega eomneun tasin geot gatayo."
+  },
+  {
+   "n": 4,
+   "beaver": "어떤 점에서 그렇게 느꼈어요?",
+   "beaver_en": "In what way did you feel that?",
+   "beaver_roman": "Eotteon jeomeseo geureoke neukkyeosseoyo?",
+   "learner": "다들 이미 친밀해서 끼기 힘들었어요.",
+   "en": "Everyone was already close, so it was hard to fit in.",
+   "roman": "Dadeul imi chinmilhaeseo kkigi himdeureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "아, 그랬군요. 계 모임은 어땠어요?",
+   "beaver_en": "Ah, I see. How was the savings club?",
+   "beaver_roman": "A, geuraetgunyo. Gye moimeun eottaesseoyo?",
+   "learner": "계에서는 제가 신임을 못 얻은 것 같아요.",
+   "en": "I don't think I earned their trust in the club.",
+   "roman": "Gyeeseoneun jega sinimeul mot eodeun geot gatayo."
+  },
+  {
+   "n": 6,
+   "beaver": "그건 오해예요. 다들 민수 씨를 믿어요.",
+   "beaver_en": "That's a misunderstanding. Everyone trusts you.",
+   "beaver_roman": "Geugeon ohaeyeyo. Dadeul minsu ssireul mideoyo.",
+   "learner": "제가 말이 없는 탓에 그렇게 느꼈나 봐요.",
+   "en": "Maybe I felt that way because I'm so quiet.",
+   "roman": "Jega mari eomneun tase geureoke neukkyeonna bwayo."
+  },
+  {
+   "n": 7,
+   "beaver": "우리는 다 한 식구예요. 편하게 와요.",
+   "beaver_en": "We're all one family. Come feeling at ease.",
+   "beaver_roman": "Urineun da han sikguyeyo. Pyeonhage wayo.",
+   "learner": "그 말을 들으니 마음이 편해지네요.",
+   "en": "Hearing that makes me feel more at ease.",
+   "roman": "Geu mareul deureuni maeumi pyeonhaejineyo."
+  },
+  {
+   "n": 8,
+   "beaver": "사람들과 친해지려면 뭐가 필요할까요?",
+   "beaver_en": "What do you think it takes to get close to people?",
+   "beaver_roman": "Saramdeulgwa chinhaejiryeomyeon mwoga piryohalkkayo?",
+   "learner": "친밀해지려면 시간이 필요한 것 같아요.",
+   "en": "I think it takes time to become close.",
+   "roman": "Chinmilhaejiryeomyeon sigani piryohan geot gatayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 이번 주 모임에 나올 수 있어요?",
+   "beaver_en": "Then can you come to this week's meeting?",
+   "beaver_roman": "Geureom ibeon ju moime naol su isseoyo?",
+   "learner": "네, 이번 주부터 슬슬 다시 나갈게요.",
+   "en": "Yes, I'll slowly start coming again this week.",
+   "roman": "Ne, ibeon jubuteo seulseul dasi nagalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 다들 기다리고 있을 거예요.",
+   "beaver_en": "Great. Everyone will be waiting for you.",
+   "beaver_roman": "Joayo. Dadeul gidarigo isseul geoyeyo.",
+   "learner": "감사해요, 선배님. 토요일에 뵐게요.",
+   "en": "Thank you. I'll see you on Saturday.",
+   "roman": "Gamsahaeyo, seonbaenim. Toyoire boelgeyo."
+  }
+ ]
+}

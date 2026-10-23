@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T61-1",
+ "no": 248,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 무슨 자료를 찾으세요?",
+   "beaver_en": "Hello. What materials are you looking for?",
+   "beaver_roman": "annyeonghaseyo. museun jaryoreul chajeuseyo?",
+   "learner": "언어학 연구 자료를 찾고 있어요.",
+   "en": "I'm looking for linguistics research materials.",
+   "roman": "eoneohak yeongu jaryoreul chatgo isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "언어학 자료는 서가 안쪽에 있어요.",
+   "beaver_en": "Linguistics materials are deep in the stacks.",
+   "beaver_roman": "eoneohak jaryoneun seoga anjjoge isseoyo.",
+   "learner": "아까 찾다 보니 길을 잃었어요.",
+   "en": "I got lost while searching earlier.",
+   "roman": "akka chatda boni gireul ireosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "이 연구소는 서가가 좀 복잡하지요.",
+   "beaver_en": "The stacks in this institute are a bit complex.",
+   "beaver_roman": "i yeongusoneun seogaga jom bokjapajiyo.",
+   "learner": "네, 책이 정말 많더라고요.",
+   "en": "Yes, there really are a lot of books.",
+   "roman": "ne, chaegi jeongmal manteoragoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "특정한 학자의 책을 찾으세요?",
+   "beaver_en": "Are you looking for a specific scholar's book?",
+   "beaver_roman": "teukjeonghan hakjaui chaegeul chajeuseyo?",
+   "learner": "네, 언어학자 김민수 박사님의 책이요.",
+   "en": "Yes, a book by linguist Dr. Kim Minsu.",
+   "roman": "ne, eoneohakja gimminsu baksanimui chaegiyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그 책은 연구원들도 자주 찾아요.",
+   "beaver_en": "Researchers often look for that book too.",
+   "beaver_roman": "geu chaegeun yeonguwondeuldo jaju chajayo.",
+   "learner": "저도 읽다 보니 지식이 많이 늘었어요.",
+   "en": "Reading it, my knowledge grew a lot too.",
+   "roman": "jeodo ikda boni jisigi mani neureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 이 연구소의 정식 연구원이세요?",
+   "beaver_en": "Are you a full researcher at this institute?",
+   "beaver_roman": "hoksi i yeongusoui jeongsik yeonguwoniseyo?",
+   "learner": "네, 지난달부터 이 연구소에서 일해요.",
+   "en": "Yes, I've worked at this institute since last month.",
+   "roman": "ne, jinandalbuteo i yeongusoeseo ilhaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "저리 가시면 짝수 번호 서가가 있어요.",
+   "beaver_en": "If you go that way, there are even-numbered shelves.",
+   "beaver_roman": "jeori gasimyeon jjaksu beonho seogaga isseoyo.",
+   "learner": "아, 홀수 번호만 보다 보니 못 찾았네요.",
+   "en": "Oh, I only kept looking at odd numbers, so I missed it.",
+   "roman": "a, holsu beonhoman boda boni mot chajanneyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그런 분들이 가끔 있어요. 관심 분야가 어떻게 되세요?",
+   "beaver_en": "That happens sometimes. What's your field of interest?",
+   "beaver_roman": "geureon bundeuri gakkeum isseoyo. gwansim bunyaga eotteoke doeseyo?",
+   "learner": "언어학이 관심사지만 교양 책도 좋아해요.",
+   "en": "Linguistics is my interest, but I like general culture books too.",
+   "roman": "eoneohagi gwansimsajiman gyoyang chaekdo joahaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "학문 이야기를 좀 더 해 주시겠어요?",
+   "beaver_en": "Could you tell me a bit more about your studies?",
+   "beaver_roman": "hangmun iyagireul jom deo hae jusigesseoyo?",
+   "learner": "좋아요. 학문을 하다 보니 질문이 많아졌어요.",
+   "en": "Sure. Doing scholarship, I've come to have many questions.",
+   "roman": "joayo. hangmuneul hada boni jilmuni manajyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "언제든지 오세요. 책은 다섯 권까지 빌릴 수 있어요.",
+   "beaver_en": "Come anytime. You can borrow up to five books.",
+   "beaver_roman": "eonjedeunji oseyo. chaegeun daseot gwonkkaji billil su isseoyo.",
+   "learner": "감사합니다. 다른 연구원들에게도 알려 줄게요.",
+   "en": "Thank you. I'll tell the other researchers too.",
+   "roman": "gamsahamnida. dareun yeonguwondeuregedo allyeo julgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T21-1",
+ "no": 35,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여보세요? 민수 씨, 저 지은이에요.",
+   "beaver_en": "Hello? Minsu, it's me, Jieun.",
+   "beaver_roman": "Yeoboseyo? Minsu ssi, jeo jieunieyo.",
+   "learner": "아, 네, 지은 씨. 안녕하세요.",
+   "en": "Oh, yes, Jieun. Hello.",
+   "roman": "A, ne, jieun ssi. Annyeonghaseyo."
+  },
+  {
+   "n": 2,
+   "beaver": "지금 뭐 하고 있어요?",
+   "beaver_en": "What are you doing now?",
+   "beaver_roman": "Jigeum mwo hago isseoyo?",
+   "learner": "친구한테 편지를 쓰고 있어요.",
+   "en": "I'm writing a letter to a friend.",
+   "roman": "Chinguhante pyeonjireul sseugo isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 편지요? 부산에 사는 친구지요?",
+   "beaver_en": "Wow, a letter? The friend in Busan, right?",
+   "beaver_roman": "Wa, pyeonjiyo? Busane saneun chingujiyo?",
+   "learner": "네, 맞아요. 제 고향 친구지요.",
+   "en": "Yes, that's right. My hometown friend.",
+   "roman": "Ne, majayo. Je gohyang chingujiyo."
+  },
+  {
+   "n": 4,
+   "beaver": "우표는 있지요?",
+   "beaver_en": "You have a stamp, right?",
+   "beaver_roman": "Upyoneun itjiyo?",
+   "learner": "아니요, 우표가 없어요. 우체국에 갈 거예요.",
+   "en": "No, I don't have one. I'll go to the post office.",
+   "roman": "Aniyo, upyoga eopseoyo. Ucheguge gal geoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "우체국은 학교 앞에 있지요?",
+   "beaver_en": "The post office is in front of the school, right?",
+   "beaver_roman": "Uchegugeun hakgyo ape itjiyo?",
+   "learner": "네, 맞아요. 지은 씨는 뭐 해요?",
+   "en": "Yes, that's right. What are you doing, Jieun?",
+   "roman": "Ne, majayo. Jieun ssineun mwo haeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "저는 집에서 책을 읽고 있어요.",
+   "beaver_en": "I'm reading a book at home.",
+   "beaver_roman": "Jeoneun jibeseo chaegeul ilgo isseoyo.",
+   "learner": "그래요? 그런데 왜 전화했어요?",
+   "en": "Really? But why did you call?",
+   "roman": "Geuraeyo? Geureonde wae jeonhwahaesseoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "민수 씨 전화번호가 바뀌었지요?",
+   "beaver_en": "Your phone number changed, right?",
+   "beaver_roman": "Minsu ssi jeonhwabeonhoga bakkwieotjiyo?",
+   "learner": "네, 맞아요. 새 전화번호는 문자로 보낼게요.",
+   "en": "Yes, right. I'll text you my new number.",
+   "roman": "Ne, majayo. Sae jeonhwabeonhoneun munjaro bonaelgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "고마워요. 그런데 왜 바꿨어요?",
+   "beaver_en": "Thanks. But why did you change it?",
+   "beaver_roman": "Gomawoyo. Geureonde wae bakkwosseoyo?",
+   "learner": "이상한 전화가 너무 많이 왔어요.",
+   "en": "I got too many strange calls.",
+   "roman": "Isanghan jeonhwaga neomu mani wasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그렇군요. 편지는 오늘 보낼 거예요?",
+   "beaver_en": "I see. Will you send the letter today?",
+   "beaver_roman": "Geureokunyo. Pyeonjineun oneul bonael geoyeyo?",
+   "learner": "네, 오늘 보낼 거예요. 내일 도착하지요?",
+   "en": "Yes, I'll send it today. It'll arrive tomorrow, right?",
+   "roman": "Ne, oneul bonael geoyeyo. Naeil dochakajiyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 빨라요. 그럼 또 전화해요!",
+   "beaver_en": "Yes, it's fast. Well, call me again!",
+   "beaver_roman": "Ne, ppallayo. Geureom tto jeonhwahaeyo!",
+   "learner": "네, 그럼 또 전화할게요. 안녕히 계세요.",
+   "en": "Okay, I'll call again. Goodbye.",
+   "roman": "Ne, geureom tto jeonhwahalgeyo. Annyeonghi gyeseyo."
+  }
+ ]
+}

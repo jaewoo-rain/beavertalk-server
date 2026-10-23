@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T09-1",
+ "no": 122,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "토요일 결혼식에 뭐 입을지 정했어?",
+   "beaver_en": "Did you decide what to wear to Saturday's wedding?",
+   "beaver_roman": "toyoil gyeolhonsige mwo ibeulji jeonghaesseo?",
+   "learner": "아니, 정장을 입을까 했는데 너무 더울까 봐.",
+   "en": "No, I thought about a suit, but I'm afraid it'll be too hot.",
+   "roman": "ani, jeongjangeul ibeulkka haenneunde neomu deoulkka bwa."
+  },
+  {
+   "n": 2,
+   "beaver": "야외 결혼식이지? 그럼 반팔 셔츠는 어때?",
+   "beaver_en": "It's an outdoor wedding, right? How about a short-sleeved shirt?",
+   "beaver_roman": "yaoe gyeolhonsigiji? geureom banpal syeocheuneun eottae?",
+   "learner": "반팔은 좀 가벼워 보일까 봐 걱정돼. 긴팔이 나을까?",
+   "en": "I'm worried short sleeves look too casual. Are long sleeves better?",
+   "roman": "banpareun jom gabyeowo boilkka bwa geokjeongdwae. ginpari naeulkka?"
+  },
+  {
+   "n": 3,
+   "beaver": "긴팔 셔츠에 소매를 걷으면 시원해.",
+   "beaver_en": "A long-sleeved shirt with rolled-up sleeves is cool.",
+   "beaver_roman": "ginpal syeocheue somaereul geodeumyeon siwonhae.",
+   "learner": "좋아. 줄무늬 셔츠랑 꽃무늬 셔츠 중에 뭐가 나아?",
+   "en": "Okay. Which is better, a striped shirt or a floral one?",
+   "roman": "joa. julmuni syeocheurang kkonmuni syeocheu junge mwoga naa?"
+  },
+  {
+   "n": 4,
+   "beaver": "봄이니까 꽃무늬가 밝아 보여서 좋겠다.",
+   "beaver_en": "It's spring, so floral would look bright and nice.",
+   "beaver_roman": "bominikka kkonmuniga balga boyeoseo joketda.",
+   "learner": "그럼 꽃무늬로 할게. 내 스타일이랑도 잘 맞아.",
+   "en": "Then I'll go with floral. It fits my style too.",
+   "roman": "geureom kkonmuniro halge. nae seutairirangdo jal maja."
+  },
+  {
+   "n": 5,
+   "beaver": "겉옷은? 저녁엔 좀 쌀쌀할 거야.",
+   "beaver_en": "What about outerwear? It'll be a bit chilly in the evening.",
+   "beaver_roman": "geodoseun? jeonyeogen jom ssalssalhal geoya.",
+   "learner": "감기 걸리지 않도록 얇은 코트를 가져갈게.",
+   "en": "I'll bring a thin coat so I don't catch a cold.",
+   "roman": "gamgi geolliji antorok eolbeun koteureul gajyeogalge."
+  },
+  {
+   "n": 6,
+   "beaver": "좋네. 신발은? 운동화는 좀 그렇다.",
+   "beaver_en": "Nice. Shoes? Sneakers aren't quite right.",
+   "beaver_roman": "jonne. sinbareun? undonghwaneun jom geureota.",
+   "learner": "부츠는 어때? 비 올까 봐 걱정돼서.",
+   "en": "How about boots? I'm worried it might rain.",
+   "roman": "bucheuneun eottae? bi olkka bwa geokjeongdwaeseo."
+  },
+  {
+   "n": 7,
+   "beaver": "부츠 좋다. 리본 넥타이도 해 볼래?",
+   "beaver_en": "Boots are good. Want to try a ribbon tie too?",
+   "beaver_roman": "bucheu jota. ribon nektaido hae bollae?",
+   "learner": "리본은 좀 부끄러워. 그냥 넥타이 없이 갈래.",
+   "en": "A ribbon is a bit embarrassing. I'll just go without a tie.",
+   "roman": "riboneun jom bukkeureowo. geunyang nektai eopsi gallae."
+  },
+  {
+   "n": 8,
+   "beaver": "그래. 그날 종일 서 있어야 하니까 편하게 입어.",
+   "beaver_en": "Okay. You'll stand all day, so dress comfortably.",
+   "beaver_roman": "geurae. geunal jongil seo isseoya hanikka pyeonhage ibeo.",
+   "learner": "맞아. 근데 다음 날 등산도 가.",
+   "en": "Right. But I'm also going hiking the next day.",
+   "roman": "maja. geunde daeum nal deungsando ga."
+  },
+  {
+   "n": 9,
+   "beaver": "바쁘다! 그럼 가방 하나에 다 챙겨.",
+   "beaver_en": "Busy! Then pack everything in one bag.",
+   "beaver_roman": "bappeuda! geureom gabang hanae da chaenggyeo.",
+   "learner": "응, 잠옷도 잊지 않도록 지금 바로 쌀게.",
+   "en": "Yeah, I'll pack right now so I don't forget my pajamas.",
+   "roman": "eung, jamotdo itji antorok jigeum baro ssalge."
+  },
+  {
+   "n": 10,
+   "beaver": "잘했어. 결혼식 사진 꼭 보내 줘!",
+   "beaver_en": "Good. Be sure to send me wedding photos!",
+   "beaver_roman": "jalhaesseo. gyeolhonsik sajin kkok bonae jwo!",
+   "learner": "고마워! 네 덕분에 옷차림 고민이 다 끝났어.",
+   "en": "Thanks! Thanks to you, my outfit worries are all over.",
+   "roman": "gomawo! ne deokbune otcharim gomini da kkeunnasseo."
+  }
+ ]
+}

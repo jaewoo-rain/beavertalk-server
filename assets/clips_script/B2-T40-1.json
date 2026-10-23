@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T40-1",
+ "no": 193,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 한빛 봉사 단체 담당자 김수진입니다.",
+   "beaver_en": "Hello. I'm Kim Sujin, coordinator at Hanbit Volunteer Group.",
+   "beaver_roman": "annyeonghaseyo. hanbit bongsa danche damdangja gimsujinimnida.",
+   "learner": "안녕하세요. 봉사 활동 기간이 궁금해서 전화했어요.",
+   "en": "Hello. I called to ask about the volunteer period.",
+   "roman": "annyeonghaseyo. bongsa hwaldong gigani gunggeumhaeseo jeonhwahaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 어떤 점이 궁금하세요?",
+   "beaver_en": "Sure, what would you like to know?",
+   "beaver_roman": "ne, eotteon jeomi gunggeumhaseyo?",
+   "learner": "이 단체가 생긴 지 얼마나 됐어요?",
+   "en": "How long has this group been around?",
+   "roman": "i danchega saenggin ji eolmana dwaesseoyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "생긴 지 십 년 됐어요. 봉사해 본 적 있으세요?",
+   "beaver_en": "It's been ten years. Have you volunteered before?",
+   "beaver_roman": "saenggin ji sim nyeon dwaesseoyo. bongsahae bon jeok isseuseyo?",
+   "learner": "네, 개인 봉사를 시작한 지 2년 됐어요.",
+   "en": "Yes, it's been two years since I started volunteering on my own.",
+   "roman": "ne, gaein bongsareul sijakan ji inyeon dwaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋네요. 저희는 주로 노약자를 도와요.",
+   "beaver_en": "Great. We mainly help the elderly and the weak.",
+   "beaver_roman": "jonneyo. jeohuineun juro noyakjareul dowayo.",
+   "learner": "노약자 지원 활동은 얼마 동안 해야 해요?",
+   "en": "How long do I need to do the support work?",
+   "roman": "noyakja jiwon hwaldongeun eolma dongan haeya haeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "최소 석 달이고, 주 1회 오시면 돼요.",
+   "beaver_en": "At least three months, and you just need to come once a week.",
+   "beaver_roman": "choeso seok darigo, ju ilhoe osimyeon dwaeyo.",
+   "learner": "석 달이군요. 전국에 지점이 있어요?",
+   "en": "Three months, I see. Do you have branches nationwide?",
+   "roman": "seok darigunyo. jeonguge jijeomi isseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 전국에 지점이 스무 곳 있어요.",
+   "beaver_en": "Yes, we have twenty branches across the country.",
+   "beaver_roman": "ne, jeonguge jijeomi seumu got isseoyo.",
+   "learner": "그럼 이사를 가도 전국 어디서나 할 수 있어요?",
+   "en": "So even if I move, can I do it anywhere in the country?",
+   "roman": "geureom isareul gado jeonguk eodiseona hal su isseoyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 기간도 그대로 이어져요. 나이가 어떻게 되세요?",
+   "beaver_en": "Yes, your period carries over. How old are you?",
+   "beaver_roman": "ne, gigando geudaero ieojyeoyo. naiga eotteoke doeseyo?",
+   "learner": "스물다섯 살이에요. 미성년자는 기간이 달라요?",
+   "en": "I'm twenty-five. Is the period different for minors?",
+   "roman": "seumuldaseot sarieyo. miseongnyeonjaneun gigani dallayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "미성년자는 한 달만 해요. 신분증도 꼭 가져오세요.",
+   "beaver_en": "Minors do just one month. Please bring your ID.",
+   "beaver_roman": "miseongnyeonjaneun han dalman haeyo. sinbunjeungdo kkok gajyeooseyo.",
+   "learner": "네, 신분 확인이 끝나면 언제부터 할 수 있어요?",
+   "en": "Okay, after the ID check, when can I start?",
+   "roman": "ne, sinbun hwagini kkeunnamyeon eonjebuteo hal su isseoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "다음 주부터 돼요. 왜 지원하게 되셨어요?",
+   "beaver_en": "From next week. Why did you decide to apply?",
+   "beaver_roman": "daeum jubuteo dwaeyo. wae jiwonhage doesyeosseoyo?",
+   "learner": "어르신들께 도움이 되고 싶었어요.",
+   "en": "I wanted to be of help to the elderly.",
+   "roman": "eoreusindeulkke doumi doego sipeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "멋지네요. 그럼 다음 주 월요일에 뵐게요.",
+   "beaver_en": "That's wonderful. See you next Monday, then.",
+   "beaver_roman": "meotjineyo. geureom daeum ju woryoire boelgeyo.",
+   "learner": "네, 열심히 할게요. 감사합니다.",
+   "en": "Okay, I'll do my best. Thank you.",
+   "roman": "ne, yeolsimhi halgeyo. gamsahamnida."
+  }
+ ]
+}

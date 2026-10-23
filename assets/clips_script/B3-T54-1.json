@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T54-1",
+ "no": 242,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 법원에 가서 재판을 보고 왔어요.",
+   "beaver_en": "I went to the court today and watched the trial.",
+   "beaver_roman": "Oneul beobwone gaseo jaepaneul bogo wasseoyo.",
+   "learner": "그래요? 그 부정 사건 재판이죠?",
+   "en": "Really? The corruption case trial, right?",
+   "roman": "Geuraeyo? Geu bujeong sakkeon jaepanijyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "네, 회사 대표가 돈을 빼돌린 사건이에요.",
+   "beaver_en": "Yes, the case where the CEO embezzled money.",
+   "beaver_roman": "Ne, hoesa daepyoga doneul ppaedollin sakkeonieyo.",
+   "learner": "그건 불법이라서 처벌받을 수밖에 없어요.",
+   "en": "That's illegal, so he has no choice but to be punished.",
+   "roman": "Geugeon bulbeobiraseo cheobeolbadeul ssubakke eopseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "검찰이 수사를 철저히 했다고 하더라고요.",
+   "beaver_en": "I heard the prosecutors investigated thoroughly.",
+   "beaver_roman": "Geomchari susareul cheoljeohi haetdago hadeoragoyo.",
+   "learner": "증거가 많으면 처벌을 피할 수 없겠네요.",
+   "en": "If there's a lot of evidence, he won't be able to avoid punishment.",
+   "roman": "Jeunggeoga maneumyeon cheobeoreul pihal ssu eopgenneyo."
+  },
+  {
+   "n": 4,
+   "beaver": "구속될까요?",
+   "beaver_en": "Do you think he'll be detained?",
+   "beaver_roman": "Gusokdoelkkayo?",
+   "learner": "네, 구속될 수밖에 없을 것 같아요.",
+   "en": "Yes, I think he'll have to be detained.",
+   "roman": "Ne, gusokdoel ssubakke eopseul kkeot gatayo."
+  },
+  {
+   "n": 5,
+   "beaver": "변호사는 법률 제5조를 들면서 반대했어요.",
+   "beaver_en": "His lawyer objected, citing Article 5 of the law.",
+   "beaver_roman": "Byeonhosaneun beomnyul je ojoreul deulmyeonseo bandaehaesseoyo.",
+   "learner": "제5조로는 죄를 벗기 어려울 거예요.",
+   "en": "Article 5 won't easily clear him of the crime.",
+   "roman": "Je ojoroneun joereul beotgi eoryeoul kkeoyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 감옥에 오래 있을까요?",
+   "beaver_en": "Then will he be in prison for long?",
+   "beaver_roman": "Geureom gamoge orae isseulkkayo?",
+   "learner": "생각보다 짧을 수도 있지만 감옥엔 갈 거예요.",
+   "en": "It might be shorter than expected, but he'll go to prison.",
+   "roman": "Saenggakboda jjalbeul ssudo itjiman gamogen gal kkeoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "피해자들은 보상은 받을 수 있을까요?",
+   "beaver_en": "Will the victims be able to get compensation?",
+   "beaver_roman": "Pihaejadeureun bosangeun badeul ssu isseulkkayo?",
+   "learner": "법원이 보상을 명령할 수밖에 없을 거예요.",
+   "en": "The court will have no choice but to order compensation.",
+   "roman": "Beobwoni bosangeul myeongnyeonghal ssubakke eopseul kkeoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "판결은 다음 달에 나온대요.",
+   "beaver_en": "They say the verdict comes out next month.",
+   "beaver_roman": "Pangyeoreun daeum dare naondaeyo.",
+   "learner": "공정한 판결이 나오면 좋겠어요.",
+   "en": "I hope the verdict is fair.",
+   "roman": "Gongjeonghan pangyeori naomyeon jokesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "법과 재판에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about law and trials?",
+   "beaver_roman": "Beopgwa jaepane daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 이런 부정은 철저히 막아야 해요.",
+   "en": "Sure. This kind of corruption must be stopped thoroughly.",
+   "roman": "Joayo. Ireon bujeongeun cheoljeohi magaya haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 판결이 나오면 또 이야기해요.",
+   "beaver_en": "Right. Let's talk again when the verdict is out.",
+   "beaver_roman": "Majayo. Pangyeori naomyeon tto iyagihaeyo.",
+   "learner": "네, 저도 꼭 확인할게요. 들어가세요.",
+   "en": "Yes, I'll be sure to check too. Take care.",
+   "roman": "Ne, jeodo kkok hwaginhalkkeyo. Deureogaseyo."
+  }
+ ]
+}

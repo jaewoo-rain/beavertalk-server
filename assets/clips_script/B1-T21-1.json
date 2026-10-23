@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T21-1",
+ "no": 135,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민호 씨, 어제 왜 연락이 안 됐어요? 걱정했어요.",
+   "beaver_en": "Minho, why couldn't I reach you yesterday? I was worried.",
+   "beaver_roman": "Minho ssi, eoje wae yeollagi an dwaesseoyo? geokjeonghaesseoyo.",
+   "learner": "미안해요. 휴대폰이 켜졌다가 바로 꺼졌어요.",
+   "en": "Sorry. My phone turned on, and then it died right away.",
+   "roman": "Mianhaeyo. hyudaeponi kyeojyeotdaga baro kkeojyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜요? 제가 전화를 열 번이나 했어요.",
+   "beaver_en": "Why? I called you ten times.",
+   "beaver_roman": "Waeyo? jega jeonhwareul yeol beonina haesseoyo.",
+   "learner": "배터리가 없었어요. 충전했는데도 안 켜졌어요.",
+   "en": "The battery was dead. Even though I charged it, it didn't turn on.",
+   "roman": "Baeteoriga eopseosseoyo. chungjeonhaenneundedo an kyeojyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그랬군요. 문자는 봤어요?",
+   "beaver_en": "I see. Did you see my text?",
+   "beaver_roman": "Geuraetgunnyo. munjaneun bwasseoyo?",
+   "learner": "아니요, 문자도 이메일도 오늘 아침에 봤어요.",
+   "en": "No, I saw both the text and the email this morning.",
+   "roman": "Aniyo, munjado imeildo oneul achime bwasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "집 전화도 했는데 아무도 안 받았어요.",
+   "beaver_en": "I called your home phone too, but nobody answered.",
+   "beaver_roman": "Jip jeonhwado haenneunde amudo an badasseoyo.",
+   "learner": "자느라고 전화 소리를 못 들었어요.",
+   "en": "I was sleeping, so I didn't hear the phone ring.",
+   "roman": "Janeurago jeonhwa sorireul mot deureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "많이 피곤했나 봐요.",
+   "beaver_en": "You must have been really tired.",
+   "beaver_roman": "Mani pigonhaenna bwayo.",
+   "learner": "네, 피곤했는데도 일이 많아서 늦게 잤어요.",
+   "en": "Yes, even though I was tired, I had a lot of work, so I slept late.",
+   "roman": "Ne, pigonhaenneundedo iri manaseo neutge jasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 회사 우편물은 받았어요?",
+   "beaver_en": "By the way, did you get the company mail?",
+   "beaver_roman": "Geureonde hoesa upyeonmureun badasseoyo?",
+   "learner": "네, 오늘 아침에 받았어요.",
+   "en": "Yes, I got it this morning.",
+   "roman": "Ne, oneul achime badasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "중요한 서류예요. 받는 사람이 누구로 돼 있어요?",
+   "beaver_en": "It's an important document. Who is it addressed to?",
+   "beaver_roman": "Jungyohan seoryuyeyo. banneun sarami nuguro dwae isseoyo?",
+   "learner": "봉투에 '김민호 귀하'라고 쓰여 있어요.",
+   "en": "The envelope says 'To Mr. Kim Minho.'",
+   "roman": "Bongtue 'Gim Minho gwiha'rago sseuyeo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아요. 벌써 열어 봤어요?",
+   "beaver_en": "That's right. Have you opened it already?",
+   "beaver_roman": "Majayo. beolsseo yeoreo bwasseoyo?",
+   "learner": "아까 열었다가 바빠서 다시 넣었어요.",
+   "en": "I opened it earlier, but I was busy, so I put it back.",
+   "roman": "Akka yeoreotdaga bappaseo dasi neoeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음엔 연락이 안 되면 이메일이라도 보내 주세요.",
+   "beaver_en": "Next time, if I can't reach you, at least send an email.",
+   "beaver_roman": "Daeumen yeollagi an doemyeon imeirirado bonae juseyo.",
+   "learner": "네, 다음에는 꼭 문자나 이메일을 보낼게요.",
+   "en": "Yes, next time I'll definitely send a text or an email.",
+   "roman": "Ne, daeumeneun kkok munjana imeireul bonaelgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 이제 걱정 안 할게요.",
+   "beaver_en": "Okay. I won't worry anymore.",
+   "beaver_roman": "Joayo. ije geokjeong an halgeyo.",
+   "learner": "고마워요. 오늘 새 배터리도 살게요.",
+   "en": "Thanks. I'll buy a new battery today, too.",
+   "roman": "Gomawoyo. oneul sae baeteorido salgeyo."
+  }
+ ]
+}

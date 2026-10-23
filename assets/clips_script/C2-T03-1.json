@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T03-1",
+ "no": 349,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오십시오. 오늘은 어떻게 해 드릴까요?",
+   "beaver_en": "Welcome. What can I do for you today?",
+   "beaver_roman": "eoseo osipsio. oneureun eotteoke hae deurilkkayo?",
+   "learner": "곱슬머리를 좀 차분하게 펴고 싶어요.",
+   "en": "I'd like my curly hair straightened a bit.",
+   "roman": "gopsulmeorireul jom chabunhage pyeogo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "요즘 신경 많이 쓰시네요. 무슨 계기라도 있으세요?",
+   "beaver_en": "You've been taking care lately. Any reason?",
+   "beaver_roman": "yojeum singyeong mani sseusineyo. museun gyegirado isseuseyo?",
+   "learner": "면접 때 외모도 중요하다고 들었어요.",
+   "en": "I heard looks matter in interviews too.",
+   "roman": "myeonjeop ttae oemodo jungyohadago deureosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "첫인상 때문에 고민이 있으셨어요?",
+   "beaver_en": "Were you worried about first impressions?",
+   "beaver_roman": "cheosinsang ttaemune gomini isseusyeosseoyo?",
+   "learner": "인상이 어두워 보인다는 말을 자주 들었어요.",
+   "en": "People often said I looked gloomy.",
+   "roman": "insangi eoduwo boindaneun mareul jaju deureosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "면접 때는 어떠셨습니까?",
+   "beaver_en": "How was it at the interview?",
+   "beaver_roman": "myeonjeop ttaeneun eotteosyeotseumnikka?",
+   "learner": "면접관이 제 외모만 보는 것 같아 떨렸어요.",
+   "en": "I was nervous; the interviewer seemed to only see my looks.",
+   "roman": "myeonjeopgwani je oemoman boneun geot gata tteollyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래서 미용에 관심을 가지셨군요.",
+   "beaver_en": "So that's why you got into beauty care.",
+   "beaver_roman": "geuraeseo miyonge gwansimeul gajisyeotgunyo.",
+   "learner": "네, 모발 관리부터 하고 걸음걸이도 고쳤어요.",
+   "en": "Yes, I started with hair care and fixed my walk.",
+   "roman": "ne, mobal gwallibuteo hago georeumgeorido gochyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "걸음걸이까지요? 대단하십니다.",
+   "beaver_en": "Even your walk? That's impressive.",
+   "beaver_roman": "georeumgeorikkajiyo? daedanhasimnida.",
+   "learner": "체격이 작아도 당당히 걸으면 매력적이래요.",
+   "en": "They say walking proudly is attractive, even if small.",
+   "roman": "chegyeogi jagado dangdanghi georeumyeon maeryeokjeogiraeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "성형도 생각하셨습니까?",
+   "beaver_en": "Did you also consider plastic surgery?",
+   "beaver_roman": "seonghyeongdo saenggakasyeotseumnikka?",
+   "learner": "쌍꺼풀 성형을 고민했지만 안 했어요.",
+   "en": "I thought about double eyelid surgery, but didn't.",
+   "roman": "ssangkkeopul seonghyeongeul gominhaetjiman an haesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "왜 마음을 바꾸셨습니까?",
+   "beaver_en": "Why did you change your mind?",
+   "beaver_roman": "wae maeumeul bakkusyeotseumnikka?",
+   "learner": "지금 제 눈도 충분히 예쁘다고 들었거든요.",
+   "en": "I was told my eyes are pretty enough as they are.",
+   "roman": "jigeum je nundo chungbunhi yeppeudago deureotgeodeunyo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아요. 눈매가 참 예쁘세요.",
+   "beaver_en": "That's right. Your eyes are really pretty.",
+   "beaver_roman": "majayo. nunmaega cham yeppeuseyo.",
+   "learner": "미녀는 아니어도 이제 자신감이 생겼어요.",
+   "en": "I'm no beauty, but I've gained confidence now.",
+   "roman": "minyeoneun anieodo ije jasingami saenggyeosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "자, 다 됐습니다. 잘 어울리십니다.",
+   "beaver_en": "There, all done. It suits you well.",
+   "beaver_roman": "ja, da dwaetseumnida. jal eoullisimnida.",
+   "learner": "머리가 정말 마음에 들어요! 또 올게요.",
+   "en": "I really love my hair! I'll come again.",
+   "roman": "meoriga jeongmal maeume deureoyo! tto olgeyo."
+  }
+ ]
+}

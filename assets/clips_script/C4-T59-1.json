@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T59-1",
+ "no": 485,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어디가 불편해서 오셨습니까?",
+   "beaver_en": "What brings you in today?",
+   "beaver_roman": "eodiga bulpyeonhaeseo osyeotseumnikka?",
+   "learner": "배가 아파서 신음이 절로 나올 지경이에요.",
+   "en": "My stomach hurts so much I can't help groaning.",
+   "roman": "baega apaseo sineumi jeollo naol jigyeongieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "언제부터 아프셨습니까?",
+   "beaver_en": "When did the pain start?",
+   "beaver_roman": "eonjebuteo apeusyeotseumnikka?",
+   "learner": "두 시간 전부터요. 식은땀도 계속 나요.",
+   "en": "Two hours ago. I keep breaking out in a cold sweat, too.",
+   "roman": "du sigan jeonbuteoyo. sigeunttamdo gyesok nayo."
+  },
+  {
+   "n": 3,
+   "beaver": "다른 증상은 없습니까?",
+   "beaver_en": "Do you have any other symptoms?",
+   "beaver_roman": "dareun jeungsangeun eopseumnikka?",
+   "learner": "현기증이 나고 속이 더부룩해요.",
+   "en": "I feel dizzy, and my stomach feels bloated.",
+   "roman": "hyeongijeungi nago sogi deoburukaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "출혈은 없었습니까?",
+   "beaver_en": "Has there been any bleeding?",
+   "beaver_roman": "churhyeoreun eopseotseumnikka?",
+   "learner": "출혈은 없는데 팔이 멍들었어요.",
+   "en": "No bleeding, but my arm is bruised.",
+   "roman": "churhyeoreun eomneunde pari meongdeureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "어디에 부딪치셨습니까?",
+   "beaver_en": "Where did you bump it?",
+   "beaver_roman": "eodie budichisyeotseumnikka?",
+   "learner": "부딪친 적이 없는데 멍이 들었어요.",
+   "en": "I never bumped it, but I got a bruise.",
+   "roman": "budichin jeogi eomneunde meongi deureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "가족 중에 아프신 분이 있습니까?",
+   "beaver_en": "Is anyone in your family ill?",
+   "beaver_roman": "gajok junge apeusin buni itseumnikka?",
+   "learner": "삼촌이 백혈병으로 투병 중이세요.",
+   "en": "My uncle is fighting leukemia.",
+   "roman": "samchoni baekyeolbyeongeuro tubyeong jungiseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "가족 중에 다른 병을 앓는 분도 있습니까?",
+   "beaver_en": "Does anyone else in your family have an illness?",
+   "beaver_roman": "gajok junge dareun byeongeul alleun bundo itseumnikka?",
+   "learner": "유전병은 없어요. 할머니가 치매세요.",
+   "en": "No hereditary diseases. My grandmother has dementia.",
+   "roman": "yujeonbyeongeun eopseoyo. halmeoniga chimaeseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "약에 과민 반응이 있습니까?",
+   "beaver_en": "Are you hypersensitive to any medicine?",
+   "beaver_roman": "yage gwamin baneungi itseumnikka?",
+   "learner": "네, 아스피린에 과민 반응이 있어요.",
+   "en": "Yes, I'm hypersensitive to aspirin.",
+   "roman": "ne, aseupirine gwamin baneungi isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "혈액 검사가 필요합니다. 급성 질환 같습니다.",
+   "beaver_en": "We need a blood test. It looks like an acute illness.",
+   "beaver_roman": "hyeoraek geomsaga piryohamnida. geupseong jilhwan gatseumnida.",
+   "learner": "급성이면 중증인가요? 위독한 건 아니죠?",
+   "en": "If it's acute, is it severe? I'm not critically ill, am I?",
+   "roman": "geupseongimyeon jungjeungingayo? widokan geon anijyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "아직 모릅니다. 바로 검사하겠습니다.",
+   "beaver_en": "We don't know yet. We'll test you right away.",
+   "beaver_roman": "ajik moreumnida. baro geomsahagetseumnida.",
+   "learner": "네, 숨쉬기도 거북해요. 빨리 부탁드려요.",
+   "en": "Okay, even breathing is uncomfortable. Please hurry.",
+   "roman": "ne, sumswigido geobukaeyo. ppalli butakdeuryeoyo."
+  }
+ ]
+}

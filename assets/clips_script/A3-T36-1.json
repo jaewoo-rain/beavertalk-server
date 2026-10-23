@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T36-1",
+ "no": 74,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 한국에는 어떤 명절이 있어요?",
+   "beaver_en": "Minsu, what holidays are there in Korea?",
+   "beaver_roman": "minsu ssi, hangugeneun eotteon myeongjeori isseoyo?",
+   "learner": "설날과 추석이 큰 명절이에요.",
+   "en": "Seollal and Chuseok are the big holidays.",
+   "roman": "seollalgwa chuseogi keun myeongjeorieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "설날에는 뭐 해요?",
+   "beaver_en": "What do you do on Seollal?",
+   "beaver_roman": "seollareneun mwo haeyo?",
+   "learner": "새해 첫날에 가족이 모여서 떡국을 먹어요.",
+   "en": "On the first day of the new year, family gathers and eats rice cake soup.",
+   "roman": "saehae cheonnare gajogi moyeoseo tteokgugeul meogeoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "추석에는요?",
+   "beaver_en": "What about Chuseok?",
+   "beaver_roman": "chuseogeneunyo?",
+   "learner": "추석에는 송편을 만들고 보름달을 봐요.",
+   "en": "On Chuseok, we make songpyeon and look at the full moon.",
+   "roman": "chuseogeneun songpyeoneul mandeulgo boreumdareul bwayo."
+  },
+  {
+   "n": 4,
+   "beaver": "새해에도 그래요? 달을 봐요?",
+   "beaver_en": "Is it the same for the new year? Do you look at the moon?",
+   "beaver_roman": "saehaeedo geuraeyo? dareul bwayo?",
+   "learner": "아니요, 새해에는 어른들께 세배를 해요.",
+   "en": "No, in the new year we bow to our elders.",
+   "roman": "aniyo, saehaeeneun eoreundeulkke sebaereul haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 행사도 있어요?",
+   "beaver_en": "Are there other events too?",
+   "beaver_roman": "dareun haengsado isseoyo?",
+   "learner": "네, 아기 첫돌에도 큰 잔치를 해요.",
+   "en": "Yes, we also throw a big party for a baby's first birthday.",
+   "roman": "ne, agi cheotdoredo keun janchireul haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "돌이 무슨 의미예요?",
+   "beaver_en": "What does dol mean?",
+   "beaver_roman": "dori museun uimiyeyo?",
+   "learner": "아기의 첫 생일이에요. 가족이 모두 축하해요.",
+   "en": "It's a baby's first birthday. The whole family celebrates.",
+   "roman": "agiui cheot saengirieyo. gajogi modu chukahaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 재미있네요. 명절에는 모두 즐겁게 보내요?",
+   "beaver_en": "Wow, interesting. Does everyone have fun on holidays?",
+   "beaver_roman": "wa, jaemiinneyo. myeongjeoreneun modu jeulgeopge bonaeyo?",
+   "learner": "보통 그래요. 슬픈 일이 있으면 조용히 보내요.",
+   "en": "Usually. But if something sad happens, we spend it quietly.",
+   "roman": "botong geuraeyo. seulpeun iri isseumyeon joyonghi bonaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "아, 그렇군요. 사진도 있어요?",
+   "beaver_en": "Ah, I see. Do you have pictures?",
+   "beaver_roman": "a, geureokunyo. sajindo isseoyo?",
+   "learner": "네, 우선 돌 사진을 보여 줄게요.",
+   "en": "Yes, first I'll show you a first-birthday photo.",
+   "roman": "ne, useon dol sajineul boyeo julgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요! 축제와 기념일에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Great! Want to talk more about festivals and anniversaries?",
+   "beaver_roman": "joayo! chukjewa ginyeomire daehae deo iyagihae bollaeyo?",
+   "learner": "네, 내일 축제 이야기도 해 줄게요.",
+   "en": "Sure, I'll tell you about festivals tomorrow too.",
+   "roman": "ne, naeil chukje iyagido hae julgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 저도 송편을 만들어 보고 싶어요.",
+   "beaver_en": "Thanks. I want to try making songpyeon too.",
+   "beaver_roman": "gomawoyo. jeodo songpyeoneul mandeureo bogo sipeoyo.",
+   "learner": "그럼 이번 추석에 우리 집에 초대할게요.",
+   "en": "Then I'll invite you to my house this Chuseok.",
+   "roman": "geureom ibeon chuseoge uri jibe chodaehalgeyo."
+  }
+ ]
+}

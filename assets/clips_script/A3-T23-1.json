@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T23-1",
+ "no": 65,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "무슨 좋은 소식 있어요? 목소리가 밝네요.",
+   "beaver_en": "Any good news? You sound so cheerful.",
+   "beaver_roman": "museun joeun sosik isseoyo? moksoriga bangneyo.",
+   "learner": "네, 민호 씨가 다음 달에 결혼해요!",
+   "en": "Yes, Minho is getting married next month!",
+   "roman": "ne, minho ssiga daeum dare gyeolhonhaeyo!"
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 민호 씨 애인 있었어요?",
+   "beaver_en": "Really? Did Minho have a partner?",
+   "beaver_roman": "jeongmallyo? minho ssi aein isseosseoyo?",
+   "learner": "네, 애인이 있었는데 비밀이었어요.",
+   "en": "Yes, he had a partner, but it was a secret.",
+   "roman": "ne, aeini isseonneunde bimirieosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "몰랐어요. 오래 사귀었어요?",
+   "beaver_en": "I didn't know. Did they date for long?",
+   "beaver_roman": "mollasseoyo. orae sagwieosseoyo?",
+   "learner": "오 년 사귀었는데 한 번 헤어졌어요.",
+   "en": "They dated five years, but broke up once.",
+   "roman": "o nyeon sagwieonneunde han beon heeojeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "어머, 그런데 다시 만났어요?",
+   "beaver_en": "Oh my, but they got back together?",
+   "beaver_roman": "eomeo, geureonde dasi mannasseoyo?",
+   "learner": "네, 헤어졌는데 사랑은 안 끝났어요.",
+   "en": "Yes, they broke up, but the love didn't end.",
+   "roman": "ne, heeojeonneunde sarangeun an kkeunnasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "와, 영화 같네요. 신부는 누구예요?",
+   "beaver_en": "Wow, like a movie. Who's the bride?",
+   "beaver_roman": "wa, yeonghwa ganneyo. sinbuneun nuguyeyo?",
+   "learner": "신부는 지나 씨인데 제 회사 친구예요.",
+   "en": "The bride is Jina, and she's my coworker.",
+   "roman": "sinbuneun jina ssiinde je hoesa chinguyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그래요? 지나 씨는 어떤 사람이에요?",
+   "beaver_en": "Really? What kind of person is Jina?",
+   "beaver_roman": "geuraeyo? jina ssineun eotteon saramieyo?",
+   "learner": "지나 씨는 키가 큰데 좀 조용해요.",
+   "en": "Jina is tall, but a bit quiet.",
+   "roman": "jina ssineun kiga keunde jom joyonghaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "결혼식은 언제예요?",
+   "beaver_en": "When is the wedding?",
+   "beaver_roman": "gyeolhonsigeun eonjeyeyo?",
+   "learner": "오월 첫째 토요일인데 같이 가요.",
+   "en": "It's the first Saturday in May. Let's go together.",
+   "roman": "owol cheotjjae toyoirinde gachi gayo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 선물은 뭐가 좋을까요?",
+   "beaver_en": "Sure. What would be a good gift?",
+   "beaver_roman": "joayo. seonmureun mwoga joeulkkayo?",
+   "learner": "글쎄요, 꽃도 좋은데 돈이 더 좋아요.",
+   "en": "Well, flowers are nice, but money is better.",
+   "roman": "geulsseyo, kkotdo joeunde doni deo joayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그런데 연애랑 결혼은 어때요?",
+   "beaver_en": "By the way, what do you think of dating and marriage?",
+   "beaver_roman": "geureonde yeonaerang gyeolhoneun eottaeyo?",
+   "learner": "연애는 재미있는데 결혼은 좀 어려워요.",
+   "en": "Dating is fun, but marriage is a bit hard.",
+   "roman": "yeonaeneun jaemiinneunde gyeolhoneun jom eoryeowoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아요. 그래도 사랑이 제일 중요하죠.",
+   "beaver_en": "True. Still, love matters most.",
+   "beaver_roman": "majayo. geuraedo sarangi jeil jungyohajyo.",
+   "learner": "네, 결혼식에서 같이 축하해요!",
+   "en": "Yes, let's celebrate together at the wedding!",
+   "roman": "ne, gyeolhonsigeseo gachi chukahaeyo!"
+  }
+ ]
+}

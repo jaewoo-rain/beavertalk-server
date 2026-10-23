@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T11-2",
+ "no": 29,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "배고프다! 점심 뭐 먹을까?",
+   "beaver_en": "I'm hungry! What should we eat for lunch?",
+   "beaver_roman": "baegopeuda! jeomsim mwo meogeulkka?",
+   "learner": "나도 배가 고파. 더우니까 냉면 먹자.",
+   "en": "I'm hungry too. It's hot, so let's have naengmyeon.",
+   "roman": "nado baega gopa. deounikka naengmyeon meokja."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아. 나는 비빔밥도 먹고 싶어.",
+   "beaver_en": "Okay. I want bibimbap too.",
+   "beaver_roman": "joa. naneun bibimbapdo meokgo sipeo.",
+   "learner": "이 집 비빔밥은 좀 짜. 냉면이 맛있어.",
+   "en": "The bibimbap here is a bit salty. The naengmyeon is tasty.",
+   "roman": "i jip bibimbabeun jom jja. naengmyeoni masisseo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래? 그럼 둘 다 냉면 먹자.",
+   "beaver_en": "Really? Then let's both get naengmyeon.",
+   "beaver_roman": "geurae? geureom dul da naengmyeon meokja.",
+   "learner": "좋아. 음료수는 콜라 마실래?",
+   "en": "Good. Want cola for a drink?",
+   "roman": "joa. eumnyosuneun kolla masillae?"
+  },
+  {
+   "n": 4,
+   "beaver": "응, 콜라 좋아. 후식은 뭐 먹을까?",
+   "beaver_en": "Yes, cola is good. What should we have for dessert?",
+   "beaver_roman": "eung, kolla joa. husigeun mwo meogeulkka?",
+   "learner": "수박 아이스크림 먹자. 아주 달아.",
+   "en": "Let's have watermelon ice cream. It's really sweet.",
+   "roman": "subak aiseukeurim meokja. aju dara."
+  },
+  {
+   "n": 5,
+   "beaver": "밥 먹고 단 거 먹으면 기분 좋지?",
+   "beaver_en": "Eating something sweet after a meal feels good, right?",
+   "beaver_roman": "bap meokgo dan geo meogeumyeon gibun jochi?",
+   "learner": "기분이 좋아. 나는 단 걸 정말 좋아해.",
+   "en": "I feel good. I really love sweet things.",
+   "roman": "gibuni joa. naneun dan geol jeongmal joahae."
+  },
+  {
+   "n": 6,
+   "beaver": "초콜릿 아이스크림도 있어. 어때?",
+   "beaver_en": "There's chocolate ice cream too. How about it?",
+   "beaver_roman": "chokollit aiseukeurimdo isseo. eottae?",
+   "learner": "초콜릿은 좀 써. 나는 수박이 더 좋아.",
+   "en": "Chocolate is a bit bitter. I like watermelon better.",
+   "roman": "chokolliseun jom sseo. naneun subagi deo joa."
+  },
+  {
+   "n": 7,
+   "beaver": "참외는 수박하고 맛이 어떻게 달라?",
+   "beaver_en": "How does Korean melon taste different from watermelon?",
+   "beaver_roman": "chamoeneun subakago masi eotteoke dalla?",
+   "learner": "참외가 더 달아. 나는 참외 좋아해.",
+   "en": "Korean melon is sweeter. I like Korean melon.",
+   "roman": "chamoega deo dara. naneun chamoe joahae."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 귤은 어때? 귤도 좋아해?",
+   "beaver_en": "Then what about tangerines? Do you like them too?",
+   "beaver_roman": "geureom gyureun eottae? gyuldo joahae?",
+   "learner": "여름 귤은 너무 셔. 나는 배가 더 좋아.",
+   "en": "Summer tangerines are too sour. I like pears better.",
+   "roman": "yeoreum gyureun neomu syeo. naneun baega deo joa."
+  },
+  {
+   "n": 9,
+   "beaver": "와, 냉면 정말 맛있었다!",
+   "beaver_en": "Wow, the naengmyeon was really good!",
+   "beaver_roman": "wa, naengmyeon jeongmal masisseotda!",
+   "learner": "응, 정말 맛있었어. 배가 불러.",
+   "en": "Yeah, it was really good. I'm full.",
+   "roman": "eung, jeongmal masisseosseo. baega bulleo."
+  },
+  {
+   "n": 10,
+   "beaver": "나도 배불러. 아이스크림은 다음에 먹을까?",
+   "beaver_en": "I'm full too. Should we have ice cream next time?",
+   "beaver_roman": "nado baebulleo. aiseukeurimeun daeume meogeulkka?",
+   "learner": "아니, 후식 배는 따로 있어. 아이스크림 먹자!",
+   "en": "No, there's always room for dessert. Let's get ice cream!",
+   "roman": "ani, husik baeneun ttaro isseo. aiseukeurim meokja!"
+  }
+ ]
+}

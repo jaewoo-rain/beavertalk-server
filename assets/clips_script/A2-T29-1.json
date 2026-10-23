@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T29-1",
+ "no": 38,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 어디가 아프세요?",
+   "beaver_en": "Hello. Where does it hurt?",
+   "beaver_roman": "annyeonghaseyo. eodiga apeuseyo?",
+   "learner": "머리가 아파요. 어제 잠을 못 잤어요.",
+   "en": "My head hurts. I couldn't sleep yesterday.",
+   "roman": "meoriga apayo. eoje jameul mot jasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "언제부터 아팠어요?",
+   "beaver_en": "Since when has it hurt?",
+   "beaver_roman": "eonjebuteo apasseoyo?",
+   "learner": "지난주부터요. 목도 아파요.",
+   "en": "Since last week. My throat hurts too.",
+   "roman": "jinanjubuteoyo. mokdo apayo."
+  },
+  {
+   "n": 3,
+   "beaver": "목이 많이 아파요?",
+   "beaver_en": "Does your throat hurt a lot?",
+   "beaver_roman": "mogi mani apayo?",
+   "learner": "네, 밥을 잘 못 먹어요. 입도 아파요.",
+   "en": "Yes, I can't eat well. My mouth hurts too.",
+   "roman": "ne, bameul jal mon meogeoyo. ipdo apayo."
+  },
+  {
+   "n": 4,
+   "beaver": "입을 벌려 보세요. 이도 아파요?",
+   "beaver_en": "Open your mouth. Do your teeth hurt too?",
+   "beaver_roman": "ibeul beollyeo boseyo. ido apayo?",
+   "learner": "네, 이가 아파서 물을 못 마셔요.",
+   "en": "Yes, my tooth hurts, so I can't drink water.",
+   "roman": "ne, iga apaseo mureul mon masyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "코는 어때요?",
+   "beaver_en": "How about your nose?",
+   "beaver_roman": "koneun eottaeyo?",
+   "learner": "코가 막혀서 숨을 잘 못 쉬어요.",
+   "en": "My nose is blocked, so I can't breathe well.",
+   "roman": "koga makyeoseo sumeul jal mot swieoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "눈이나 귀는 괜찮아요?",
+   "beaver_en": "Are your eyes or ears okay?",
+   "beaver_roman": "nunina gwineun gwaenchanayo?",
+   "learner": "눈은 괜찮아요. 귀도 괜찮아요.",
+   "en": "My eyes are fine. My ears are fine too.",
+   "roman": "nuneun gwaenchanayo. gwido gwaenchanayo."
+  },
+  {
+   "n": 7,
+   "beaver": "배는 어때요?",
+   "beaver_en": "How about your stomach?",
+   "beaver_roman": "baeneun eottaeyo?",
+   "learner": "배는 괜찮아요. 그런데 팔이 아파요.",
+   "en": "My belly is fine. But my arm hurts.",
+   "roman": "baeneun gwaenchanayo. geureonde pari apayo."
+  },
+  {
+   "n": 8,
+   "beaver": "팔이요? 손도 아파요?",
+   "beaver_en": "Your arm? Does your hand hurt too?",
+   "beaver_roman": "pariyo? sondo apayo?",
+   "learner": "네, 손도 아파요. 다리도 아파서 잘 못 걸어요.",
+   "en": "Yes, my hand hurts too. My legs hurt, so I can't walk well.",
+   "roman": "ne, sondo apayo. darido apaseo jal mot georeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "담배는 피우세요?",
+   "beaver_en": "Do you smoke?",
+   "beaver_roman": "dambaeneun piuseyo?",
+   "learner": "아니요, 건강 때문에 안 피워요.",
+   "en": "No, I don't smoke for my health.",
+   "roman": "aniyo, geongang ttaemune an piwoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 약 먹고 오늘은 푹 쉬세요.",
+   "beaver_en": "Good. Take the medicine and rest well today.",
+   "beaver_roman": "joayo. yak meokgo oneureun puk swiseyo.",
+   "learner": "네, 몸이 아파서 일도 못 해요. 감사합니다.",
+   "en": "Okay, I'm sick so I can't work anyway. Thank you.",
+   "roman": "ne, momi apaseo ildo motaeyo. gamsahamnida."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T02-1",
+ "no": 398,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "자료 정리는 잘되고 있습니까? 무엇이 적혀 있습니까?",
+   "beaver_en": "Is the sorting going well? What is written there?",
+   "beaver_roman": "Jaryo jeongnineun jaldoego itseumnikka? Mueosi jeokyeo itseumnikka?",
+   "learner": "오 미터 길이의 족보에 혈연 관계가 적혀 있습니다.",
+   "en": "A five-meter-long genealogy records the blood relations.",
+   "roman": "O miteo giriui jokboe hyeoryeon gwangyega jeokyeo itseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "꽤 길군요. 어느 집안의 기록입니까?",
+   "beaver_en": "That's quite long. Which family's record is it?",
+   "beaver_roman": "Kkwae gilgunyo. Eoneu jibanui girogimnikka?",
+   "learner": "김씨 집안이 대대손손 남긴 핏줄의 기록입니다.",
+   "en": "It's a bloodline record the Kim family kept for generations.",
+   "roman": "Gimssi jibani daedaesonson namgin pitjurui girogimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "특별히 눈에 띄는 인물이 있습니까?",
+   "beaver_en": "Is there anyone who particularly stands out?",
+   "beaver_roman": "Teukbyeolhi nune ttuineun inmuri itseumnikka?",
+   "learner": "맏형이 일찍 아버지를 여의고 가족을 부양했습니다.",
+   "en": "The eldest brother lost his father early and supported the family.",
+   "roman": "Matyeongi iljjik abeojireul yeouigo gajogeul buyanghaetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "어린 나이에 고생이 많았겠군요.",
+   "beaver_en": "He must have had a hard time so young.",
+   "beaver_roman": "Eorin naie gosaengi manatgetgunyo.",
+   "learner": "네, 누이와 동생들의 보호자 역할도 했습니다.",
+   "en": "Yes, he was also a guardian to his sister and siblings.",
+   "roman": "Ne, nuiwa dongsaengdeurui bohoja yeokaldo haetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "여성에 대한 기록도 남아 있습니까?",
+   "beaver_en": "Are there records about the women too?",
+   "beaver_roman": "Yeoseonge daehan girokdo nama itseumnikka?",
+   "learner": "여아는 금지옥엽처럼 귀하게 자랐다고 합니다.",
+   "en": "The girl was raised as a precious child, it says.",
+   "roman": "Yeoaneun geumjiogyeopcheoreom gwihage jaratdago hamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "혼인 후의 이야기도 있습니까?",
+   "beaver_en": "Is there a story after her marriage?",
+   "beaver_roman": "Honin huui iyagido itseumnikka?",
+   "learner": "시댁에서 현모양처라는 칭찬을 들었다고 합니다.",
+   "en": "Her husband's family praised her as a wise mother and good wife.",
+   "roman": "Sidaegeseo hyeonmoyangcheoraneun chingchaneul deureotdago hamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "가족과 친척에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the family and relatives?",
+   "beaver_roman": "Gajokgwa chincheoge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "조부모 앞에서 재롱을 떠는 단란한 집이었습니다.",
+   "en": "It was a cozy home where kids did cute antics for grandparents.",
+   "roman": "Jobumo apeseo jaerongeul tteoneun dallanhan jibieotseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "어려운 일은 없었습니까?",
+   "beaver_en": "Were there no hard times?",
+   "beaver_roman": "Eoryeoun ireun eopseotseumnikka?",
+   "learner": "아들이 가출하여 양자를 들여 대를 이었습니다.",
+   "en": "The son ran away, so they adopted a son to carry on the line.",
+   "roman": "Adeuri gachulhayeo yangjareul deuryeo daereul ieotseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "요즘 가족은 어떻습니까?",
+   "beaver_en": "What are families like these days?",
+   "beaver_roman": "Yojeum gajogeun eotteoseumnikka?",
+   "learner": "핵가족화로 임신부도 혼자 지내는 일이 많습니다.",
+   "en": "With nuclear families, even pregnant women often live alone.",
+   "roman": "Haekgajokwaro imsinbudo honja jinaeneun iri manseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 정리입니다. 다음 회의 때 함께 봅시다.",
+   "beaver_en": "Good summary. Let's review it at the next meeting.",
+   "beaver_roman": "Joeun jeongniimnida. Daeum hoeui ttae hamkke bopsida.",
+   "learner": "네, 정리한 자료를 보고서로 만들어 오겠습니다.",
+   "en": "Yes, I'll turn the materials into a report.",
+   "roman": "Ne, jeongnihan jaryoreul bogoseoro mandeureo ogetseumnida."
+  }
+ ]
+}

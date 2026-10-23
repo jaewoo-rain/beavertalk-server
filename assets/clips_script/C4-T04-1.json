@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T04-1",
+ "no": 442,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "야, 나 어제 또 지갑 잃어버렸어.",
+   "beaver_en": "Hey, I lost my wallet again yesterday.",
+   "beaver_roman": "Ya, na eoje tto jigap ireobeoryeosseo.",
+   "learner": "너 또 덜렁댔구나. 그 습관 고쳐야 해.",
+   "en": "You were careless again. You need to fix that habit.",
+   "roman": "Neo tto deolleongdaetguna. Geu seupgwan gochyeoya hae."
+  },
+  {
+   "n": 2,
+   "beaver": "알아. 사람들이 나보고 말도 많다고들 해.",
+   "beaver_en": "I know. People also say I talk a lot.",
+   "beaver_roman": "Ara. Saramdeuri nabogo maldo mantagodeul hae.",
+   "learner": "응, 좀 수다스럽긴 해. 남 말도 들어 봐.",
+   "en": "Yeah, you are a bit talkative. Listen to others too.",
+   "roman": "Eung, jom sudaseureopgin hae. Nam maldo deureo bwa."
+  },
+  {
+   "n": 3,
+   "beaver": "어제 회의 때도 내가 호들갑 떨었어.",
+   "beaver_en": "I made a fuss at the meeting yesterday, too.",
+   "beaver_roman": "Eoje hoeui ttaedo naega hodeulgap tteoreosseo.",
+   "learner": "그럴 때일수록 냉정을 지켜야 해.",
+   "en": "That's exactly when you should keep your composure.",
+   "roman": "Geureol ttaeilsurok naengjeongeul jikyeoya hae."
+  },
+  {
+   "n": 4,
+   "beaver": "팀장님 앞에서 억지도 좀 부렸고.",
+   "beaver_en": "And I insisted unreasonably in front of my boss.",
+   "beaver_roman": "Timjangnim apeseo eokjido jom buryeotgo.",
+   "learner": "억지 부려 봤자 아무 소용 없어.",
+   "en": "Insisting unreasonably gets you nowhere.",
+   "roman": "Eokji buryeo bwatja amu soyong eopseo."
+  },
+  {
+   "n": 5,
+   "beaver": "내가 너무 자기중심적인가?",
+   "beaver_en": "Am I too self-centered?",
+   "beaver_roman": "Naega neomu jagijungsimjeoginga?",
+   "learner": "가끔 이기심이 보여. 융통성도 좀 키워.",
+   "en": "Sometimes I see selfishness. Be more flexible, too.",
+   "roman": "Gakkeum igisimi boyeo. Yungtongseongdo jom kiwo."
+  },
+  {
+   "n": 6,
+   "beaver": "너 오늘 좀 짓궂다. 일부러 놀리는 거지?",
+   "beaver_en": "You're mischievous today. Teasing me on purpose?",
+   "beaver_roman": "Neo oneul jom jitgutda. Ilbureo nollineun geoji?",
+   "learner": "아니, 진심이야. 돌려 말하기 싫어서 그래.",
+   "en": "No, I mean it. I just don't want to beat around the bush.",
+   "roman": "Ani, jinsimiya. Dollyeo malhagi sileoseo geurae."
+  },
+  {
+   "n": 7,
+   "beaver": "사실 일 좀 한다고 자만했나 봐.",
+   "beaver_en": "Honestly, I guess I got conceited about my work.",
+   "beaver_roman": "Sasil il jom handago jamanhaenna bwa.",
+   "learner": "응, 자만하지 말고 전문가 행세도 그만해.",
+   "en": "Yeah, drop the conceit and stop acting like an expert.",
+   "roman": "Eung, jamanhaji malgo jeonmunga haengsedo geumanhae."
+  },
+  {
+   "n": 8,
+   "beaver": "고치고 싶은데 내가 너무 나약해.",
+   "beaver_en": "I want to change, but I'm too weak.",
+   "beaver_roman": "Gochigo sipeunde naega neomu nayakae.",
+   "learner": "나약하다고 포기해 봤자 달라지는 건 없어.",
+   "en": "Giving up because you're weak won't change anything.",
+   "roman": "Nayakadago pogihae bwatja dallajineun geon eopseo."
+  },
+  {
+   "n": 9,
+   "beaver": "기분 따라 자꾸 바뀌는 것도 문제지?",
+   "beaver_en": "Changing with my moods is a problem too, right?",
+   "beaver_roman": "Gibun ttara jakku bakkwineun geotdo munjeji?",
+   "learner": "응, 그 변덕만 줄여도 훨씬 나아질 거야.",
+   "en": "Yeah, just cutting that fickleness will help a lot.",
+   "roman": "Eung, geu byeondeongman juryeodo hwolssin naajil geoya."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워. 매번 잔소리 듣게 해서 미안해.",
+   "beaver_en": "Thanks. Sorry for making you lecture me every time.",
+   "beaver_roman": "Gomawo. Maebeon jansori deutge haeseo mianhae.",
+   "learner": "미안하긴 뭘. 친구 좋다는 게 뭐야.",
+   "en": "Nothing to be sorry about. That's what friends are for.",
+   "roman": "Mianhagin mwol. Chingu jotaneun ge mwoya."
+  }
+ ]
+}

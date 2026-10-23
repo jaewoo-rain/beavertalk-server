@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T05-1",
+ "no": 89,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "다음이 제 순서예요. 잘할 수 있을까요?",
+   "beaver_en": "I'm up next. Do you think I can do well?",
+   "beaver_roman": "daeumi je sunseoyeyo. jalhal su isseulkkayo?",
+   "learner": "민수 씨, 얼굴이 좀 어두워 보여요. 괜찮아요?",
+   "en": "Minsu, you look a bit down. Are you okay?",
+   "roman": "minsu ssi, eolguri jom eoduwo boyeoyo. gwaenchanayo?"
+  },
+  {
+   "n": 2,
+   "beaver": "네, 좀 답답해요. 준비가 아직 부족한 것 같아요.",
+   "beaver_en": "Yes, I feel a bit frustrated. I don't think I'm ready yet.",
+   "beaver_roman": "ne, jom dapdapaeyo. junbiga ajik bujokan geot gatayo.",
+   "learner": "긴장해서 그럴 거예요.",
+   "en": "It's probably because you're nervous.",
+   "roman": "ginjanghaeseo geureol kkeoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "사실 아침에 자료를 집에 두고 왔어요.",
+   "beaver_en": "Actually, I left my materials at home this morning.",
+   "beaver_roman": "sasil achime jaryoreul jibe dugo wasseoyo.",
+   "learner": "그래서 아침에 표정이 안 좋았군요.",
+   "en": "So that's why you looked upset this morning.",
+   "roman": "geuraeseo achime pyojeongi an joatgunyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다시 가져왔어요. 팀장님이 화내실까 걱정돼요.",
+   "beaver_en": "I brought them back. I'm worried the manager will get angry.",
+   "beaver_roman": "dasi gajyeowasseoyo. timjangnimi hwanaesilkka geokjeongdwaeyo.",
+   "learner": "팀장님은 잘 화내지 않는 편이에요. 걱정 마세요.",
+   "en": "The manager doesn't really get angry. Don't worry.",
+   "roman": "timjangnimeun jal hwanaeji anneun pyeonieyo. geokjeong maseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저는 사람들 앞에서 말하면 너무 부끄러워요.",
+   "beaver_en": "I get so embarrassed speaking in front of people.",
+   "beaver_roman": "jeoneun saramdeul apeseo malhamyeon neomu bukkeureowoyo.",
+   "learner": "당연해요. 저도 처음엔 얼굴이 빨개졌어요.",
+   "en": "That's natural. My face turned red at first too.",
+   "roman": "dangyeonhaeyo. jeodo cheoeumen eolguri ppalgaejyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "지영 씨는 발표를 정말 잘하잖아요. 부러워요.",
+   "beaver_en": "But you're really good at presentations, Jiyeong. I'm jealous.",
+   "beaver_roman": "jiyeong ssineun balpyoreul jeongmal jalhajanayo. bureowoyo.",
+   "learner": "부러울 거 없어요. 저도 매주 연습했어요.",
+   "en": "Nothing to envy. I practiced every week too.",
+   "roman": "bureoul kkeo eopseoyo. jeodo maeju yeonseupaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "연습이 귀찮지 않았어요? 저는 자꾸 그만두고 싶어요.",
+   "beaver_en": "Wasn't practicing a pain? I keep wanting to quit.",
+   "beaver_roman": "yeonseubi gwichanchi anasseoyo? jeoneun jakku geumandugo sipeoyo.",
+   "learner": "귀찮았지만 계속했어요. 그만두지 마세요.",
+   "en": "It was a pain, but I kept going. Don't quit.",
+   "roman": "gwichanatjiman gyesokaesseoyo. geumanduji maseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "지영 씨는 긴장하면 어떻게 돼요?",
+   "beaver_en": "Jiyeong, what happens when you get nervous?",
+   "beaver_roman": "jiyeong ssineun ginjanghamyeon eotteoke dwaeyo?",
+   "learner": "저는 긴장하면 말이 빨라지는 편이에요.",
+   "en": "I tend to talk fast when I'm nervous.",
+   "roman": "jeoneun ginjanghamyeon mari ppallajineun pyeonieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "저도요! 그래서 말이 자꾸 꼬여요.",
+   "beaver_en": "Me too! So I keep tripping over my words.",
+   "beaver_roman": "jeodoyo! geuraeseo mari jakku kkoyeoyo.",
+   "learner": "천천히, 친구같이 편하게 말하면 돼요.",
+   "en": "Just speak slowly and comfortably, like with a friend.",
+   "roman": "cheoncheonhi, chingugachi pyeonhage malhamyeon dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 이제 마음이 좀 편해요. 다녀올게요!",
+   "beaver_en": "Thanks. I feel a bit calmer now. I'm off!",
+   "beaver_roman": "gomawoyo. ije maeumi jom pyeonhaeyo. danyeoolgeyo!",
+   "learner": "지금은 훨씬 밝아 보여요. 잘하고 오세요!",
+   "en": "You look much brighter now. Go do great!",
+   "roman": "jigeumeun hwolssin balga boyeoyo. jalhago oseyo!"
+  }
+ ]
+}
