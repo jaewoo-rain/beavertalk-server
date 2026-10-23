@@ -185,3 +185,19 @@ def test_needed_clip_jumps_the_queue(monkeypatch):
 def test_dunno_phrase_as_target_is_judged_by_match(heard, target, want):
     """2889 — 정답이 «몰라요» 인 문항에서 «몰라요» 가 dunno 로 처리됐다."""
     assert ce.rule_judge(heard, [target], blank=False)[0] == want
+
+
+def test_warmup_loads_generic_and_survives_failures(monkeypatch):
+    """seventh — 데우기: 공통 클립을 읽어 두고, 저장소·Speech·TTS 가 실패해도 예외 없이 결과만 남긴다."""
+    import core.storage as storage
+
+    def boom(*a, **k):
+        raise RuntimeError("no net")
+
+    monkeypatch.setattr(storage, "download", boom)
+    monkeypatch.setattr(ce, "_sync_speech_client", boom)
+    monkeypatch.setattr(ce, "_sync_tts_client", lambda: None)
+    ce._GENERIC.clear()
+    out = ce.warmup(("Baba",))
+    assert out["storage"] == "RuntimeError" and out["speech"] == "RuntimeError" and out["tts"] == "없음"
+    assert int(out["generic_Baba"]) > 0 and ("Baba", "en") in ce._GENERIC
