@@ -174,3 +174,14 @@ def test_needed_clip_jumps_the_queue(monkeypatch):
         assert asyncio.run(ce.ensure_pcm(clips["ask_7_1"])) is True
     finally:
         hold.set()
+
+
+@pytest.mark.parametrize("heard,target,want", [
+    ("몰라요", "몰라요", "correct"),
+    ("잘 모르겠어요", "잘 모르겠어요.", "correct"),
+    ("몰라요", "다시 말해 주세요", "dunno"),          # 정답이 아니면 모름 그대로
+    ("잘 모르겠어요", "천천히 말해 주세요", "dunno"),
+])
+def test_dunno_phrase_as_target_is_judged_by_match(heard, target, want):
+    """2889 — 정답이 «몰라요» 인 문항에서 «몰라요» 가 dunno 로 처리됐다."""
+    assert ce.rule_judge(heard, [target], blank=False)[0] == want

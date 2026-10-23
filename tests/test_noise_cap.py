@@ -335,3 +335,42 @@ def test_tv_peaks_below_gate_do_not_count_as_voice(monkeypatch):
         clock.t += 0.02
         cs._agate(st, _pcm(lv))
     assert st.voiced_since_end < cs.UNPROMPTED_VOICED_S    # TV 조각만으로는 «학습자가 말함» 이 안 된다
+
+
+def _stream_s(outs) -> float:
+    """게이트가 내보낸 프레임 총 길이(초) — 16k·16bit 기준."""
+    return sum(len(f) for o in outs for f in o) / 32000.0
+
+
+def test_agate_clip_session_pause_not_stretched(monkeypatch):
+    """sixth3 — 클립 세션: 말·쉼·말에서 게이트가 내보낸 시간이 실제 시간과 같다(2887 쉼 0.64s → 클립 VAD 0.9s 이던 것)."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    st.clip_expr = "Baba"
+    out = _feed(st, clock, 0.001, 3)
+    out += _feed(st, clock, 0.05, 0.5)
+    out += _feed(st, clock, 0.001, 0.64)
+    out += _feed(st, clock, 0.05, 0.5)
+    assert _stream_s(out) == pytest.approx(3 + 0.5 + 0.64 + 0.5 - 0.02, abs=0.05)   # 마지막 프레임은 다음 인정 전 붙잡힘 없음
+    assert st.ag_onsets == 2
+
+
+def test_agate_live_session_unchanged_resends_preroll(monkeypatch):
+    """Live(클립 아님)는 종전 그대로 — 인정 순간 앞 0.3초를 다시 보내 내보낸 시간이 실제보다 길다."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    out = _feed(st, clock, 0.001, 3) + _feed(st, clock, 0.05, 0.5)
+    assert _stream_s(out) > 3.5 + 0.2
+
+
+def test_agate_clip_session_short_peak_released_as_silence(monkeypatch):
+    """클립 세션: 인정 못 받은 짧은 봉우리(0.06초)는 붙잡았다가 0 으로 내보낸다 — 시간 보존 · 소리는 안 나감."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    st.clip_expr = "Baba"
+    out = _feed(st, clock, 0.001, 3) + _feed(st, clock, 0.05, 0.06) + _feed(st, clock, 0.001, 0.2)
+    assert _stream_s(out) == pytest.approx(3.26, abs=0.03)
+    assert all(f == bytes(len(f)) for o in out for f in o) and st.ag_onsets == 0

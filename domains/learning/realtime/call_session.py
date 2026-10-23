@@ -857,7 +857,7 @@ class _CallState:
         "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
-        "ag_hist", "ag_thr", "ag_n", "ag_speaking", "ag_run_t0", "ag_loud_ts", "ag_pre", "ag_onsets",   # 적응 게이트
+        "ag_hist", "ag_thr", "ag_n", "ag_speaking", "ag_run_t0", "ag_loud_ts", "ag_pre", "ag_onsets", "ag_held",   # 적응 게이트
         "ag_bg", "voiced_since_end",   # PM-DEC-1018
         "server_turn_ts", "beaver_end_onsets", "hold_dropped",   # PM-DEC-1015
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
@@ -1091,6 +1091,7 @@ class _CallState:
         self.ag_run_t0: Optional[float] = None
         self.ag_loud_ts = 0.0
         self.ag_pre: list = []            # (시각, 원음) — 말 시작 인정 때 앞 0.3초를 다시 보낸다
+        self.ag_held: list = []           # sixth3 — 클립 세션: 인정 대기 중 붙잡은 원음(0 대신)
         self.ag_onsets = 0
         self.ag_bg = 0.0                  # PM-DEC-1018 — 배경 표본 하위 20% 값
         self.voiced_since_end = 0.0       # 직전 비버 턴 끝 뒤 «배경보다 확실히 큰» 마이크 소리 합(초)
@@ -8279,17 +8280,27 @@ def _agate(state: _CallState, data: bytes) -> list:
     state.ag_pre.append((now, data))
     while state.ag_pre and now - state.ag_pre[0][0] > AGATE_PREROLL_S:
         state.ag_pre.pop(0)
+    # sixth3 — 클립·대본 세션은 인정 대기 중 프레임을 0 대신 붙잡는다(앞 0.3초 재전송이 쉼을 늘려 1.5초 말끝을 채우던 것 · 2887)
+    hold = bool(getattr(state, "clip_expr", None))
+    released: list = []
     if r >= thr:
         if state.ag_run_t0 is None:
             state.ag_run_t0 = now
+            state.ag_held = []
+        if hold:
+            state.ag_held.append(data)
         if now - state.ag_run_t0 >= AGATE_ONSET_S:
             state.ag_speaking = True
             state.ag_loud_ts = now
             state.ag_onsets += 1
-            out = [f for _, f in state.ag_pre]
+            out = list(state.ag_held) if hold else [f for _, f in state.ag_pre]
             state.ag_pre.clear()
+            state.ag_held = []
             return out
     else:
+        if hold and state.ag_held:
+            released = [_zeros(len(f)) for f in state.ag_held]   # 말로 인정 안 된 봉우리 — 붙잡은 시간만큼 0(시간 보존)
+        state.ag_held = []
         state.ag_run_t0 = None
     # ⛔ 문턱 넘은 짧은 봉우리도 배경 표본에 넣는다 — 빼면 문턱이 TV 봉우리를 영영 못 배운다(시험이 잡음)
     state.ag_hist.append(r)
@@ -8304,7 +8315,9 @@ def _agate(state: _CallState, data: bytes) -> list:
         quiet_room = AGATE_MED_MULT > 0 and state.ambient_ema < AGATE_QUIET_AMBIENT
         state.ag_thr = max(AGATE_FLOOR, min(p95, AGATE_MED_MULT * state.ag_bg) if quiet_room else p95)
     state.gate_zeroed += 1
-    return [_zeros(len(data))]
+    if hold and state.ag_run_t0 is not None:
+        return released          # 런 중 — 붙잡았다(인정되면 원음으로 · 끊기면 0 으로 나간다)
+    return released + [_zeros(len(data))]
 
 
 def _noise_gate(state: _CallState, data: bytes) -> bytes:
