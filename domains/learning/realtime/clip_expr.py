@@ -660,6 +660,7 @@ class ClipExprSession:
         loud = _rms(pcm16_16k) >= self._vad_th
         if loud:
             self._voiced_s += dur
+            self._gap_max_s = max(getattr(self, "_gap_max_s", 0.0), self._silence_s)
             self._silence_s = 0.0
             self._pre_gap_s = 0.0
             self._t_last_voiced = time.monotonic()
@@ -676,6 +677,14 @@ class ClipExprSession:
             if self._silence_s >= self._end_s or len(self._speech) >= _MIC_BPS * 12:
                 self._listening = False
                 spec, self._spec = self._spec, None
+                # 진단(2880·2881·2882 말 중간 쉼에 끊김) — 닫힌 까닭과 말 길이·가장 긴 쉼
+                logger.info("normalcall clipexpr 말 닫힘: call_id=%s 까닭=%s 말=%.2fs 소리=%.2fs 가장긴쉼=%.2fs 끝무음=%.2fs 문턱=%.3f "
+                            "게이트0=%d 게이트문턱=%.4f",
+                            self._cid(), "무음" if self._silence_s >= self._end_s else "12초", len(self._speech) / _MIC_BPS,
+                            self._voiced_s, getattr(self, "_gap_max_s", 0.0), self._silence_s, self._vad_th,
+                            (getattr(self._state, "gate_zeroed", 0) or 0) - getattr(self, "_gz0", 0),
+                            float(getattr(self._state, "ag_thr", 0.0) or 0.0))
+                self._gap_max_s = 0.0
                 self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced, spec))
             return
         # 아직 말 시작 전 — 짧은 잡음은 버리고 무응답 시간을 센다(재생 중 프레임은 위에서 이미 버렸다)
@@ -1148,4 +1157,6 @@ class ClipExprSession:
     def _reset_listen(self) -> None:
         self._speech.clear()
         self._voiced_s = self._silence_s = self._idle_s = self._pre_gap_s = 0.0
+        self._gap_max_s = 0.0
+        self._gz0 = getattr(self._state, "gate_zeroed", 0) or 0
         self._listening = True
