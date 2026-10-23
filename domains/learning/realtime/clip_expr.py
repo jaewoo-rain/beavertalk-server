@@ -294,6 +294,31 @@ async def ensure_pcm(clip: Clip) -> bool:
 _GENERIC: dict[tuple[str, str], dict[str, Clip]] = {}
 
 
+def warmup(chars: tuple[str, ...] = ("Baba", "Bibi"), lang: str = "en") -> dict[str, str]:
+    """seventh — 새 인스턴스 첫 클립 통화 데우기(call 2897 · 기동 8초 뒤 통화 첫 소리 7.2s).
+    작업 스레드에서 부른다 · 하나가 실패해도 나머지는 한다 · 실패는 그 통화가 처음 할 때 다시 시도된다."""
+    out: dict[str, str] = {}
+    t0 = time.monotonic()
+    try:
+        from core import storage
+        storage.download(EB_PREFIX, "_warmup.json")          # 없는 객체 — 인증·연결만 연다(404 는 «없음»)
+        out["storage"] = "ok"
+    except Exception as exc:  # noqa: BLE001 - 데우기 실패는 첫 통화가 다시 한다
+        out["storage"] = type(exc).__name__
+    for ch in chars:
+        try:
+            out[f"generic_{ch}"] = str(len(_base_generic(ch, lang)))
+        except Exception as exc:  # noqa: BLE001
+            out[f"generic_{ch}"] = type(exc).__name__
+    for name, fn in (("speech", _sync_speech_client), ("tts", _sync_tts_client)):
+        try:
+            out[name] = "ok" if fn() is not None else "없음"
+        except Exception as exc:  # noqa: BLE001
+            out[name] = type(exc).__name__
+    out["ms"] = str(int((time.monotonic() - t0) * 1000))
+    return out
+
+
 def _base_generic(char: str, lang: str) -> dict[str, Clip]:
     """저장소 manifest 의 공통 클립(항목 없는 것 · g_*)만. 프로세스당 한 번 읽는다."""
     if (char, lang) in _GENERIC:
