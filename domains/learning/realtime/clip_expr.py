@@ -138,6 +138,22 @@ def jamo_sim(a: str, b: str) -> float:
     return difflib.SequenceMatcher(None, ja, jb).ratio()
 
 
+def collapse_repeats(text: str) -> str:
+    """같은 말을 연속으로 되풀이했으면 하나로(«다시 말해 주세요 다시 말해 주세요» → «다시 말해 주세요»).
+
+    clipb 2866: 정확히 두 번 말하면 자모 유사도가 0.67 로 떨어져 close 가 됐다 · 대본 읽기는 되풀이를 덧붙임으로 안 친다.
+    """
+    words = [w for w in re.split(r"\s+", _PUNCT_RE.sub(" ", text or "")) if w]
+    n = len(words)
+    for size in range(1, n // 2 + 1):
+        if n % size == 0 and words == words[:size] * (n // size):
+            return " ".join(words[:size])
+    return " ".join(words)
+
+
+_PUNCT_RE = re.compile(r"[.,!?~…·\"'«»()\[\]]")
+
+
 def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional[str], float]:
     """(결과 또는 None=LLM 에 묻기, 최고 자모 유사도)."""
     h = (heard or "").strip()
@@ -150,7 +166,8 @@ def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional
         return "native_lang", 0.0
     if blank and _BLANK_RE.search(h):
         return "correct", 1.0
-    sim = max((jamo_sim(t, h) for t in targets if t), default=0.0)
+    once = collapse_repeats(h)
+    sim = max((max(jamo_sim(t, h), jamo_sim(t, once)) for t in targets if t), default=0.0)
     if sim >= 0.8:
         return "correct", sim
     if sim >= 0.6:
