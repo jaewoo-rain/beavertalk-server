@@ -224,3 +224,33 @@ def test_client_created_once_under_concurrency(monkeypatch):
     [t.join() for t in ts]
     ce._SYNC_SPEECH.clear()
     assert len(made) == 1 and len({id(g) for g in got}) == 1
+
+
+@pytest.mark.parametrize("heard,target,want", [
+    ("내일모레", "낼모레", "correct"),          # B2-T28-1 — 받아쓰기가 본딧말로 적음
+    ("낼모레", "내일모레", "correct"),
+    ("낼 만나요", "내일 만나요", "correct"),
+    ("이야기해요", "얘기해요", "correct"),
+    ("그런데요", "근데요", "correct"),
+])
+def test_abbrev_normalized_both_sides(heard, target, want):
+    """PM-DEC-1059 — 줄임말과 본딧말은 같은 답으로 친다."""
+    assert ce.rule_judge(heard, [target], blank=False)[0] == want
+
+
+@pytest.mark.parametrize("heard,target", [
+    ("편지를 보낼 거예요", "편지를 보내일 거예요"),   # 낱말 속 «낼» 은 안 바꾼다(보낼)
+    ("제가 낼게요", "제가 내일게요"),               # «낼게요»(내다) 는 token 이 아니라 그대로
+])
+def test_abbrev_does_not_touch_inside_words(heard, target):
+    assert ce.normalize_abbrev(heard) == heard
+    assert ce.normalize_abbrev("보낼") == "보낼" and ce.normalize_abbrev("낼게요") == "낼게요"
+
+
+@pytest.mark.parametrize("heard,target", [
+    ("내일 만나요", "어제 만나요"),     # 틀린 답이 정규화로 맞게 되지 않는다
+    ("그런데요", "그래서요"),
+    ("이야기해요", "공부해요"),
+])
+def test_abbrev_no_false_correct(heard, target):
+    assert ce.rule_judge(heard, [target], blank=False)[0] != "correct"
