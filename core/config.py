@@ -332,6 +332,9 @@ class Settings(BaseSettings):
     CLIP_USD_TTS_PER_M_CHARS: float = 30.0    # Cloud TTS Chirp3-HD 100만 글자
     # PM-DEC-1024 — 같은 줄에서 학습자가 말이 없으면: 이만큼(초) 뒤 비버 줄 녹음을 한 번 다시 들려주고,
     #   그 뒤로 SKIP 초 더 무음이면 다음 줄로 건너뛴다. 0 = 끔.
+    # PM-DEC-1035 — 대본 읽기·통화 반응은 이 앱 버전 이상(소켓 app_version)일 때만 연다. 스토어 71(1.0.0)은 그 화면이 없다.
+    #   클립 표현학습(CLIP_EXPR)은 71 에서도 동작해 게이트하지 않는다.
+    APP_FEATURE_MIN_VERSION: str = "1.0.1"
     SCRIPT_READ_SILENT_REPLAY_S: float = 15.0
     SCRIPT_READ_SILENT_SKIP_S: float = 30.0
     SCRIPT_READ_END_SILENCE_S: float = 1.2   # 대본 읽기 말 끝 무음(두 문장 줄 사이 쉼을 끝으로 보지 않게)

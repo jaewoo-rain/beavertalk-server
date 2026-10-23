@@ -134,8 +134,10 @@ def active(state: Any) -> bool:
 
 async def fire(state: Any, kind: str, send: Any, *, where: str) -> int:
     """판정이 나면 반응을 보낸다. 보낸 길이(ms), 안 보냈으면 0. send = async (dict) -> None."""
+    if send is None:          # PM-DEC-1035 — 옛 앱 통화는 보낼 곳이 없다(판정기도 만들지 않는다)
+        return 0
     g = gate(state)
-    if g is None or send is None:
+    if g is None:
         return 0
     msg = g.decide(kind, asyncio.get_running_loop().time())
     if msg is None:

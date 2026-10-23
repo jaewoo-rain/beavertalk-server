@@ -68,6 +68,7 @@ from core.audio import (
     pcm16_to_wav,
 )
 from core.config import Settings, settings as _settings
+from core.client_info import app_at_least as _app_at_least
 from core.languages import (
     DEFAULT_LANGUAGE,
     LanguageSpec,
@@ -851,6 +852,7 @@ class _CallState:
         "hold_events", "hold_ws", "hold_t0", "hold_voice_ts", "hold_noise_floor",   # PM-DEC-993 답 보류
         "hold_resumed", "hold_drop_end", "hold_turn_live", "hold_turn_bytes", "hold_release_ts", "reply_mute_until", "hold_next",
         "rx_gate", "rx_send",   # PM-DEC-1019 통화 반응
+        "new_app",              # PM-DEC-1035 — 앱이 APP_FEATURE_MIN_VERSION 이상(대본 읽기·반응 화면이 있음)
         "jt_in_tr_ts", "jt_reply_ts",   # PM-DEC-1019 후속 — Live 판정 대기 측정
         "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
@@ -1065,6 +1067,7 @@ class _CallState:
         self.hold_next = None                     # 보류 중 걸어 둔 다음 Live 이벤트 대기(펌프 감싸개가 거둔다)
         self.rx_gate = None                       # PM-DEC-1019 — 반응 빈도·겹침 판정기(LIVE_REACTION 일 때 처음 쓸 때 만든다)
         self.rx_send = None                       # 반응 메시지를 앱 WS 로 보내는 함수(통화 시작 때 건다)
+        self.new_app = False                      # PM-DEC-1035 — 소켓 app_version 이 최소 버전 이상
         self.jt_in_tr_ts: Optional[float] = None  # 측정 — 마지막 학습자 전사 도착 시각
         self.jt_reply_ts: Optional[float] = None  # 측정 — 이번 비버 답 첫 소리가 Live 에서 도착한 시각(보류 전)
         self.beaver_end_ts: Optional[float] = None   # PM-DEC-998 — 마지막 비버 turn_end 시각(전사 없는 시간의 기준)
@@ -4611,13 +4614,20 @@ async def run_call(
         #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
         state.expr_items = expr_items
         state.expr_practice = expr_practice
+        # PM-DEC-1035 — 대본 읽기·반응은 새 앱(소켓 app_version ≥ APP_FEATURE_MIN_VERSION)만. 값이 없거나 못 읽으면 끔.
+        state.new_app = _app_at_least((nationality_client or {}).get("app_version"),
+                                      str(getattr(settings, "APP_FEATURE_MIN_VERSION", "1.0.1") or "1.0.1"))
         # PM-DEC-872 — 시제품 스위치(CLIP_EXPR)가 켜진 표현학습만. 빈 값이면 None(종전).
         state.clip_lesson = getattr(getattr(cur_open, "lesson", None), "code", None) if cur_open is not None else None
         state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
         # PM-DEC-877 — 대본 읽기 태그(SCRIPT_READ)는 일반 통화를 모두 대본 읽기로 연다(코스 잠금과 무관 · 레벨테스트·숙제 제외).
         # PM-DEC-1012 — 차시 비버 줄 녹음을 버킷에서 받는 판정이 들어 있어 작업 스레드에서(다른 통화의 이벤트 루프를 막지 않게)
-        state.script_read = await asyncio.to_thread(_script_read.enabled, settings, call_type=call_type, voice=voice,
-                                                    locale=locale, lesson=state.clip_lesson)
+        state.script_read = (await asyncio.to_thread(_script_read.enabled, settings, call_type=call_type, voice=voice,
+                                                     locale=locale, lesson=state.clip_lesson)
+                             if state.new_app else None)
+        if getattr(settings, "SCRIPT_READ", "") and not state.new_app:
+            logger.info("normalcall 대본 읽기 건너뜀: call_id=%s 앱 버전 미달(%s)", _cid(state),
+                        (nationality_client or {}).get("app_version") or "없음")
         if state.script_read and not state.clip_lesson:
             state.clip_lesson = str(getattr(settings, "SCRIPT_READ_CHAT_LESSON", "") or "").strip() or None
         if state.script_read:
@@ -5813,7 +5823,7 @@ async def _run_one_generation(
                     settings.CONTEXT_SUMMARY_MODEL, settings.CONTEXT_SUMMARY_EVERY, settings.CONTEXT_RECENT_SEGMENTS)
     else:
         session_cm = live_session_factory(client, settings, **factory_kwargs)
-    if _reaction.REACTION_ON:
+    if _reaction.REACTION_ON and state.new_app:   # PM-DEC-1035 — 옛 앱(71)은 반응 화면이 없어 4초 침묵만 생긴다
         state.rx_send = _reaction.ws_sender(client_ws)   # PM-DEC-1019 — 꺼져 있으면 None 그대로(발동 자리가 전부 건너뛴다)
     async with session_cm as session:
         try:

@@ -40,6 +40,18 @@ def clean(value: Optional[str]) -> Optional[str]:
     return v or None
 
 
+def app_at_least(app_version: Optional[str], minimum: str) -> bool:
+    """PM-DEC-1035 — 앱 버전(«1.0.1+93» 꼴 · 빌드 번호는 무시)이 minimum(«1.0.1») 이상인가. 값이 없거나 못 읽으면 False(끔).
+
+    스토어 71 은 «1.0.0+71» 을 보낸다 — 새 화면 이벤트(script_* · 반응)를 모르는 앱에 기능을 열지 않는다.
+    """
+    def parse(v: Optional[str]) -> Optional[tuple[int, ...]]:
+        m = re.match(r"\s*(\d+)\.(\d+)(?:\.(\d+))?", v or "")
+        return tuple(int(x or 0) for x in m.groups()) if m else None
+    have, need = parse(app_version), parse(minimum)
+    return have is not None and need is not None and have >= need
+
+
 def client_form(raw: Optional[Mapping[str, Optional[str]]]) -> dict[str, str]:
     """소켓 쿼리 값 → NPU multipart 필드(client_type 포함). 빈 값은 싣지 않는다."""
     form = {"client_type": "app"}
