@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T56-1",
+ "no": 337,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 동네가 좀 불안하지 않으세요?",
+   "beaver_en": "Don't you feel the neighborhood is a bit unsafe lately?",
+   "beaver_roman": "yojeum dongnega jom buranhaji aneuseyo?",
+   "learner": "네, 저도 걱정돼요. 무슨 일 있었어요?",
+   "en": "Yes, I'm worried too. Did something happen?",
+   "roman": "ne, jeodo geokjeongdwaeyo. museun il isseosseoyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "도둑맞은 집도 있다던데요.",
+   "beaver_en": "I heard some houses got robbed.",
+   "beaver_roman": "dodungmajeun jipdo itdadeondeyo.",
+   "learner": "저도 작년에 자전거를 도둑맞은 적 있어요.",
+   "en": "I had my bike stolen last year, too.",
+   "roman": "jeodo jangnyeone jajeongeoreul dodungmajeun jeok isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "저런, 그때 어떻게 하셨어요?",
+   "beaver_en": "Oh no, what did you do then?",
+   "beaver_roman": "jeoreon, geuttae eotteoke hasyeosseoyo?",
+   "learner": "경찰서에 신고하고 방범 순찰에 참여했어요.",
+   "en": "I reported it to the police station and joined crime-prevention patrols.",
+   "roman": "gyeongchalseoe singohago bangbeom sunchare chamyeohaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 주민이 직접 참여할 수 있군요.",
+   "beaver_en": "Wow, residents can take part directly.",
+   "beaver_roman": "wa, jumini jikjeop chamyeohal su itgunnyo.",
+   "learner": "네, 저는 공군에서 경호 일을 해서 관심이 많았어요.",
+   "en": "Yes, I did security work in the air force, so I was very interested.",
+   "roman": "ne, jeoneun gongguneseo gyeongho ireul haeseo gwansimi manasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "경호요? 대단하시네요. 누구를 지키셨어요?",
+   "beaver_en": "Security? Impressive. Who did you protect?",
+   "beaver_roman": "gyeonghoyo? daedanhasineyo. nugureul jikisyeosseoyo?",
+   "learner": "장군 경호를 맡은 바 있어요. 국방부 행사였어요.",
+   "en": "I guarded a general. It was a defense ministry event.",
+   "roman": "janggun gyeonghoreul mateun ba isseoyo. gukbangbu haengsayeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "군대랑 경찰 얘기 좀 더 해 주실래요?",
+   "beaver_en": "Could you tell me a bit more about the military and the police?",
+   "beaver_roman": "gundaerang gyeongchal yaegi jom deo hae jusillaeyo?",
+   "learner": "국방부와 경찰청이 함께 훈련한 바도 있어요.",
+   "en": "The defense ministry and police have trained together.",
+   "roman": "gukbangbuwa gyeongchalcheongi hamkke hullyeonhan bado isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "우리 동네에도 경호가 필요할까요?",
+   "beaver_en": "Do you think our neighborhood needs security guards?",
+   "beaver_roman": "uri dongneedo gyeonghoga piryohalkkayo?",
+   "learner": "경호보다 이웃끼리 서로 지키는 게 중요해요.",
+   "en": "Neighbors looking out for each other matters more.",
+   "roman": "gyeonghoboda iutkkiri seoro jikineun ge jungyohaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그렇군요. 또 준비할 게 있을까요?",
+   "beaver_en": "I see. Is there anything else to prepare?",
+   "beaver_roman": "geureokunnyo. tto junbihal ge isseulkkayo?",
+   "learner": "현관에 센서등을 다는 것도 좋아요.",
+   "en": "Installing a motion-sensor light at the entrance is also good.",
+   "roman": "hyeongwane senseodeungeul daneun geotdo joayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그 국방부 행사에서 신기한 것도 보셨어요?",
+   "beaver_en": "Did you see anything interesting at that defense ministry event?",
+   "beaver_roman": "geu gukbangbu haengsaeseo singihan geotdo bosyeosseoyo?",
+   "learner": "네, 장군의 칼을 직접 본 적도 있어요.",
+   "en": "Yes, I even saw the general's sword in person.",
+   "roman": "ne, janggunui kareul jikjeop bon jeokdo isseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "말씀 들으니 마음이 놓이네요. 고마워요.",
+   "beaver_en": "Hearing that puts my mind at ease. Thank you.",
+   "beaver_roman": "malsseum deureuni maeumi noineyo. gomawoyo.",
+   "learner": "다음 주민 모임 때 같이 이야기해요.",
+   "en": "Let's talk more at the next residents' meeting.",
+   "roman": "daeum jumin moim ttae gachi iyagihaeyo."
+  }
+ ]
+}

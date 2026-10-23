@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T07-1",
+ "no": 258,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "집 다 봤네. 이 주택 어때? 마음에 들어?",
+   "beaver_en": "We've seen the whole place. How's this house? Do you like it?",
+   "beaver_roman": "Jip da bwanne. I jutaek eottae? Maeume deureo?",
+   "learner": "응, 좋아. 온 김에 상태도 좀 확인하자.",
+   "en": "Yeah, I like it. Since we're here, let's check its condition too.",
+   "roman": "Eung, joa. On gime sangtaedo jom hwaginhaja."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아. 어디부터 볼까?",
+   "beaver_en": "Okay. Where should we start?",
+   "beaver_roman": "Joa. Eodibuteo bolkka?",
+   "learner": "지하실부터 보자. 습기가 있는지 궁금해.",
+   "en": "Let's start with the basement. I wonder if it's damp.",
+   "roman": "Jihasilbuteo boja. Seupgiga inneunji gunggeumhae."
+  },
+  {
+   "n": 3,
+   "beaver": "지하실은 좀 어둡네. 냄새는 괜찮아?",
+   "beaver_en": "The basement is a bit dark. Does it smell okay?",
+   "beaver_roman": "Jihasireun jom eodunne. Naemsaeneun gwaenchana?",
+   "learner": "괜찮아. 내려온 김에 벽도 짚어 볼게.",
+   "en": "It's fine. Since I'm down here, I'll touch the walls too.",
+   "roman": "Gwaenchana. Naeryeoon gime byeokdo jipeo bolge."
+  },
+  {
+   "n": 4,
+   "beaver": "벽은 어때? 젖어 있지 않아?",
+   "beaver_en": "How are the walls? Aren't they wet?",
+   "beaver_roman": "Byeogeun eottae? Jeojeo itji ana?",
+   "learner": "말라 있어. 지하실은 문제없는 것 같아.",
+   "en": "They're dry. The basement seems fine.",
+   "roman": "Malla isseo. Jihasireun munjeeomneun geot gata."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 밖으로 나가자. 뜰이 넓더라.",
+   "beaver_en": "Then let's go outside. The yard looked big.",
+   "beaver_roman": "Geureom bakkeuro nagaja. Tteuri neoltteora.",
+   "learner": "응, 뜰에 나간 김에 담도 확인해 보자.",
+   "en": "Yeah, while we're in the yard, let's check the fence too.",
+   "roman": "Eung, tteure nagan gime damdo hwaginhae boja."
+  },
+  {
+   "n": 6,
+   "beaver": "담은 튼튼해? 좀 오래돼 보이는데.",
+   "beaver_en": "Is the wall sturdy? It looks kind of old.",
+   "beaver_roman": "Dameun teunteunhae? Jom oraedwae boineunde.",
+   "learner": "조금 낡았지만 튼튼해. 금 간 데는 없어.",
+   "en": "It's a little worn, but sturdy. There are no cracks.",
+   "roman": "Jogeum nalgatjiman teunteunhae. Geum gan deneun eopseo."
+  },
+  {
+   "n": 7,
+   "beaver": "이 집에 몇 세대가 살아?",
+   "beaver_en": "How many households live in this house?",
+   "beaver_roman": "I jibe myeot sedaega sara?",
+   "learner": "두 세대가 살아. 나는 위층에서 자취할 거야.",
+   "en": "Two households. I'll live on my own upstairs.",
+   "roman": "Du sedaega sara. Naneun wicheungeseo jachwihal kkeoya."
+  },
+  {
+   "n": 8,
+   "beaver": "고층 아파트는 어때? 그것도 생각해 봤어?",
+   "beaver_en": "What about a high-rise apartment? Did you think about that?",
+   "beaver_roman": "Gocheung apateuneun eottae? Geugeotdo saenggakae bwasseo?",
+   "learner": "고층은 비싸. 그리고 뜰이 있는 주택이 좋아.",
+   "en": "High-rises are expensive. And I like a house with a yard.",
+   "roman": "Gocheungeun bissa. Geurigo tteuri inneun jutaegi joa."
+  },
+  {
+   "n": 9,
+   "beaver": "이왕 자취할 거면 마음에 드는 집이 좋지.",
+   "beaver_en": "If you're going to live alone anyway, a house you like is best.",
+   "beaver_roman": "Iwang jachwihal kkeomyeon maeume deuneun jibi jochi.",
+   "learner": "맞아. 이왕 온 김에 주인한테 물어볼까?",
+   "en": "Right. Since we came anyway, should we ask the owner?",
+   "roman": "Maja. Iwang on gime juinhante mureobolkka?"
+  },
+  {
+   "n": 10,
+   "beaver": "그래, 물어보는 김에 월세도 물어봐.",
+   "beaver_en": "Sure, and while you're at it, ask about the rent too.",
+   "beaver_roman": "Geurae, mureoboneun gime wolsedo mureobwa.",
+   "learner": "응, 바로 물어보자. 같이 와 줘서 고마워!",
+   "en": "Okay, let's ask right away. Thanks for coming with me!",
+   "roman": "Eung, baro mureoboja. Gachi wa jwoseo gomawo!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T02-1",
+ "no": 348,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 육아는 어때? 아이는 잘 커?",
+   "beaver_en": "How's parenting these days? Is your kid growing well?",
+   "beaver_roman": "yojeum yuganeun eottae? aineun jal keo?",
+   "learner": "애는 잘 크긴 해. 근데 육아가 정말 힘들어.",
+   "en": "The kid is growing well. But parenting is really hard.",
+   "roman": "aeneun jal keugin hae. geunde yugaga jeongmal himdeureo."
+  },
+  {
+   "n": 2,
+   "beaver": "도와주는 사람은 없어?",
+   "beaver_en": "Isn't there anyone helping you?",
+   "beaver_roman": "dowajuneun sarameun eopseo?",
+   "learner": "언니랑 형부가 가끔 도와줘. 그래도 힘들어.",
+   "en": "My sister and her husband help sometimes. It's still hard.",
+   "roman": "eonnirang hyeongbuga gakkeum dowajwo. geuraedo himdeureo."
+  },
+  {
+   "n": 3,
+   "beaver": "시댁은 어때? 좀 도와주셔?",
+   "beaver_en": "What about your in-laws? Do they help a bit?",
+   "beaver_roman": "sidaegeun eottae? jom dowajusyeo?",
+   "learner": "시댁이 좀 가부장적이야. 아들을 원하셨대.",
+   "en": "My in-laws are a bit patriarchal. They wanted a son.",
+   "roman": "sidaegi jom gabujangjeogiya. adeureul wonhasyeotdae."
+  },
+  {
+   "n": 4,
+   "beaver": "아, 딸이었구나. 그래서 서운해하셔?",
+   "beaver_en": "Oh, it was a girl. So they're disappointed?",
+   "beaver_roman": "a, ttarieotguna. geuraeseo seounhaehasyeo?",
+   "learner": "응. 임신했을 때부터 아들 얘기만 하셨어.",
+   "en": "Yeah. Since I got pregnant, they only talked about a son.",
+   "roman": "eung. imsinhaesseul ttaebuteo adeul yaegiman hasyeosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "아직도 그런 집이 있네. 남편은 뭐래?",
+   "beaver_en": "Families like that still exist. What does your husband say?",
+   "beaver_roman": "ajikdo geureon jibi inne. nampyeoneun mworae?",
+   "learner": "남편이 외동아들이라 가문 걱정이 크대.",
+   "en": "He's an only son, so they worry a lot about the family line.",
+   "roman": "nampyeoni oedongadeurira gamun geokjeongi keudae."
+  },
+  {
+   "n": 6,
+   "beaver": "대를 꼭 아들이 이어야 해? 이상하다.",
+   "beaver_en": "Does a son really have to carry on the family line? That's strange.",
+   "beaver_roman": "daereul kkok adeuri ieoya hae? isanghada.",
+   "learner": "시어머니는 대를 꼭 이어야 한다셔. 답답해.",
+   "en": "My mother-in-law says the line must continue. It's frustrating.",
+   "roman": "sieomeonineun daereul kkok ieoya handasyeo. dapdapae."
+  },
+  {
+   "n": 7,
+   "beaver": "친정 어머님은 뭐라고 하셔?",
+   "beaver_en": "What does your own mother say?",
+   "beaver_roman": "chinjeong eomeonimeun mworago hasyeo?",
+   "learner": "엄마는 딸이 더 효도한다고 하셔. 위로가 돼.",
+   "en": "My mom says daughters care for parents more. It comforts me.",
+   "roman": "eommaneun ttari deo hyodohandago hasyeo. wiroga dwae."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아. 효는 아들딸 상관없지.",
+   "beaver_en": "Right. Filial piety has nothing to do with son or daughter.",
+   "beaver_roman": "maja. hyoneun adeulttal sanggwaneopji.",
+   "learner": "따지고 보면 효도는 딸이 더 잘하잖아.",
+   "en": "When you think about it, daughters are better at caring for parents.",
+   "roman": "ttajigo bomyeon hyodoneun ttari deo jalhajana."
+  },
+  {
+   "n": 9,
+   "beaver": "신경 쓰지 마. 애 어릴 때가 제일 힘들어.",
+   "beaver_en": "Don't worry about it. When kids are little is the hardest.",
+   "beaver_roman": "singyeong sseuji ma. ae eoril ttaega jeil himdeureo.",
+   "learner": "고마워. 애 키우는 건 정말 체력 싸움이야.",
+   "en": "Thanks. Raising a kid is really a test of stamina.",
+   "roman": "gomawo. ae kiuneun geon jeongmal cheryeok ssaumiya."
+  },
+  {
+   "n": 10,
+   "beaver": "힘들면 언제든 전화해. 우리 같이 버티자.",
+   "beaver_en": "Call me anytime it's hard. Let's get through it together.",
+   "beaver_roman": "himdeulmyeon eonjedeun jeonhwahae. uri gachi beotija.",
+   "learner": "응, 고마워. 너랑 얘기하니까 힘이 난다.",
+   "en": "Yeah, thanks. Talking with you gives me strength.",
+   "roman": "eung, gomawo. neorang yaegihanikka himi nanda."
+  }
+ ]
+}

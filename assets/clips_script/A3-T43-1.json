@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T43-1",
+ "no": 78,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 한국 문화에 대해 알려 줄래요?",
+   "beaver_en": "Minsu, can you tell me about Korean culture?",
+   "beaver_roman": "Minsu ssi, hanguk munhwae daehae allyeo jullaeyo?",
+   "learner": "좋아요. 한국 문화를 소개해 줄게요.",
+   "en": "Sure. I'll introduce Korean culture to you.",
+   "roman": "Joayo. Hanguk munhwareul sogaehae julgeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "명절에 뭘 해요?",
+   "beaver_en": "What do you do on holidays?",
+   "beaver_roman": "Myeongjeore mwol haeyo?",
+   "learner": "한복을 입고 가족과 윷놀이를 해요.",
+   "en": "We wear hanbok and play yut with family.",
+   "roman": "Hanbogeul ipgo gajokgwa yunnorireul haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "윷놀이는 어려워요?",
+   "beaver_en": "Is the yut game difficult?",
+   "beaver_roman": "Yunnorineun eoryeowoyo?",
+   "learner": "아니요, 막대 네 개만 던지면 돼서 쉬워요.",
+   "en": "No, you just throw four sticks, so it's easy.",
+   "roman": "Aniyo, makdae ne gaeman deonjimyeon dwaeseo swiwoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "한글은 언제 만들었어요?",
+   "beaver_en": "When was Hangul created?",
+   "beaver_roman": "Hangeureun eonje mandeureosseoyo?",
+   "learner": "조선 시대에 세종대왕이 만들었어요.",
+   "en": "King Sejong made it in the Joseon era.",
+   "roman": "Joseon sidaee Sejongdaewangi mandeureosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "한글은 배우기 어렵지 않아요?",
+   "beaver_en": "Isn't Hangul hard to learn?",
+   "beaver_roman": "Hangeureun baeugi eoryeopji anayo?",
+   "learner": "아니요, 며칠이면 읽을 수 있어요. 쉬워요.",
+   "en": "No, you can read it in a few days. It's easy.",
+   "roman": "Aniyo, myeochirimyeon ilgeul su isseoyo. Swiwoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "태극기 가운데 빨간색과 파란색은 뭐예요?",
+   "beaver_en": "What are the red and blue in the middle of the flag?",
+   "beaver_roman": "Taegeukgi gaunde ppalgansaekgwa paransaegeun mwoyeyo?",
+   "learner": "빨간색은 양, 파란색은 음을 뜻해요.",
+   "en": "Red means yang, and blue means yin.",
+   "roman": "Ppalgansaegeun yang, paransaegeun eumeul tteuthaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "한국에는 어떤 종교가 있어요?",
+   "beaver_en": "What religions are there in Korea?",
+   "beaver_roman": "Hangugeneun eotteon jonggyoga isseoyo?",
+   "learner": "불교, 기독교, 천주교가 있어요.",
+   "en": "There's Buddhism, Protestantism, and Catholicism.",
+   "roman": "Bulgyo, gidokgyo, cheonjugyoga isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "서양 문화와 많이 달라요?",
+   "beaver_en": "Is it very different from Western culture?",
+   "beaver_roman": "Seoyang munhwawa mani dallayo?",
+   "learner": "네, 한국은 유교의 영향을 많이 받았어요.",
+   "en": "Yes, Korea was greatly influenced by Confucianism.",
+   "roman": "Ne, hangugeun yugyoui yeonghyangeul mani badasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "문화와 전통에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about culture and tradition?",
+   "beaver_roman": "Munhwawa jeontonge daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 다음에 한복 가게에 같이 가요.",
+   "en": "Sure. Let's go to a hanbok shop together next time.",
+   "roman": "Joayo. Daeume hanbok gagee gachi gayo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요! 오늘 정말 재미있었어요. 고마워요.",
+   "beaver_en": "Great! Today was really fun. Thank you.",
+   "beaver_roman": "Joayo! Oneul jeongmal jaemiisseosseoyo. Gomawoyo.",
+   "learner": "저도요. 서양 문화도 알려 주세요.",
+   "en": "Me too. Please teach me about Western culture too.",
+   "roman": "Jeodoyo. Seoyang munhwado allyeo juseyo."
+  }
+ ]
+}

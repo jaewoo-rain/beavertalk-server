@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T60-1",
+ "no": 393,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선배, 저 어학 시험에 또 낙방했어요.",
+   "beaver_en": "Senior, I failed the language exam again.",
+   "beaver_roman": "Seonbae, jeo eohak siheome tto nakbanghaesseoyo.",
+   "learner": "저런, 떨어졌다고 너무 실망하지 마.",
+   "en": "Oh no, don't be too disappointed that you failed.",
+   "roman": "Jeoreon, tteoreojyeotdago neomu silmanghaji ma."
+  },
+  {
+   "n": 2,
+   "beaver": "제 공부 방법이 잘못됐을까요?",
+   "beaver_en": "Was my study method wrong?",
+   "beaver_roman": "Je gongbu bangbeobi jalmotdwaesseulkkayo?",
+   "learner": "단어장을 매일 봤으면 좋았을 텐데.",
+   "en": "It would have been good if you'd reviewed a vocab notebook daily.",
+   "roman": "Daneojangeul maeil bwasseumyeon joasseul tende."
+  },
+  {
+   "n": 3,
+   "beaver": "맞아요. 쪽지에 단어를 쓰다가 잃어버렸어요.",
+   "beaver_en": "Right. I wrote words on slips and lost them.",
+   "beaver_roman": "Majayo. Jjokjie daneoreul sseudaga ireobeoryeosseoyo.",
+   "learner": "쪽지 말고 공책을 체계적으로 써 봐.",
+   "en": "Instead of slips, use a notebook systematically.",
+   "roman": "Jjokji malgo gongchaegeul chegyejeogeuro sseo bwa."
+  },
+  {
+   "n": 4,
+   "beaver": "문제지에 빈칸도 많이 남겼어요.",
+   "beaver_en": "I also left many blanks on the test.",
+   "beaver_roman": "Munjejie binkando mani namgyeosseoyo.",
+   "learner": "시간을 체크하면서 빈칸 없이 채워 봐.",
+   "en": "Check the time and fill everything in, no blanks.",
+   "roman": "Siganeul chekeuhamyeonseo binkan eopsi chaewo bwa."
+  },
+  {
+   "n": 5,
+   "beaver": "공부와 시험에 대해 더 말씀해 주실래요?",
+   "beaver_en": "Could you tell me more about studying and exams?",
+   "beaver_roman": "Gongbuwa siheome daehae deo malsseumhae jusillaeyo?",
+   "learner": "어학은 교과 공부처럼 지속적으로 해야 돼.",
+   "en": "Language study needs steady work, like school subjects.",
+   "roman": "Eohageun gyogwa gongbucheoreom jisokjeogeuro haeya dwae."
+  },
+  {
+   "n": 6,
+   "beaver": "학원 수업도 다시 들어야 할까요?",
+   "beaver_en": "Should I take academy classes again too?",
+   "beaver_roman": "Hagwon sueopdo dasi deureoya halkkayo?",
+   "learner": "응, 회화반을 수강하는 것도 좋아.",
+   "en": "Yes, taking a conversation class is good too.",
+   "roman": "Eung, hoehwabaneul suganghaneun geotdo joa."
+  },
+  {
+   "n": 7,
+   "beaver": "지난번에는 수료를 못 하고 그만뒀어요.",
+   "beaver_en": "Last time I quit without completing it.",
+   "beaver_roman": "Jinanbeoneneun suryoreul motago geumandwosseoyo.",
+   "learner": "끝까지 다녔으면 실력이 늘었을 텐데.",
+   "en": "If you'd stayed till the end, you'd have improved.",
+   "roman": "Kkeutkkaji danyeosseumyeon sillyeogi neureosseul tende."
+  },
+  {
+   "n": 8,
+   "beaver": "스터디를 해 보면 어떨까요?",
+   "beaver_en": "What if I try a study group?",
+   "beaver_roman": "Seuteodireul hae bomyeon eotteolkkayo?",
+   "learner": "좋아. 내 스터디에 들어와서 같이 하자.",
+   "en": "Good. Join my study group and let's study together.",
+   "roman": "Joa. Nae seuteodie deureowaseo gachi haja."
+  },
+  {
+   "n": 9,
+   "beaver": "정말요? 그럼 다음 달에는 붙을 수 있겠죠?",
+   "beaver_en": "Really? Then I can pass next month, right?",
+   "beaver_roman": "Jeongmallyo? Geureom daeum dareneun buteul su itgetjyo?",
+   "learner": "그럼. 학원도 수료하면 꼭 붙을 거야.",
+   "en": "Of course. If you complete the course, you'll pass.",
+   "roman": "Geureom. Hagwondo suryohamyeon kkok buteul geoya."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요, 선배. 토요일 스터디에 갈게요.",
+   "beaver_en": "Thanks, senior. I'll come to the Saturday study group.",
+   "beaver_roman": "Gomawoyo, seonbae. Toyoil seuteodie galgeyo.",
+   "learner": "그래, 단어장 챙겨서 토요일에 보자.",
+   "en": "Okay, bring your vocab notebook. See you Saturday.",
+   "roman": "Geurae, daneojang chaenggyeoseo toyoire boja."
+  }
+ ]
+}

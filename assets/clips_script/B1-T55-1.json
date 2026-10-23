@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T55-1",
+ "no": 153,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. mueoseul dowadeurilkkayo?",
+   "learner": "증명서를 떼고 싶어요. 발급이 몇 시까지예요?",
+   "en": "I'd like to get a certificate. Until what time is issuance?",
+   "roman": "jeungmyeongseoreul ttego sipeoyo. balgeubi myeot sikkajiyeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "다섯 시까지예요. 지금은 네 시 반이에요.",
+   "beaver_en": "Until five. It's four thirty now.",
+   "beaver_roman": "daseot sikkajiyeyo. jigeumeun ne si banieyo.",
+   "learner": "다행이에요. 세 시에 오려고 했는데 늦었어요.",
+   "en": "What a relief. I meant to come at three, but I was late.",
+   "roman": "dahaengieyo. se sie oryeogo haenneunde neujeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "괜찮아요. 신분증을 주세요.",
+   "beaver_en": "That's okay. Please give me your ID.",
+   "beaver_roman": "gwaenchanayo. sinbunjeungeul juseyo.",
+   "learner": "여기 있어요. 발급은 몇 분 걸려요?",
+   "en": "Here it is. How many minutes does issuance take?",
+   "roman": "yeogi isseoyo. balgeubeun myeot bun geollyeoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "십 분쯤 걸려요. 어떤 증명서가 필요하세요?",
+   "beaver_en": "About ten minutes. Which certificate do you need?",
+   "beaver_roman": "sip bunjjeum geollyeoyo. eotteon jeungmyeongseoga piryohaseyo?",
+   "learner": "납세 증명서요. 회사에 내야 해요.",
+   "en": "A tax payment certificate. I have to submit it to my company.",
+   "roman": "napse jeungmyeongseoyo. hoesae naeya haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "네, 이 서류를 써 주세요. 주소도 써 주세요.",
+   "beaver_en": "Okay, please fill out this form. Your address too.",
+   "beaver_roman": "ne, i seoryureul sseo juseyo. jusodo sseo juseyo.",
+   "learner": "주소는 강원도인데 서울에서 일해요.",
+   "en": "My address is in Gangwon Province, but I work in Seoul.",
+   "roman": "jusoneun gangwondoinde seoureseo ilhaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다 쓰셨어요? 이제 네 시 사십 분이에요.",
+   "beaver_en": "All done? It's now four forty.",
+   "beaver_roman": "da sseosyeosseoyo? ije ne si sasip bunieyo.",
+   "learner": "네, 다 썼어요. 다섯 시 전에 끝나요?",
+   "en": "Yes, I'm done. Will it be finished before five?",
+   "roman": "ne, da sseosseoyo. daseot si jeone kkeunnayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 네 시 오십 분에 나와요. 의자에 앉아 계세요.",
+   "beaver_en": "Yes, it'll be ready at four fifty. Please have a seat.",
+   "beaver_roman": "ne, ne si osip bune nawayo. uijae anja gyeseyo.",
+   "learner": "감사합니다. 직원분들이 정말 친절하시네요.",
+   "en": "Thank you. The staff are really kind.",
+   "roman": "gamsahamnida. jigwonbundeuri jeongmal chinjeolhasineyo."
+  },
+  {
+   "n": 8,
+   "beaver": "감사합니다. 조금만 기다려 주세요.",
+   "beaver_en": "Thank you. Please wait just a moment.",
+   "beaver_roman": "gamsahamnida. jogeumman gidaryeo juseyo.",
+   "learner": "좋아요. 이 구청은 몇 시에 문을 열어요?",
+   "en": "Sure. What time does this district office open?",
+   "roman": "joayo. i gucheongeun myeot sie muneul yeoreoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "아침 아홉 시에 열고 저녁 여섯 시에 닫아요.",
+   "beaver_en": "It opens at nine in the morning and closes at six in the evening.",
+   "beaver_roman": "achim ahop sie yeolgo jeonyeok yeoseot sie dadayo.",
+   "learner": "그런데 발급은 왜 다섯 시까지예요?",
+   "en": "Then why is issuance only until five?",
+   "roman": "geureonde balgeubeun wae daseot sikkajiyeyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "다섯 시 이후에는 서류를 정리해요. 증명서 나왔어요!",
+   "beaver_en": "After five we sort the paperwork. Your certificate is ready!",
+   "beaver_roman": "daseot si ihueneun seoryureul jeongnihaeyo. jeungmyeongseo nawasseoyo!",
+   "learner": "와, 네 시 오십 분이네요. 정말 감사합니다!",
+   "en": "Wow, it's exactly four fifty. Thank you so much!",
+   "roman": "wa, ne si osip bunineyo. jeongmal gamsahamnida!"
+  }
+ ]
+}

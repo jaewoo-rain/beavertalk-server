@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T09-2",
+ "no": 123,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 바람이 갑자기 차가워졌네. 너 괜찮아?",
+   "beaver_en": "Wow, the wind suddenly got cold. Are you okay?",
+   "beaver_roman": "wa, barami gapjagi chagawojyeonne. neo gwaenchana?",
+   "learner": "아니, 너무 추워. 재킷을 입었어야 했는데.",
+   "en": "No, I'm freezing. I should have worn a jacket.",
+   "roman": "ani, neomu chuwo. jaekiseul ibeosseoya haenneunde."
+  },
+  {
+   "n": 2,
+   "beaver": "신발도 얇아 보여. 샌들 신고 왔어?",
+   "beaver_en": "Your shoes look thin too. Did you wear sandals?",
+   "beaver_roman": "sinbaldo yalba boyeo. saendeul singo wasseo?",
+   "learner": "응, 발이 차가워. 운동화를 신었어야 했는데.",
+   "en": "Yeah, my feet are cold. I should have worn sneakers.",
+   "roman": "eung, bari chagawo. undonghwareul sineosseoya haenneunde."
+  },
+  {
+   "n": 3,
+   "beaver": "스커트도 짧은데 스타킹은 안 신었어?",
+   "beaver_en": "Your skirt is short too. No stockings?",
+   "beaver_roman": "seukeoteudo jjalbeunde seutakingeun an sineosseo?",
+   "learner": "응, 안 신었어. 스타킹이라도 신었어야 했는데.",
+   "en": "No, I didn't. I should have at least worn stockings.",
+   "roman": "eung, an sineosseo. seutakingirado sineosseoya haenneunde."
+  },
+  {
+   "n": 4,
+   "beaver": "그 스커트는 두꺼운 거야?",
+   "beaver_en": "Is that skirt a thick one?",
+   "beaver_roman": "geu seukeoteuneun dukkeoun geoya?",
+   "learner": "아니, 체크무늬 면 스커트라 얇아. 통도 넓고.",
+   "en": "No, it's a thin checkered cotton skirt. It's wide, too.",
+   "roman": "ani, chekeumunui myeon seukeoteura yalba. tongdo neolkko."
+  },
+  {
+   "n": 5,
+   "beaver": "가방은 괜찮아? 비가 올 것 같은데.",
+   "beaver_en": "Is your bag okay? Looks like it might rain.",
+   "beaver_roman": "gabangeun gwaenchana? biga ol geot gateunde.",
+   "learner": "작은 손가방이라 걱정이야. 우산도 안 가져왔어.",
+   "en": "It's a small handbag, so I'm worried. I didn't bring an umbrella either.",
+   "roman": "jageun songabangira geokjeongiya. usando an gajyeowasseo."
+  },
+  {
+   "n": 6,
+   "beaver": "나는 점퍼 안에 조끼도 입었어.",
+   "beaver_en": "I even wore a vest under my windbreaker.",
+   "beaver_roman": "naneun jeompeo ane jokkido ibeosseo.",
+   "learner": "역시 너는 똑똑해. 나도 조끼를 입었어야 했는데.",
+   "en": "You're so smart. I should have worn a vest too.",
+   "roman": "yeoksi neoneun ttokttokae. nado jokkireul ibeosseoya haenneunde."
+  },
+  {
+   "n": 7,
+   "beaver": "아까 지하철에서 발도 밟혔지?",
+   "beaver_en": "Someone stepped on your foot on the subway earlier, right?",
+   "beaver_roman": "akka jihacheoreseo baldo balpyeotji?",
+   "learner": "응, 사람들한테 밀려서 샌들 신은 발을 밟혔어.",
+   "en": "Yeah, I got pushed by the crowd and my sandaled foot got stepped on.",
+   "roman": "eung, saramdeulhante millyeoseo saendeul sineun bareul balpyeosseo."
+  },
+  {
+   "n": 8,
+   "beaver": "아팠겠다. 근데 허리띠가 왜 풀렸어?",
+   "beaver_en": "That must have hurt. But why is your belt undone?",
+   "beaver_roman": "apatgetda. geunde heorittiga wae pullyeosseo?",
+   "learner": "허리띠가 끊어졌어. 끈으로 묶어 볼게.",
+   "en": "My belt broke. I'll try tying it with a string.",
+   "roman": "heorittiga kkeuneojyeosseo. kkeuneuro mukkeo bolge."
+  },
+  {
+   "n": 9,
+   "beaver": "지금 몇 시야? 시계 좀 봐 줘.",
+   "beaver_en": "What time is it? Check your watch.",
+   "beaver_roman": "jigeum myeot siya? sigye jom bwa jwo.",
+   "learner": "손목시계도 집에 두고 왔어. 오늘 실수투성이야.",
+   "en": "I left my wristwatch at home too. Today is full of mistakes.",
+   "roman": "sonmoksigyedo jibe dugo wasseo. oneul silsutuseongiya."
+  },
+  {
+   "n": 10,
+   "beaver": "내 점퍼 빌려줄게. 이제 카페로 가자.",
+   "beaver_en": "I'll lend you my windbreaker. Let's go to the café now.",
+   "beaver_roman": "nae jeompeo billyeojulge. ije kapero gaja.",
+   "learner": "고마워! 날씨를 먼저 봤어야 했는데. 가자!",
+   "en": "Thanks! I should have checked the weather first. Let's go!",
+   "roman": "gomawo! nalssireul meonjeo bwasseoya haenneunde. gaja!"
+  }
+ ]
+}

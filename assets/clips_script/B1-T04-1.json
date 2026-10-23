@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T04-1",
+ "no": 117,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새로 온 동료 이야기 들었어요?",
+   "beaver_en": "Did you hear about the new coworker?",
+   "beaver_roman": "saero on dongnyo iyagi deureosseoyo?",
+   "learner": "네, 지수 씨요? 다음 주부터 우리 팀에서 일한대요.",
+   "en": "Yes, Jisu? I heard she starts on our team next week.",
+   "roman": "ne, jisu ssiyo? daeum jubuteo uri timeseo ilhandaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 사람이래요? 성격이 좋아요?",
+   "beaver_en": "What kind of person is she? Is she nice?",
+   "beaver_roman": "eotteon saramiraeyo? seonggyeogi joayo?",
+   "learner": "마음씨가 좋고 사람들하고 잘 어울린대요.",
+   "en": "I heard she's kind-hearted and gets along well with people.",
+   "roman": "maeumssiga joko saramdeulhago jal eoullindaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "또 어떤 성격이래요?",
+   "beaver_en": "What else did you hear about her personality?",
+   "beaver_roman": "tto eotteon seonggyeogiraeyo?",
+   "learner": "아주 사교적이라서 친구를 금방 사귄대요.",
+   "en": "She's very sociable, so she makes friends fast, I hear.",
+   "roman": "aju sagyojeogiraseo chingureul geumbang sagwindaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그래요? 일은 잘해요?",
+   "beaver_en": "Really? Is she good at her work?",
+   "beaver_roman": "geuraeyo? ireun jalhaeyo?",
+   "learner": "네, 영리해서 일을 빨리 배운대요.",
+   "en": "Yes, she's clever, so she learns quickly, I hear.",
+   "roman": "ne, yeongnihaeseo ireul ppalli baeundaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "와, 좋네요. 단점은 없어요?",
+   "beaver_en": "Wow, nice. Does she have any weak points?",
+   "beaver_roman": "wa, jonneyo. danjeomeun eopseoyo?",
+   "learner": "일할 때 좀 냉정하게 말하는 게 단점이래요.",
+   "en": "Her weak point is talking a bit coldly at work, they say.",
+   "roman": "ilhal ttae jom naengjeonghage malhaneun ge danjeomiraeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "일할 때는 그럴 수 있죠. 유머 감각은요?",
+   "beaver_en": "That happens at work. What about her sense of humor?",
+   "beaver_roman": "ilhal ttaeneun geureol su itjyo. yumeo gamgageunyo?",
+   "learner": "유머도 있어서 회의 때 사람들을 자주 웃긴대요.",
+   "en": "She's funny too, and often makes people laugh in meetings.",
+   "roman": "yumeodo isseoseo hoeui ttae saramdeureul jaju utgindaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "나이는 어리다고 들었는데, 괜찮을까요?",
+   "beaver_en": "I heard she's young. Will she be okay?",
+   "beaver_roman": "naineun eoridago deureonneunde, gwaenchaneulkkayo?",
+   "learner": "어리지만 철이 들어서 실수를 잘 안 한대요.",
+   "en": "She's young but mature, so she rarely makes mistakes.",
+   "roman": "eorijiman cheori deureoseo silsureul jal an handaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "누가 그런 이야기를 해 줬어요?",
+   "beaver_en": "Who told you all that?",
+   "beaver_roman": "nuga geureon iyagireul hae jwosseoyo?",
+   "learner": "김 과장님한테서 들었어요. 많이 칭찬하셨어요.",
+   "en": "I heard it from Manager Kim. He praised her a lot.",
+   "roman": "gim gwajangnimhanteseo deureosseoyo. mani chingchanhasyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 첫날에 같이 점심 먹을까요?",
+   "beaver_en": "Then shall we have lunch with her on her first day?",
+   "beaver_roman": "geureom cheonnare gachi jeomsim meogeulkkayo?",
+   "learner": "좋아요. 지수 씨도 한식을 좋아한대요.",
+   "en": "Sounds good. I heard Jisu likes Korean food too.",
+   "roman": "joayo. jisu ssido hansigeul joahandaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요, 제가 식당을 예약할게요.",
+   "beaver_en": "Great, I'll book a restaurant.",
+   "beaver_roman": "joayo, jega sikdangeul yeyakalgeyo.",
+   "learner": "고마워요. 저는 환영 카드를 준비할게요.",
+   "en": "Thanks. I'll prepare a welcome card.",
+   "roman": "gomawoyo. jeoneun hwanyeong kadeureul junbihalgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T36-1",
+ "no": 376,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김 과장님 댁에 초상이 났대요. 들으셨어요?",
+   "beaver_en": "I heard Manager Kim's family had a death. Did you hear?",
+   "beaver_roman": "Gim gwajangnim daege chosangi natdaeyo. Deureusyeosseoyo?",
+   "learner": "네, 아침에 들었어요. 장례는 삼일장이래요.",
+   "en": "Yes, I heard this morning. It's a three-day funeral.",
+   "roman": "Ne, achime deureosseoyo. Jangnyeneun samiljangiraeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "상갓집에는 언제 가는 게 좋을까요?",
+   "beaver_en": "When should we go to the house of mourning?",
+   "beaver_roman": "Sanggatjibeneun eonje ganeun ge joeulkkayo?",
+   "learner": "오늘 일을 끝낸 후에야 비로소 갈 수 있겠어요.",
+   "en": "I can only go after I finish today's work.",
+   "roman": "Oneul ireul kkeunnaen hueya biroso gal ssu itgesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "조의는 어떻게 하실 거예요?",
+   "beaver_en": "How will you give your condolence money?",
+   "beaver_roman": "Joeuineun eotteoke hasil kkeoyeyo?",
+   "learner": "팀에서 같이 모아서 내면 좋겠어요.",
+   "en": "It'd be nice to collect it together as a team.",
+   "roman": "Timeseo gachi moaseo naemyeon jokesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 그날 박 부장님 환갑잔치도 겹쳤어요.",
+   "beaver_en": "But Director Park's 60th birthday party is the same day.",
+   "beaver_roman": "Geureonde geunal bak bujangnim hwangapjanchido gyeopcheosseoyo.",
+   "learner": "환갑잔치는 저녁이죠? 상갓집 먼저 가요.",
+   "en": "The 60th party is in the evening, right? Let's go to the mourning first.",
+   "roman": "Hwangapjanchineun jeonyeogijyo? Sanggatjip meonjeo gayo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋아요. 경조사가 한꺼번에 몰리네요.",
+   "beaver_en": "Okay. All the family events are coming at once.",
+   "beaver_roman": "Joayo. Gyeongjosaga hankkeobeone mollineyo.",
+   "learner": "그러게요. 다음 주엔 시상식에 송년회도 있어요.",
+   "en": "I know. Next week there's an awards ceremony and a year-end party too.",
+   "roman": "Geureogeyo. Daeum juen sisangsige songnyeonhoedo isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "맞다, 창립 십 주년 시상식이죠? 뒤풀이도 있대요.",
+   "beaver_en": "Right, the 10th anniversary awards? There's an after-party too.",
+   "beaver_roman": "Matda, changnip sip junyeon sisangsigijyo? Dwipurido itdaeyo.",
+   "learner": "네, 뒤풀이는 식이 끝나고 호프집에서 한대요.",
+   "en": "Yes, the after-party is at a pub after the ceremony.",
+   "roman": "Ne, dwipurineun sigi kkeunnago hopeujibeseo handaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "박 부장님은 환갑 전에 성묘도 다녀오신대요.",
+   "beaver_en": "Director Park is visiting his ancestors' graves before his 60th.",
+   "beaver_roman": "Bak bujangnimeun hwangap jeone seongmyodo danyeoosindaeyo.",
+   "learner": "부모님 묘에 인사드리고 오시나 봐요.",
+   "en": "He must be paying respects at his parents' grave.",
+   "roman": "Bumonim myoe insadeurigo osina bwayo."
+  },
+  {
+   "n": 8,
+   "beaver": "참, 이번 주말에 지역 축제도 있죠?",
+   "beaver_en": "Oh, there's a local festival this weekend too, right?",
+   "beaver_roman": "Cham, ibeon jumare jiyeok chukjedo itjyo?",
+   "learner": "네, 토요일 밤에 강가에서 불꽃놀이를 해요.",
+   "en": "Yes, there are fireworks by the river on Saturday night.",
+   "roman": "Ne, toyoil bame gangkkaeseo bulkkonnorireul haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "가족들이랑 가 보려고요. 같이 갈래요?",
+   "beaver_en": "I'm going with my family. Want to come?",
+   "beaver_roman": "Gajokdeurirang ga boryeogoyo. Gachi gallaeyo?",
+   "learner": "좋아요. 일 다 끝나면 좀 쉬어야겠네요.",
+   "en": "Sure. Once all the work is done, I should rest a bit.",
+   "roman": "Joayo. Il da kkeunnamyeon jom swieoyagenneyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 퇴근 후에 같이 상갓집부터 가요.",
+   "beaver_en": "Then let's go to the mourning house together after work.",
+   "beaver_roman": "Geureom toegeun hue gachi sanggatjipputeo gayo.",
+   "learner": "네. 환갑잔치에서 부장님께 축하드려요.",
+   "en": "Okay. And let's congratulate the director at his 60th birthday party.",
+   "roman": "Ne. Hwangapjanchieseo bujangnimkke chukadeuryeoyo."
+  }
+ ]
+}

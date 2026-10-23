@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T62-1",
+ "no": 343,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 이번 달 지출을 정리해 보셨어요?",
+   "beaver_en": "Hello. Have you sorted out this month's spending?",
+   "beaver_roman": "annyeonghaseyo. ibeon dal jichureul jeongnihae bosyeosseoyo?",
+   "learner": "네, 주거비가 가장 큰 지출이에요.",
+   "en": "Yes, housing costs are my biggest expense.",
+   "roman": "ne, jugeobiga gajang keun jichurieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "주거비는 얼마나 나가요?",
+   "beaver_en": "How much goes to housing?",
+   "beaver_roman": "jugeobineun eolmana nagayo?",
+   "learner": "월세로 매달 육십만 원 정도 나가요.",
+   "en": "About 600,000 won goes to rent every month.",
+   "roman": "wolsero maedal yuksimman won jeongdo nagayo."
+  },
+  {
+   "n": 3,
+   "beaver": "외식비는요?",
+   "beaver_en": "What about dining out?",
+   "beaver_roman": "oesikppineunnyo?",
+   "learner": "외식을 자주 해서 외식비가 많이 나와요.",
+   "en": "I eat out often, so dining-out costs are high.",
+   "roman": "oesigeul jaju haeseo oesikppiga mani nawayo."
+  },
+  {
+   "n": 4,
+   "beaver": "씀씀이를 줄일 방법을 생각해 보셨어요?",
+   "beaver_en": "Have you thought about ways to cut your spending?",
+   "beaver_roman": "sseumsseumireul juril bangbeobeul saenggakae bosyeosseoyo?",
+   "learner": "알뜰한 소비를 생활화하려고 선불 카드를 써요.",
+   "en": "I use a prepaid card to make frugal spending a habit.",
+   "roman": "altteulhan sobireul saenghwalhwaharyeogo seonbul kadeureul sseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "보험료는 어떻습니까?",
+   "beaver_en": "How about insurance premiums?",
+   "beaver_roman": "boheomnyoneun eotteoseumnikka?",
+   "learner": "보험료는 매달 자동으로 빠져나가요.",
+   "en": "The insurance premium is paid automatically every month.",
+   "roman": "boheomnyoneun maedal jadongeuro ppajyeonagayo."
+  },
+  {
+   "n": 6,
+   "beaver": "비상금은 따로 모으고 계세요?",
+   "beaver_en": "Are you saving emergency money separately?",
+   "beaver_roman": "bisanggeumeun ttaro moeugo gyeseyo?",
+   "learner": "네, 매달 십만 원씩 비상금으로 모아요.",
+   "en": "Yes, I save 100,000 won a month as emergency money.",
+   "roman": "ne, maedal simman wonssik bisanggeumeuro moayo."
+  },
+  {
+   "n": 7,
+   "beaver": "다른 큰 지출도 있나요?",
+   "beaver_en": "Are there any other big expenses?",
+   "beaver_roman": "dareun keun jichuldo innayo?",
+   "learner": "부모님께 매달 송금하는 돈도 있어요.",
+   "en": "There's also money I send to my parents every month.",
+   "roman": "bumonimkke maedal songgeumhaneun dondo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "현금은 자주 쓰세요?",
+   "beaver_en": "Do you use cash often?",
+   "beaver_roman": "hyeongeumeun jaju sseuseyo?",
+   "learner": "아니요, 인출기 수수료 때문에 잘 안 써요.",
+   "en": "No, I rarely do because of ATM fees.",
+   "roman": "aniyo, inchulgi susuryo ttaemune jal an sseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "평소 돈 관리는 어떻게 하세요?",
+   "beaver_en": "How do you usually manage your money?",
+   "beaver_roman": "pyeongso don gwallineun eotteoke haseyo?",
+   "learner": "앱으로 지출을 실시간으로 확인해요.",
+   "en": "I check my spending in real time on an app.",
+   "roman": "aebeuro jichureul silssiganeuro hwaginhaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 다음 달엔 외식비부터 줄여 봅시다.",
+   "beaver_en": "Good. Next month, let's start by cutting dining out.",
+   "beaver_roman": "jotseumnida. daeum daren oesikppibuteo juryeo bopsida.",
+   "learner": "네, 실속 있게 씀씀이를 줄여 볼게요. 감사합니다.",
+   "en": "Okay, I'll cut my spending wisely. Thank you.",
+   "roman": "ne, silsok itkke sseumsseumireul juryeo bolgeyo. gamsahamnida."
+  }
+ ]
+}

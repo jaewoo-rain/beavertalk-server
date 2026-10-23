@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T15-1",
+ "no": 130,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "자리 배치는 다 끝났어요?",
+   "beaver_en": "Is the seating arrangement all done?",
+   "beaver_roman": "jari baechineun da kkeunnasseoyo?",
+   "learner": "네, 지역별로 자리를 배치했어요.",
+   "en": "Yes, I arranged the seats by region.",
+   "roman": "ne, jiyeokbyeollo jarireul baechihaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "남부 지역 손님은 어디에 앉아요?",
+   "beaver_en": "Where do the southern region guests sit?",
+   "beaver_roman": "nambu jiyeok sonnimeun eodie anjayo?",
+   "learner": "남부 지역은 무대 오른편에 앉도록 했어요.",
+   "en": "I had the southern region sit on the right side of the stage.",
+   "roman": "nambu jiyeogeun mudae oreunpyeone andorok haesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "중부 지역은요?",
+   "beaver_en": "What about the central region?",
+   "beaver_roman": "jungbu jiyeogeunyo?",
+   "learner": "중부 지역은 반대쪽인 좌측에 있어요.",
+   "en": "The central region is on the opposite side, the left.",
+   "roman": "jungbu jiyeogeun bandaejjogin jwacheuge isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "외부 손님은요?",
+   "beaver_en": "What about outside guests?",
+   "beaver_roman": "oebu sonnimeunyo?",
+   "learner": "외부 손님은 무대 양옆에 앉으시도록 했어요.",
+   "en": "I had outside guests sit on both sides of the stage.",
+   "roman": "oebu sonnimeun mudae yangnyeope anjeusidorok haesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "입구랑 창문은 어느 쪽에 있어요?",
+   "beaver_en": "Which side are the entrance and windows on?",
+   "beaver_roman": "ipgurang changmuneun eoneu jjoge isseoyo?",
+   "learner": "입구는 북쪽, 창문은 동쪽과 서쪽에 있어요.",
+   "en": "The entrance is north, and the windows are east and west.",
+   "roman": "ipguneun bukjjok, changmuneun dongjjokgwa seojjoge isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "실내가 좀 덥지 않을까요?",
+   "beaver_en": "Won't it be a bit hot indoors?",
+   "beaver_roman": "sillaega jom deopji aneulkkayo?",
+   "learner": "그래서 창문 쪽 자리는 비워 두었어요.",
+   "en": "So I left the seats by the windows empty.",
+   "roman": "geuraeseo changmun jjok jarineun biwo dueosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "늦게 오는 손님은 어디에 앉아요?",
+   "beaver_en": "Where do late guests sit?",
+   "beaver_roman": "neutge oneun sonnimeun eodie anjayo?",
+   "learner": "뒤쪽 빈자리에 앉으시도록 할게요.",
+   "en": "I'll have them sit in the empty seats in back.",
+   "roman": "dwijjok binjarie anjeusidorok halgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "자리 간 거리는 괜찮아요?",
+   "beaver_en": "Is the distance between seats okay?",
+   "beaver_roman": "jari gan georineun gwaenchanayo?",
+   "learner": "네, 의자 간 거리를 넓게 했어요.",
+   "en": "Yes, I made the space between chairs wide.",
+   "roman": "ne, uija gan georireul neolkke haesseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "우측 통로는 막혀 있지 않죠?",
+   "beaver_en": "The right aisle isn't blocked, right?",
+   "beaver_roman": "ucheuk tongnoneun makyeo itji ancho?",
+   "learner": "네, 우측은 통로로 비워 뒀어요.",
+   "en": "Right, I kept the right side clear as an aisle.",
+   "roman": "ne, ucheugeun tongnoro biwo dwosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 명단도 확인해 주세요.",
+   "beaver_en": "Good. Please check the guest list too.",
+   "beaver_roman": "joayo. myeongdando hwaginhae juseyo.",
+   "learner": "네, 시작 시각 전에 꼭 확인하도록 할게요.",
+   "en": "Sure, I'll be sure to check it before the start time.",
+   "roman": "ne, sijak sigak jeone kkok hwaginhadorok halgeyo."
+  }
+ ]
+}

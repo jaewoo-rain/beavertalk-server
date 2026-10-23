@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T39-1",
+ "no": 470,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 폐기물 처리 방안을 논의해 봅시다.",
+   "beaver_en": "Hello. Let's discuss ways to handle waste.",
+   "beaver_roman": "annyeonghaseyo. pyegimul cheori banganeul nonuihae bopsida.",
+   "learner": "네, 폐기물 문제는 곰곰이 생각해 봐야 합니다.",
+   "en": "Yes, we need to think carefully about the waste problem.",
+   "roman": "ne, pyegimul munjeneun gomgomi saenggakae bwaya hamnida."
+  },
+  {
+   "n": 2,
+   "beaver": "현재 가장 큰 문제는 무엇입니까?",
+   "beaver_en": "What is the biggest problem right now?",
+   "beaver_roman": "hyeonjae gajang keun munjeneun mueosimnikka?",
+   "learner": "매립지가 늘면서 녹지와 생태계가 망가집니다.",
+   "en": "As landfills grow, green spaces and ecosystems are being ruined.",
+   "roman": "maeripjiga neulmyeonseo nokjiwa saengtaegyega manggajimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "환경 문제에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about the environmental issues?",
+   "beaver_roman": "hwangyeong munjee daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "매립지 침출수가 토양과 지하수를 오염시킵니다.",
+   "en": "Landfill leachate pollutes the soil and groundwater.",
+   "roman": "maeripji chimchulsuga toyanggwa jihasureul oyeomsikimnida."
+  },
+  {
+   "n": 4,
+   "beaver": "소각은 어떻습니까?",
+   "beaver_en": "What about incineration?",
+   "beaver_roman": "sogageun eotteoseumnikka?",
+   "learner": "소각은 온실가스가 나와서 좋은 방법이 아닙니다.",
+   "en": "Incineration releases greenhouse gases, so it's not a good method.",
+   "roman": "sogageun onsilgaseuga nawaseo joeun bangbeobi animnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그럼 폐기물을 연료로 쓰는 방법은 어떻습니까?",
+   "beaver_en": "Then how about using waste as fuel?",
+   "beaver_roman": "geureom pyegimureul yeollyoro sseuneun bangbeobeun eotteoseumnikka?",
+   "learner": "저는 폐기물 연료가 자원 고갈의 해결책이라고 봅니다.",
+   "en": "I see waste fuel as a solution to resource depletion.",
+   "roman": "jeoneun pyegimul yeollyoga jawon gogarui haegyeolchaegirago bomnida."
+  },
+  {
+   "n": 6,
+   "beaver": "비용이 문제 아닙니까?",
+   "beaver_en": "Isn't cost a problem?",
+   "beaver_roman": "biyongi munje animnikka?",
+   "learner": "비용에도 불구하고 장기적으로는 이익입니다.",
+   "en": "Despite the cost, it pays off in the long run.",
+   "roman": "biyongedo bulguhago janggijeogeuroneun iigimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "방사능 폐기물은 어떻게 처리해야 합니까?",
+   "beaver_en": "How should radioactive waste be handled?",
+   "beaver_roman": "bangsaneung pyegimureun eotteoke cheorihaeya hamnikka?",
+   "learner": "방사성 폐기물은 위험해서 철저히 격리해야 합니다.",
+   "en": "Radioactive waste is dangerous, so it must be fully isolated.",
+   "roman": "bangsaseong pyegimureun wiheomhaeseo cheoljeohi gyeongnihaeya hamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "시민들이 할 수 있는 일은 무엇입니까?",
+   "beaver_en": "What can citizens do?",
+   "beaver_roman": "simindeuri hal su inneun ireun mueosimnikka?",
+   "learner": "분리배출을 생활화하면 폐기물을 줄일 수 있습니다.",
+   "en": "If sorting trash becomes a habit, we can reduce waste.",
+   "roman": "bullibaechureul saenghwalhwahamyeon pyegimureul juril su itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "장기적인 목표는 무엇입니까?",
+   "beaver_en": "What is the long-term goal?",
+   "beaver_roman": "janggijeogin mokpyoneun mueosimnikka?",
+   "learner": "무공해 도시를 만들고 녹지를 넓히는 것입니다.",
+   "en": "To build a pollution-free city and expand green spaces.",
+   "roman": "mugonghae dosireul mandeulgo nokjireul neolpineun geosimnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 의견 감사합니다. 정책에 꼭 반영하겠습니다.",
+   "beaver_en": "Thank you for your input. We'll reflect it in our policy.",
+   "beaver_roman": "joeun uigyeon gamsahamnida. jeongchaege kkok banyeonghagetseumnida.",
+   "learner": "네, 생태계를 지키는 정책을 기대하겠습니다.",
+   "en": "Yes, I look forward to a policy that protects the ecosystem.",
+   "roman": "ne, saengtaegyereul jikineun jeongchaegeul gidaehagetseumnida."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T38-1",
+ "no": 109,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 동물이 정말 많네요! 뭐가 보여요?",
+   "beaver_en": "Wow, there are so many animals! What do you see?",
+   "beaver_roman": "Wa, dongmuri jeongmal manneyo! Mwoga boyeoyo?",
+   "learner": "돼지가 진흙에 누워 있어요. 정말 귀여워요.",
+   "en": "A pig is lying in the mud. It's so cute.",
+   "roman": "Dwaejiga jinheulge nuwo isseoyo. Jeongmal gwiyeowoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "하하, 자고 있어요? 다른 동물은요?",
+   "beaver_en": "Haha, is it sleeping? What about other animals?",
+   "beaver_roman": "Haha, jago isseoyo? Dareun dongmureunyo?",
+   "learner": "저기 코끼리가 물가에 서 있어요. 아주 커요.",
+   "en": "An elephant is standing by the water. It's huge.",
+   "roman": "Jeogi kokkiriga mulkkae seo isseoyo. Aju keoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "코가 정말 길어요. 무서운 동물도 있어요?",
+   "beaver_en": "Its trunk is so long. Are there scary animals too?",
+   "beaver_roman": "Koga jeongmal gireoyo. Museoun dongmuldo isseoyo?",
+   "learner": "네, 호랑이가 바위 위에 앉아 있어요.",
+   "en": "Yes, a tiger is sitting on a rock.",
+   "roman": "Ne, horangiga bawi wie anja isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "우아, 눈이 무서워요. 또 뭐가 있어요?",
+   "beaver_en": "Whoa, its eyes are scary. What else is there?",
+   "beaver_roman": "Ua, nuni museowoyo. Tto mwoga isseoyo?",
+   "learner": "뱀이 나무에 감겨 있어요. 조금 무서워요.",
+   "en": "A snake is wrapped around a tree. It's a bit scary.",
+   "roman": "Baemi namue gamgyeo isseoyo. Jogeum museowoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "으, 저는 뱀이 싫어요. 저쪽으로 가요.",
+   "beaver_en": "Ugh, I hate snakes. Let's go over there.",
+   "beaver_roman": "Eu, jeoneun baemi sireoyo. Jeojjogeuro gayo.",
+   "learner": "좋아요. 여기는 꽃이 많이 피어 있어요.",
+   "en": "Okay. Lots of flowers are in bloom here.",
+   "roman": "Joayo. Yeogineun kkochi mani pieo isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 꽃이 정말 예쁘네요!",
+   "beaver_en": "Wow, the flowers are really pretty!",
+   "beaver_roman": "Wa, kkochi jeongmal yeppeuneyo!",
+   "learner": "저기 직원이 꽃을 심고 있어요.",
+   "en": "A staff member is planting flowers over there.",
+   "roman": "Jeogi jigwoni kkocheul simkko isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 꽃이 정말 다양하네요. 저건 뭐예요?",
+   "beaver_en": "Wow, there are so many kinds of flowers. What's that?",
+   "beaver_roman": "Wa, kkochi jeongmal dayanghaneyo. Jeogeon mwoyeyo?",
+   "learner": "긴 줄기에 큰 꽃이 달려 있어요.",
+   "en": "A big flower is hanging on a long stem.",
+   "roman": "Gin julgie keun kkochi dallyeo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "어, 꽃 위에 뭐가 있어요?",
+   "beaver_en": "Oh, what's on the flower?",
+   "beaver_roman": "Eo, kkodwie mwoga isseoyo?",
+   "learner": "벌이 꽃에 앉아 있어요. 조심하세요!",
+   "en": "A bee is sitting on the flower. Be careful!",
+   "roman": "Beori kkoche anja isseoyo. Josimhaseyo!"
+  },
+  {
+   "n": 9,
+   "beaver": "앗, 고마워요. 덕분에 안 쏘였어요.",
+   "beaver_en": "Oh, thanks. Thanks to you, I didn't get stung.",
+   "beaver_roman": "At, gomawoyo. Deokppune an ssoyeosseoyo.",
+   "learner": "아니에요. 오늘 동물을 많이 봤어요.",
+   "en": "No problem. We saw lots of animals today.",
+   "roman": "Anieyo. Oneul dongmureul mani bwasseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 정말 재미있었어요. 밥 먹으러 가요!",
+   "beaver_en": "Yes, it was really fun. Let's go eat!",
+   "beaver_roman": "Ne, jeongmal jaemiisseosseoyo. Bap meogeureo gayo!",
+   "learner": "좋아요. 다음에 또 같이 와요.",
+   "en": "Sounds good. Let's come again together.",
+   "roman": "Joayo. Daeume tto gachi wayo."
+  }
+ ]
+}

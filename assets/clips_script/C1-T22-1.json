@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T22-1",
+ "no": 311,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 민수랑 연락해? 둘이 친했잖아.",
+   "beaver_en": "Do you talk to Minsu these days? You two were close.",
+   "beaver_roman": "yojeum minsurang yeollakae? duri chinhaetjana.",
+   "learner": "아니, 요즘은 거의 안 해. 사이가 많이 멀어졌어.",
+   "en": "No, hardly at all. We've drifted apart a lot.",
+   "roman": "ani, yojeumeun geoui an hae. saiga mani meoreojyeosseo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜? 무슨 일 있었어?",
+   "beaver_en": "Why? Did something happen?",
+   "beaver_roman": "wae? museun nil isseosseo?",
+   "learner": "누가 헛소문을 퍼뜨린 탓에 서로 불신이 생겼어.",
+   "en": "Someone spread a false rumor, so we started distrusting each other.",
+   "roman": "nuga heotsomuneul peotteurin tase seoro bulsini saenggyeosseo."
+  },
+  {
+   "n": 3,
+   "beaver": "헛소문? 충격적이다. 무슨 소문이었는데?",
+   "beaver_en": "A false rumor? That's shocking. What was it?",
+   "beaver_roman": "heotsomun? chunggyeokjeogida. museun somunieonneunde?",
+   "learner": "내가 민수 험담을 했다는 거야. 사실이 아닌데.",
+   "en": "That I talked badly about Minsu. It isn't true.",
+   "roman": "naega minsu heomdameul haetdaneun geoya. sasiri aninde."
+  },
+  {
+   "n": 4,
+   "beaver": "직접 만나서 얘기해 봤어?",
+   "beaver_en": "Did you meet him and talk in person?",
+   "beaver_roman": "jikjeop mannaseo yaegihae bwasseo?",
+   "learner": "응, 그런데 이미 친밀감이 사라진 뒤였어.",
+   "en": "Yes, but the closeness was already gone.",
+   "roman": "eung, geureonde imi chinmilgami sarajin dwiyeosseo."
+  },
+  {
+   "n": 5,
+   "beaver": "아쉽겠다. 동문들과는 어때?",
+   "beaver_en": "That must be a shame. How about our alumni friends?",
+   "beaver_roman": "aswipgetda. dongmundeulgwaneun eottae?",
+   "learner": "동문 모임도 탈퇴했어. 다들 민수 편이라서.",
+   "en": "I quit the alumni group too. Everyone's on Minsu's side.",
+   "roman": "dongmun moimdo taltoehaesseo. dadeul minsu pyeoniraseo."
+  },
+  {
+   "n": 6,
+   "beaver": "그 모임 원래 정기적으로 했지?",
+   "beaver_en": "That group met regularly, right?",
+   "beaver_roman": "geu moim wollae jeonggijeogeuro haetji?",
+   "learner": "응, 상부상조하는 좋은 모임이었는데 아쉬워.",
+   "en": "Yes, it was a good group where we helped each other. I miss it.",
+   "roman": "eung, sangbusangjohaneun joeun moimieonneunde aswiwo."
+  },
+  {
+   "n": 7,
+   "beaver": "또래 친구들 중엔 누가 제일 친해?",
+   "beaver_en": "Who are you closest to among friends your age?",
+   "beaver_roman": "ttorae chingudeul jungen nuga jeil chinhae?",
+   "learner": "또래보다 회사 동료가 더 친근하게 느껴져.",
+   "en": "My coworkers feel closer to me than my peers.",
+   "roman": "ttoraeboda hoesa dongnyoga deo chingeunhage neukkyeojyeo."
+  },
+  {
+   "n": 8,
+   "beaver": "사교 모임에 새로 나가 보는 건 어때?",
+   "beaver_en": "How about joining a new social group?",
+   "beaver_roman": "sagyo moime saero naga boneun geon eottae?",
+   "learner": "사람 사귀는 데 자신이 없어서 망설여져.",
+   "en": "I hesitate because I'm not confident making friends.",
+   "roman": "saram sagwineun de jasini eopseoseo mangseoryeojyeo."
+  },
+  {
+   "n": 9,
+   "beaver": "넌 친구 사이가 어떻게 생긴다고 생각해?",
+   "beaver_en": "How do you think friendships form?",
+   "beaver_roman": "neon chingu saiga eotteoke saenggindago saenggakae?",
+   "learner": "친근감은 시간이 쌓여야 생기는 것 같아.",
+   "en": "I think familiarity only comes with time.",
+   "roman": "chingeungameun sigani ssayeoya saenggineun geot gata."
+  },
+  {
+   "n": 10,
+   "beaver": "맞아. 천천히 다시 시작해 봐. 내가 응원할게.",
+   "beaver_en": "Right. Start again slowly. I'm rooting for you.",
+   "beaver_roman": "maja. cheoncheonhi dasi sijakae bwa. naega eungwonhalge.",
+   "learner": "고마워. 너랑 얘기하니까 마음이 좀 편해졌어.",
+   "en": "Thanks. Talking with you makes me feel better.",
+   "roman": "gomawo. neorang yaegihanikka maeumi jom pyeonhaejyeosseo."
+  }
+ ]
+}

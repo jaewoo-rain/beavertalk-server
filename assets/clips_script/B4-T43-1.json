@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T43-1",
+ "no": 282,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 제사에 대해 알려 주실 수 있어요?",
+   "beaver_en": "Could you tell me about jesa today?",
+   "beaver_roman": "Oneul jesae daehae allyeo jusil su isseoyo?",
+   "learner": "네, 제사는 돌아가신 조상을 기억하는 의식이에요.",
+   "en": "Sure, jesa is a rite to remember our late ancestors.",
+   "roman": "Ne, jesaneun doragasin josangeul gieokaneun uisigieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 신앙과 관계있어요? 종교인가요?",
+   "beaver_en": "Is it related to faith, then? Is it a religion?",
+   "beaver_roman": "Geureom sinanggwa gwangyeisseoyo? Jonggyoingayo?",
+   "learner": "종교적인 의식보다 문화적인 전통에 가까워요.",
+   "en": "It's closer to a cultural tradition than a religious rite.",
+   "roman": "Jonggyojeogin uisikboda munhwajeogin jeontonge gakkawoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "조상이 신이 되는 거예요? 귀신처럼요?",
+   "beaver_en": "Do ancestors become gods? Like ghosts?",
+   "beaver_roman": "Josangi sini doeneun geoyeyo? Gwisincheoreomnyo?",
+   "learner": "옛날에는 조상의 혼이 찾아온다고 믿었어요.",
+   "en": "Long ago, people believed ancestors' spirits came to visit.",
+   "roman": "Yennareneun josangui honi chajaondago mideosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "지금은 어떻게 생각해요?",
+   "beaver_en": "How do people see it now?",
+   "beaver_roman": "Jigeumeun eotteoke saenggakaeyo?",
+   "learner": "지금은 가족이 모이는 날로 생각해요.",
+   "en": "Now we think of it as a day when family gathers.",
+   "roman": "Jigeumeun gajogi moineun nallo saenggakaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "제사상에는 무엇을 올려요?",
+   "beaver_en": "What do you put on the memorial table?",
+   "beaver_roman": "Jesasangeneun mueoseul ollyeoyo?",
+   "learner": "과일이며 떡이며 전이며 음식을 많이 올려요.",
+   "en": "We put lots of food: fruit, rice cakes, pancakes and more.",
+   "roman": "Gwairimyeo tteogimyeo jeonimyeo eumsigeul mani ollyeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 맛있겠네요. 교회 다니는 분도 지내요?",
+   "beaver_en": "Wow, sounds tasty. Do churchgoers hold it too?",
+   "beaver_roman": "Wa, masitgenneyo. Gyohoe danineun bundo jinaeyo?",
+   "learner": "집마다 달라요. 안 지내는 집도 있어요.",
+   "en": "It depends on the family. Some don't hold it.",
+   "roman": "Jimmada dallayo. An jinaeneun jipdo isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 그런 가족은 어떻게 해요?",
+   "beaver_en": "Then what do those families do?",
+   "beaver_roman": "Geureom geureon gajogeun eotteoke haeyo?",
+   "learner": "가족끼리 추도 예배를 드려요.",
+   "en": "They hold a memorial service as a family.",
+   "roman": "Gajokkkiri chudo yebaereul deuryeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "절에 다니는 사람은요?",
+   "beaver_en": "What about people who go to temple?",
+   "beaver_roman": "Jeore danineun sarameunyo?",
+   "learner": "부처님을 믿는 집은 절에서 제사를 지내기도 해요.",
+   "en": "Families who follow the Buddha sometimes hold it at a temple.",
+   "roman": "Bucheonimeul minneun jibeun jeoreseo jesareul jinaegido haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "문화와 전통에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about culture and tradition?",
+   "beaver_roman": "Munhwawa jeontonge daehae deo iyagihae bollaeyo?",
+   "learner": "신앙이 달라도 가족이 함께 모이는 게 중요해요.",
+   "en": "Even with different faiths, family gathering together matters.",
+   "roman": "Sinangi dallado gajogi hamkke moineun ge jungyohaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "설명 고마워요. 이번 추석에 꼭 보고 싶어요.",
+   "beaver_en": "Thanks for explaining. I'd love to see it this Chuseok.",
+   "beaver_roman": "Seolmyeong gomawoyo. Ibeon chuseoge kkok bogo sipeoyo.",
+   "learner": "좋아요. 우리 집 제사에 초대할게요.",
+   "en": "Great. I'll invite you to our family's jesa.",
+   "roman": "Joayo. Uri jip jesae chodaehalgeyo."
+  }
+ ]
+}

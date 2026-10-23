@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T15-1",
+ "no": 96,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. mueoseul dowadeurilkkayo?",
+   "learner": "안녕하세요. 관광 안내소에 갈까 해요.",
+   "en": "Hello. I'm thinking of going to the tourist info center.",
+   "roman": "annyeonghaseyo. gwangwang annaesoe galkka haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "관광 안내소는 일 층 중앙에 있어요.",
+   "beaver_en": "The tourist info center is in the center of the first floor.",
+   "beaver_roman": "gwangwang annaesoneun il cheung jungange isseoyo.",
+   "learner": "중앙이요? 입구에서 가까워요?",
+   "en": "The center? Is it close to the entrance?",
+   "roman": "jungangiyo? ipgueseo gakkawoyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "네, 입구 앞쪽으로 쭉 가시면 돼요.",
+   "beaver_en": "Yes, just go straight ahead from the entrance.",
+   "beaver_roman": "ne, ipgu apjjogeuro jjuk gasimyeon dwaeyo.",
+   "learner": "거기에 지방 여행 지도도 있어요?",
+   "en": "Do they have regional travel maps there too?",
+   "roman": "geogie jibang yeohaeng jidodo isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 남쪽 지방 지도도 있어요.",
+   "beaver_en": "Yes, they have maps of the southern region too.",
+   "beaver_roman": "ne, namjjok jibang jidodo isseoyo.",
+   "learner": "좋아요. 남쪽 바다에 가 볼까 해요.",
+   "en": "Great. I'm thinking of visiting the southern sea.",
+   "roman": "joayo. namjjok badae ga bolkka haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋네요. 또 가실 곳이 있으세요?",
+   "beaver_en": "Nice. Is there anywhere else you're going?",
+   "beaver_roman": "jonneyo. tto gasil gosi isseuseyo?",
+   "learner": "카페에도 갈까 해요. 카페 위치가 어디예요?",
+   "en": "I'm thinking of going to the café too. Where is it?",
+   "roman": "kapeedo galkka haeyo. kape wichiga eodiyeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "카페는 건물 바깥쪽에 있어요.",
+   "beaver_en": "The café is on the outer side of the building.",
+   "beaver_roman": "kapeneun geonmul bakkatjjoge isseoyo.",
+   "learner": "바깥쪽이요? 어느 출입문으로 나가요?",
+   "en": "Outside? Which door do I go out through?",
+   "roman": "bakkatjjogiyo? eoneu churimmuneuro nagayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "오른쪽 출입문으로 나가세요.",
+   "beaver_en": "Go out through the door on the right.",
+   "beaver_roman": "oreunjjok churimmuneuro nagaseyo.",
+   "learner": "화장실은 위층에 있어요, 아래층에 있어요?",
+   "en": "Is the restroom upstairs or downstairs?",
+   "roman": "hwajangsireun wicheunge isseoyo, araecheunge isseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "아래층, 지하 일 층에 있어요.",
+   "beaver_en": "It's downstairs, on basement level one.",
+   "beaver_roman": "araecheung, jiha il cheunge isseoyo.",
+   "learner": "그럼 계단으로 내려갈까 해요.",
+   "en": "Then I'm thinking of taking the stairs down.",
+   "roman": "geureom gyedaneuro naeryeogalkka haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "네, 입구 앞쪽 계단으로 가세요.",
+   "beaver_en": "Yes, take the stairs in front of the entrance.",
+   "beaver_roman": "ne, ipgu apjjok gyedaneuro gaseyo.",
+   "learner": "네. 건물 출입은 몇 시까지 돼요?",
+   "en": "Okay. Until what time can I enter the building?",
+   "roman": "ne. geonmul churibeun myeot sikkaji dwaeyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "저녁 여덟 시까지 출입할 수 있어요.",
+   "beaver_en": "You can come and go until 8 p.m.",
+   "beaver_roman": "jeonyeok yeodeol sikkaji churipal su isseoyo.",
+   "learner": "알겠어요. 정말 감사합니다.",
+   "en": "Got it. Thank you so much.",
+   "roman": "algesseoyo. jeongmal gamsahamnida."
+  }
+ ]
+}

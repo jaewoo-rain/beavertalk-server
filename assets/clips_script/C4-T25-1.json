@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T25-1",
+ "no": 458,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어머님, 오셨어요? 지호 진학 상담 시작할게요.",
+   "beaver_en": "Hello, you're here? Let's start Jiho's college counseling.",
+   "beaver_roman": "eomeonim, osyeosseoyo? jiho jinhak sangdam sijakalgeyo.",
+   "learner": "네, 선생님. 지호는 문과로 가고 싶어 해요.",
+   "en": "Yes, teacher. Jiho wants to go into the humanities track.",
+   "roman": "ne, seonsaengnim. jihoneun mungwaro gago sipeo haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그렇군요. 지호는 글쓰기 상장도 많이 받았죠.",
+   "beaver_en": "I see. Jiho has received many writing awards, too.",
+   "beaver_roman": "geureokunyo. jihoneun geulsseugi sangjangdo mani badatjyo.",
+   "learner": "네, 초등학교 때는 영재원에도 다녔어요.",
+   "en": "Yes, in elementary school he attended a gifted program, too.",
+   "roman": "ne, chodeunghakgyo ttaeneun yeongjaewonedo danyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "정말요? 혹시 목표하시는 대학이 있으세요?",
+   "beaver_en": "Really? Do you have a target university in mind?",
+   "beaver_roman": "jeongmallyo? hoksi mokpyohasineun daehagi isseuseyo?",
+   "learner": "명문대에 가면 좋겠지만 섣불리 정하진 않을래요.",
+   "en": "A top university would be nice, but I won't decide hastily.",
+   "roman": "myeongmundaee gamyeon joketjiman seonbulli jeonghajin aneullaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋은 생각이에요. 국가장학금도 알아보셨어요?",
+   "beaver_en": "Good idea. Have you looked into national scholarships?",
+   "beaver_roman": "joeun saenggagieyo. gukgajanghakgeumdo arabosyeosseoyo?",
+   "learner": "국가장학금을 받으면 큰 도움이 될 것 같아요.",
+   "en": "A national scholarship would be a big help.",
+   "roman": "gukgajanghakgeumeul badeumyeon keun doumi doel geot gatayo."
+  },
+  {
+   "n": 5,
+   "beaver": "성적이 좋으면 충분히 받을 수 있어요.",
+   "beaver_en": "With good grades, he can definitely get one.",
+   "beaver_roman": "seongjeogi joeumyeon chungbunhi badeul su isseoyo.",
+   "learner": "다행이에요. 대학 기숙사도 미리 알아볼게요.",
+   "en": "That's a relief. I'll look into university dorms in advance.",
+   "roman": "dahaengieyo. daehak gisuksado miri arabolgeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "학교생활에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about his school life?",
+   "beaver_roman": "hakgyosaenghware daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "지호는 반장이자 도서부장이라서 바빠요.",
+   "en": "Jiho is both class president and library club head, so he's busy.",
+   "roman": "jihoneun banjangija doseobujangiraseo bappayo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 친구들에게도 인기가 많아요.",
+   "beaver_en": "That's right. He's popular with his friends, too.",
+   "beaver_roman": "majayo. chingudeuregedo ingiga manayo.",
+   "learner": "사실 예전 학교에 체벌이 있어서 전학 왔어요.",
+   "en": "Actually, his old school had corporal punishment, so he transferred here.",
+   "roman": "sasil yejeon hakgyoe chebeori isseoseo jeonhak wasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "아, 그런 사정이 있었군요.",
+   "beaver_en": "Oh, so that was the reason.",
+   "beaver_roman": "a, geureon sajeongi isseotgunyo.",
+   "learner": "네, 이 학교는 예전 담임 선생님이 추천해 주셨어요.",
+   "en": "Yes, his former homeroom teacher recommended this school.",
+   "roman": "ne, i hakgyoneun yejeon damim seonsaengnimi chucheonhae jusyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다행이네요. 혹시 다른 걱정은 없으세요?",
+   "beaver_en": "Good to hear. Do you have any other concerns?",
+   "beaver_roman": "dahaengineyo. hoksi dareun geokjeongeun eopseuseyo?",
+   "learner": "동생 취학 준비도 있어서 요즘 바빠요.",
+   "en": "I'm also preparing his sibling for school, so I'm busy these days.",
+   "roman": "dongsaeng chwihak junbido isseoseo yojeum bappayo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 상담 감사합니다. 또 연락드릴게요.",
+   "beaver_en": "Thank you for coming today. I'll be in touch.",
+   "beaver_roman": "oneul sangdam gamsahamnida. tto yeollakdeurilgeyo.",
+   "learner": "감사합니다, 선생님. 안녕히 계세요.",
+   "en": "Thank you, teacher. Goodbye.",
+   "roman": "gamsahamnida, seonsaengnim. annyeonghi gyeseyo."
+  }
+ ]
+}

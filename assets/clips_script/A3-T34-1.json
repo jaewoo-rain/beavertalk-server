@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T34-1",
+ "no": 72,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 매표소입니다. 무엇을 도와 드릴까요?",
+   "beaver_en": "Hello, this is the ticket office. How can I help you?",
+   "beaver_roman": "annyeonghaseyo, maepyosoimnida. mueoseul dowa deurilkkayo?",
+   "learner": "토요일 음악회 표를 예매하고 싶어요.",
+   "en": "I want to book tickets for Saturday's concert.",
+   "roman": "toyoil eumakhoe pyoreul yemaehago sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 토요일 저녁 일곱 시 공연이에요.",
+   "beaver_en": "Sure, it's the Saturday 7 p.m. show.",
+   "beaver_roman": "ne, toyoil jeonyeok ilgop si gongyeonieyo.",
+   "learner": "좋아요. 어떤 음악가가 나와요?",
+   "en": "Great. Which musician is performing?",
+   "roman": "joayo. eotteon eumakgaga nawayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "유명한 바이올린 연주자가 나와요.",
+   "beaver_en": "A famous violinist is performing.",
+   "beaver_roman": "yumyeonghan baiollin yeonjujaga nawayo.",
+   "learner": "와, 기대돼요! 바이올린 소리를 듣고 싶어요.",
+   "en": "Wow, I can't wait! I want to hear the violin.",
+   "roman": "wa, gidaedwaeyo! baiollin sorireul deutgo sipeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "기타 연주자도 같이 공연해요.",
+   "beaver_en": "A guitarist is performing too.",
+   "beaver_roman": "gita yeonjujado gachi gongyeonhaeyo.",
+   "learner": "저는 기타를 좋아해요. 정말 기대돼요.",
+   "en": "I like the guitar. I'm really looking forward to it.",
+   "roman": "jeoneun gitareul joahaeyo. jeongmal gidaedwaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋은 자리가 있어요. 앞자리로 드릴까요?",
+   "beaver_en": "There are good seats. Shall I give you front seats?",
+   "beaver_roman": "joeun jariga isseoyo. apjariro deurilkkayo?",
+   "learner": "네, 앞자리로 주세요. 입장권은 얼마예요?",
+   "en": "Yes, front seats, please. How much is a ticket?",
+   "roman": "ne, apjariro juseyo. ipjanggwoneun eolmayeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "한 장에 오만 원이에요.",
+   "beaver_en": "It's 50,000 won per ticket.",
+   "beaver_roman": "han jange oman wonieyo.",
+   "learner": "두 장 주세요. 친구하고 같이 보고 싶어요.",
+   "en": "Two, please. I want to see it with a friend.",
+   "roman": "du jang juseyo. chinguhago gachi bogo sipeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "입장권 여기 있어요. 디자인이 예쁘죠?",
+   "beaver_en": "Here are your tickets. Nice design, right?",
+   "beaver_roman": "ipjanggwon yeogi isseoyo. dijaini yeppeujyo?",
+   "learner": "네, 디자인이 정말 예뻐요. 누가 그렸어요?",
+   "en": "Yes, the design is really pretty. Who drew it?",
+   "roman": "ne, dijaini jeongmal yeppeoyo. nuga geuryeosseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "유명한 화가가 그렸어요.",
+   "beaver_en": "A famous painter drew it.",
+   "beaver_roman": "yumyeonghan hwagaga geuryeosseoyo.",
+   "learner": "와, 멋져요. 저는 그림을 좋아해요.",
+   "en": "Wow, that's cool. I like paintings.",
+   "roman": "wa, meotjeoyo. jeoneun geurimeul joahaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음 달에는 그림 전시회도 있어요.",
+   "beaver_en": "There's also a painting exhibition next month.",
+   "beaver_roman": "daeum dareneun geurim jeonsihoedo isseoyo.",
+   "learner": "그 전시회도 예매하고 싶어요.",
+   "en": "I want to book that exhibition too.",
+   "roman": "geu jeonsihoedo yemaehago sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 다음 주부터 예매할 수 있어요.",
+   "beaver_en": "Sure, you can book it from next week.",
+   "beaver_roman": "ne, daeum jubuteo yemaehal su isseoyo.",
+   "learner": "감사합니다. 다음 주에 매표소에 또 올게요.",
+   "en": "Thank you. I'll come to the ticket office again next week.",
+   "roman": "gamsahamnida. daeum jue maepyosoe tto olgeyo."
+  }
+ ]
+}

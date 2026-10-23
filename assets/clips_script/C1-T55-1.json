@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T55-1",
+ "no": 336,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 지역 통계 자료를 찾고 있습니다.",
+   "beaver_en": "Hello. I'm looking for local statistical data.",
+   "beaver_roman": "Annyeonghaseyo. Jiyeok tonggye jaryoreul chatgo itseumnida.",
+   "learner": "네, 저는 마포구청 자료실 직원 김민지입니다.",
+   "en": "Yes, I'm Kim Minji, staff at the Mapo District Office archive.",
+   "roman": "Ne, jeoneun mapogucheong jaryosil jigwon gimminjiimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "지역 자료는 어디서 구합니까?",
+   "beaver_en": "Where can I get local data?",
+   "beaver_roman": "Jiyeok jaryoneun eodiseo guhamnikka?",
+   "learner": "통계청 누리집이나 구청 자료실에서 구하실 수 있습니다.",
+   "en": "You can get it from the Statistics Korea website or the district office archive.",
+   "roman": "Tonggyecheong nurijibina gucheong jaryosireseo guhasil su itseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "실제로 이용하는 사람이 많습니까?",
+   "beaver_en": "Do many people actually use it?",
+   "beaver_roman": "Siljero iyonghaneun sarami manseumnikka?",
+   "learner": "아니요, 작년 이용자는 삼백 명에 그쳤습니다.",
+   "en": "No, last year's users numbered only 300.",
+   "roman": "Aniyo, jangnyeon iyongjaneun sambaek myeonge geuchyeotseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "생각보다 적네요. 이유가 뭘까요?",
+   "beaver_en": "That's fewer than I thought. Why is that?",
+   "beaver_roman": "Saenggakboda jeongneyo. Iyuga mwolkkayo?",
+   "learner": "시립 도서관보다 덜 알려져 있기 때문입니다.",
+   "en": "It's because it's less known than the city library.",
+   "roman": "Sirip doseogwanboda deol allyeojeo itgi ttaemunimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "지역 자료는 충분합니까?",
+   "beaver_en": "Is there enough local data?",
+   "beaver_roman": "Jiyeok jaryoneun chungbunhamnikka?",
+   "learner": "부족합니다. 관청마다 자료 현황이 다릅니다.",
+   "en": "Not enough. The data status differs by government office.",
+   "roman": "Bujokamnida. Gwancheongmada jaryo hyeonhwangi dareumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "구청은 어떤 일을 하는 곳입니까?",
+   "beaver_en": "What kind of work does the district office do?",
+   "beaver_roman": "Gucheongeun eotteon ireul haneun gosimnikka?",
+   "learner": "구청은 자치 기구이고, 공공시설을 관리합니다.",
+   "en": "The district office is a self-governing body and manages public facilities.",
+   "roman": "Gucheongeun jachi giguigo, gonggongsiseoreul gwallihamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "자료 공개는 누가 정합니까?",
+   "beaver_en": "Who decides on releasing data?",
+   "beaver_roman": "Jaryo gonggaeneun nuga jeonghamnikka?",
+   "learner": "공개 여부는 상급 기관이 정합니다.",
+   "en": "A higher agency decides whether to release it.",
+   "roman": "Gonggae yeobuneun sanggeup gigwani jeonghamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "그럼 다른 관공서 자료도 함께 볼 수 있습니까?",
+   "beaver_en": "Then can I also see data from other government offices?",
+   "beaver_roman": "Geureom dareun gwangongseo jaryodo hamkke bol su itseumnikka?",
+   "learner": "네, 관공서 자료는 신청하시면 보실 수 있습니다.",
+   "en": "Yes, you can see government office data if you apply.",
+   "roman": "Ne, gwangongseo jaryoneun sincheonghasimyeon bosil su itseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "이용률이 낮은 이유가 홍보 부족입니까?",
+   "beaver_en": "Is low usage due to a lack of publicity?",
+   "beaver_roman": "Iyongnyuri najeun iyuga hongbo bujogimnikka?",
+   "learner": "네, 홍보는 안내문 몇 장에 그쳤습니다.",
+   "en": "Yes, publicity was limited to just a few flyers.",
+   "roman": "Ne, hongboneun annaemun myeot jange geuchyeotseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "자세한 설명 감사합니다. 신청서는 어디 있습니까?",
+   "beaver_en": "Thanks for the detailed explanation. Where is the application form?",
+   "beaver_roman": "Jasehan seolmyeong gamsahamnida. Sincheongseoneun eodi itseumnikka?",
+   "learner": "여기 있습니다. 작성하시고 저에게 주십시오.",
+   "en": "Here it is. Please fill it out and give it to me.",
+   "roman": "Yeogi itseumnida. Jakseonghasigo jeoege jusipsio."
+  }
+ ]
+}

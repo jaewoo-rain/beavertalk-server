@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T59-1",
+ "no": 202,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 어디가 불편하세요?",
+   "beaver_en": "Come in. What seems to be the problem?",
+   "beaver_roman": "eoseo oseyo. eodiga bulpyeonhaseyo?",
+   "learner": "어제부터 복통이 심하고 토했어요.",
+   "en": "Since yesterday I've had a bad stomachache and threw up.",
+   "roman": "eojebuteo boktongi simhago tohaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어제 뭘 드셨어요?",
+   "beaver_en": "What did you eat yesterday?",
+   "beaver_roman": "eoje mwol deusyeosseoyo?",
+   "learner": "회를 먹었는데 체한 것 같아요.",
+   "en": "I ate raw fish, and I think I have indigestion.",
+   "roman": "hoereul meogeonneunde chehan geot gatayo."
+  },
+  {
+   "n": 3,
+   "beaver": "다른 데는요?",
+   "beaver_en": "Anything else?",
+   "beaver_roman": "dareun deneunyo?",
+   "learner": "머리가 어지럽고 갈증도 심해요.",
+   "en": "I feel dizzy and I'm very thirsty.",
+   "roman": "meoriga eojireopgo galjeungdo simhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "열은 있으세요?",
+   "beaver_en": "Do you have a fever?",
+   "beaver_roman": "yeoreun isseuseyo?",
+   "learner": "열은 없어요. 독감은 아니겠죠?",
+   "en": "No fever. It's not the flu, right?",
+   "roman": "yeoreun eopseoyo. dokgameun anigetjyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 증세를 보니 식중독 같아요.",
+   "beaver_en": "Right. From your symptoms, it looks like food poisoning.",
+   "beaver_roman": "ne, jeungsereul boni sikjungdok gatayo.",
+   "learner": "식중독 검사도 받을 수 있어요?",
+   "en": "Can I get tested for food poisoning too?",
+   "roman": "sikjungdok geomsado badeul su isseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네. 혹시 알레르기 있으세요?",
+   "beaver_en": "Yes. Do you have any allergies?",
+   "beaver_roman": "ne. hoksi allereugi isseuseyo?",
+   "learner": "네, 새우를 먹으면 몸이 가려워요.",
+   "en": "Yes, when I eat shrimp, my body gets itchy.",
+   "roman": "ne, saeureul meogeumyeon momi garyeowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "알겠습니다. 변비는 없으세요?",
+   "beaver_en": "I see. Any constipation?",
+   "beaver_roman": "algetseumnida. byeonbineun eopseuseyo?",
+   "learner": "변비는 없어요. 그런데 팔에 멍이 있어요.",
+   "en": "No constipation. But I have a bruise on my arm.",
+   "roman": "byeonbineun eopseoyo. geureonde pare meongi isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "멍은 왜 생겼어요?",
+   "beaver_en": "How did you get the bruise?",
+   "beaver_roman": "meongeun wae saenggyeosseoyo?",
+   "learner": "지난주에 넘어져서 발목도 삐었어요.",
+   "en": "I fell last week and sprained my ankle too.",
+   "roman": "jinanjue neomeojyeoseo balmokdo ppieosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "또 걱정되시는 거 있으세요?",
+   "beaver_en": "Is there anything else worrying you?",
+   "beaver_roman": "tto geokjeongdoesineun geo isseuseyo?",
+   "learner": "혹시 암일까 봐 걱정이 돼요.",
+   "en": "I'm worried it might be cancer.",
+   "roman": "hoksi amilkka bwa geokjeongi dwaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "암은 아니에요. 약은 하루 세 번씩 드세요.",
+   "beaver_en": "It's not cancer. Take the medicine three times a day.",
+   "beaver_roman": "ameun anieyo. yageun haru se beonssik deuseyo.",
+   "learner": "설명해 주셔서 감사합니다. 안녕히 계세요.",
+   "en": "Thank you for explaining. Goodbye.",
+   "roman": "seolmyeonghae jusyeoseo gamsahamnida. annyeonghi gyeseyo."
+  }
+ ]
+}

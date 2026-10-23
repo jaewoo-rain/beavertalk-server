@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T22-1",
+ "no": 136,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선배, 이번 주말에 저희 모임에 와 볼래요?",
+   "beaver_en": "Seonbae, would you like to come to our gathering this weekend?",
+   "beaver_roman": "Seonbae, ibeon jumare jeohui moime wa bollaeyo?",
+   "learner": "무슨 모임이야? 소문은 들었는데 잘 몰라.",
+   "en": "What kind of gathering? I've heard rumors, but I don't really know.",
+   "roman": "Museun moimiya? Somuneun deureonneunde jal molla."
+  },
+  {
+   "n": 2,
+   "beaver": "고민을 나누고 서로 조언해 주는 모임이에요.",
+   "beaver_en": "It's a group where we share worries and give each other advice.",
+   "beaver_roman": "Gomineul nanugo seoro joeonhae juneun moimieyo.",
+   "learner": "좋네. 회원은 몇 명이야?",
+   "en": "Nice. How many members are there?",
+   "roman": "Jonne. Hoewoneun myeot myeongiya?"
+  },
+  {
+   "n": 3,
+   "beaver": "스무 명이요. 조언도 많이 받아요.",
+   "beaver_en": "Twenty. We get a lot of advice, too.",
+   "beaver_roman": "Seumu myeongiyo. Joeondo mani badayo.",
+   "learner": "후배들만 있어? 나는 나이가 많은데.",
+   "en": "Is it only juniors? I'm older.",
+   "roman": "Hubaedeulman isseo? Naneun naiga maneunde."
+  },
+  {
+   "n": 4,
+   "beaver": "선배랑 나이가 비슷한 회원도 많아요.",
+   "beaver_en": "Lots of members are around your age too.",
+   "beaver_roman": "Seonbaerang naiga biseutan hoewondo manayo.",
+   "learner": "그래? 가입하려면 회비가 있어?",
+   "en": "Really? Is there a membership fee to join?",
+   "roman": "Geurae? Gaipharyeomyeon hoebiga isseo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 한 달에 만 원이에요.",
+   "beaver_en": "Yes, it's ten thousand won a month.",
+   "beaver_roman": "Ne, han dare man wonieyo.",
+   "learner": "회비는 괜찮네. 가입자는 계속 늘어?",
+   "en": "The fee is fine. Do new members keep joining?",
+   "roman": "Hoebineun gwaenchanne. Gaipjaneun gyesok neureo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 홍보를 안 하는데도 매달 늘어요.",
+   "beaver_en": "Yes, it grows every month even though we don't advertise.",
+   "beaver_roman": "Ne, hongboreul an haneundedo maedal neureoyo.",
+   "learner": "신기하네. 모임에서 한 이야기는 비밀이지?",
+   "en": "Interesting. What's said in the group stays secret, right?",
+   "roman": "Singihane. Moimeseo han iyagineun bimiriji?"
+  },
+  {
+   "n": 7,
+   "beaver": "그럼요. 모임 이야기는 밖에 말하지 않아요.",
+   "beaver_en": "Of course. We don't talk about it outside.",
+   "beaver_roman": "Geureomyo. Moim iyagineun bakke malhaji anayo.",
+   "learner": "좋아. 상대방 이야기를 잘 듣는 게 중요하겠다.",
+   "en": "Good. Listening well to the other person must be important.",
+   "roman": "Joa. Sangdaebang iyagireul jal deunneun ge jungyohagetda."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아요. 친구와 우정에 대해서도 이야기해요.",
+   "beaver_en": "Right. We also talk about friends and friendship.",
+   "beaver_roman": "Majayo. Chinguwa ujeonge daehaeseodo iyagihaeyo.",
+   "learner": "나도 친구 관계 때문에 조언이 필요해.",
+   "en": "I need advice about my friendships too.",
+   "roman": "Nado chingu gwangye ttaemune joeoni piryohae."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 꼭 오세요. 선배한테 도움이 될 거예요.",
+   "beaver_en": "Then please come. It'll really help you.",
+   "beaver_roman": "Geureom kkok oseyo. Seonbaehante doumi doel geoyeyo.",
+   "learner": "시험이 있는데도 가 보고 싶어. 가입할게.",
+   "en": "Even though I have an exam, I want to go. I'll join.",
+   "roman": "Siheomi inneundedo ga bogo sipeo. Gaiphalge."
+  },
+  {
+   "n": 10,
+   "beaver": "와, 고마워요! 토요일 세 시에 학교 앞에서 봬요.",
+   "beaver_en": "Wow, thanks! See you Saturday at three in front of school.",
+   "beaver_roman": "Wa, gomawoyo! Toyoil se sie hakgyo apeseo bwaeyo.",
+   "learner": "응, 알려 줘서 고마워. 토요일에 보자!",
+   "en": "Okay, thanks for telling me. See you Saturday!",
+   "roman": "Eung, allyeo jwoseo gomawo. Toyoire boja!"
+  }
+ ]
+}

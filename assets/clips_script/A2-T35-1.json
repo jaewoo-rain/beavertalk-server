@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T35-1",
+ "no": 40,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지수 씨, 이번 주말에 같이 운동할래요?",
+   "beaver_en": "Jisu, want to work out together this weekend?",
+   "beaver_roman": "Jisu ssi, ibeon jumare gachi undonghallaeyo?",
+   "learner": "좋아요. 저는 테니스를 칠 수 있어요.",
+   "en": "Sure. I can play tennis.",
+   "roman": "Joayo. Jeoneun teniseureul chil su isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "저는 테니스를 못 쳐요. 축구는 어때요?",
+   "beaver_en": "I can't play tennis. How about soccer?",
+   "beaver_roman": "Jeoneun teniseureul mot chyeoyo. Chukguneun eottaeyo?",
+   "learner": "축구는 잘 못해요. 너무 많이 뛰어야 해요.",
+   "en": "I'm not good at soccer. You have to run too much.",
+   "roman": "Chukguneun jal motaeyo. Neomu mani ttwieoya haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 농구는 어때요? 재미있어요.",
+   "beaver_en": "Then how about basketball? It's fun.",
+   "beaver_roman": "Geureom nongguneun eottaeyo? Jaemiisseoyo.",
+   "learner": "저는 키가 작아서 농구를 잘 못해요.",
+   "en": "I'm short, so I'm not good at basketball.",
+   "roman": "Jeoneun kiga jagaseo nonggureul jal motaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "키가 작아도 할 수 있어요. 야구는요?",
+   "beaver_en": "You can play even if you're short. What about baseball?",
+   "beaver_roman": "Kiga jagado hal su isseoyo. Yaguneunyo?",
+   "learner": "야구는 사람이 많아야 할 수 있어요.",
+   "en": "You need a lot of people to play baseball.",
+   "roman": "Yaguneun sarami manaya hal su isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 그럼 태권도나 스키는 어때요?",
+   "beaver_en": "True. Then how about taekwondo or skiing?",
+   "beaver_roman": "Majayo. Geureom taegwondona seukineun eottaeyo?",
+   "learner": "태권도는 할 수 있어요. 어릴 때 배웠어요.",
+   "en": "I can do taekwondo. I learned it as a kid.",
+   "roman": "Taegwondoneun hal su isseoyo. Eoril ttae baewosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 정말요? 스키도 탈 수 있어요?",
+   "beaver_en": "Wow, really? Can you ski too?",
+   "beaver_roman": "Wa, jeongmallyo? Seukido tal su isseoyo?",
+   "learner": "아니요, 스키는 못 타요. 돈도 많이 들어요.",
+   "en": "No, I can't ski. It costs a lot, too.",
+   "roman": "Aniyo, seukineun mot tayo. Dondo mani deureoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "맞아요. 스키는 비싸요. 탁구는 어때요?",
+   "beaver_en": "Right, skiing is expensive. How about table tennis?",
+   "beaver_roman": "Majayo. Seukineun bissayo. Takguneun eottaeyo?",
+   "learner": "탁구는 좋아요! 저는 칠 수 있어요.",
+   "en": "Table tennis is good! I can play it.",
+   "roman": "Takguneun joayo! Jeoneun chil su isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저도 탁구를 좋아해요. 라켓 가지고 있어요?",
+   "beaver_en": "I like table tennis too. Do you have paddles?",
+   "beaver_roman": "Jeodo takgureul joahaeyo. Raket gajigo isseoyo?",
+   "learner": "네, 두 개 있어요. 같이 쓸 수 있어요.",
+   "en": "Yes, I have two. We can share them.",
+   "roman": "Ne, du gae isseoyo. Gachi sseul su isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 토요일 오후에 칠 수 있어요?",
+   "beaver_en": "Great. Can you play Saturday afternoon?",
+   "beaver_roman": "Joayo. Toyoil ohue chil su isseoyo?",
+   "learner": "네, 토요일 세 시에 칠 수 있어요.",
+   "en": "Yes, I can play at three on Saturday.",
+   "roman": "Ne, toyoil se sie chil su isseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 학교 체육관에서 만나요!",
+   "beaver_en": "Then let's meet at the school gym!",
+   "beaver_roman": "Geureom hakgyo cheyukgwaneseo mannayo!",
+   "learner": "네, 좋아요. 토요일에 만나요!",
+   "en": "Okay, sounds good. See you Saturday!",
+   "roman": "Ne, joayo. Toyoire mannayo!"
+  }
+ ]
+}

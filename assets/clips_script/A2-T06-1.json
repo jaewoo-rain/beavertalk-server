@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T06-1",
+ "no": 23,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요! 요즘 어떻게 지내요?",
+   "beaver_en": "Hi! How are you doing these days?",
+   "beaver_roman": "annyeonghaseyo! yojeum eotteoke jinaeyo?",
+   "learner": "잘 지내요. 그런데 요즘 좀 바빠요.",
+   "en": "I'm doing well. But I'm a bit busy lately.",
+   "roman": "jal jinaeyo. geureonde yojeum jom bappayo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 아침에 몇 시에 일어나요?",
+   "beaver_en": "Really? What time do you get up in the morning?",
+   "beaver_roman": "geuraeyo? achime myeot sie ireonayo?",
+   "learner": "일곱 시에 일어나요. 그리고 세수를 해요.",
+   "en": "I get up at seven. Then I wash my face.",
+   "roman": "ilgop sie ireonayo. geurigo sesureul haeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "샤워는 언제 해요?",
+   "beaver_en": "When do you take a shower?",
+   "beaver_roman": "syawoneun eonje haeyo?",
+   "learner": "저녁에 집에서 샤워를 해요.",
+   "en": "I shower at home in the evening.",
+   "roman": "jeonyeoge jibeseo syaworeul haeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아침도 먹어요?",
+   "beaver_en": "Do you eat breakfast too?",
+   "beaver_roman": "achimdo meogeoyo?",
+   "learner": "네, 꼭 먹어요. 빵을 먹어요.",
+   "en": "Yes, I always eat. I eat bread.",
+   "roman": "ne, kkok meogeoyo. ppangeul meogeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "낮에는 뭐 해요?",
+   "beaver_en": "What do you do during the day?",
+   "beaver_roman": "najeneun mwo haeyo?",
+   "learner": "학교에서 한국어를 공부해요.",
+   "en": "I study Korean at school.",
+   "roman": "hakgyoeseo hangugeoreul gongbuhaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "주말에도 바빠요?",
+   "beaver_en": "Are you busy on weekends too?",
+   "beaver_roman": "jumaredo bappayo?",
+   "learner": "아니요, 주말에는 한가해요. 집에서 쉬어요.",
+   "en": "No, I'm free on weekends. I rest at home.",
+   "roman": "aniyo, jumareneun hangahaeyo. jibeseo swieoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "주말에 또 뭐 해요?",
+   "beaver_en": "What else do you do on weekends?",
+   "beaver_roman": "jumare tto mwo haeyo?",
+   "learner": "일요일에는 목욕탕에 가요.",
+   "en": "On Sundays, I go to the public bathhouse.",
+   "roman": "iryoireneun mogyoktange gayo."
+  },
+  {
+   "n": 8,
+   "beaver": "밤에는 몇 시에 자요?",
+   "beaver_en": "What time do you go to bed at night?",
+   "beaver_roman": "bameneun myeot sie jayo?",
+   "learner": "열한 시에 자요. 잠을 푹 자요.",
+   "en": "I sleep at eleven. I sleep deeply.",
+   "roman": "yeolhan sie jayo. jameul puk jayo."
+  },
+  {
+   "n": 9,
+   "beaver": "부모님은 몇 시에 주무세요?",
+   "beaver_en": "What time do your parents go to sleep?",
+   "beaver_roman": "bumonimeun myeot sie jumuseyo?",
+   "learner": "부모님은 열 시에 주무세요.",
+   "en": "My parents go to sleep at ten.",
+   "roman": "bumonimeun yeol sie jumuseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "생활이 규칙적이네요. 다음에 또 얘기해요!",
+   "beaver_en": "You have a regular routine. Let's talk again!",
+   "beaver_roman": "saenghwari gyuchikjeogineyo. daeume tto yaegihaeyo!",
+   "learner": "네, 고마워요. 또 봐요!",
+   "en": "Yes, thanks. See you!",
+   "roman": "ne, gomawoyo. tto bwayo!"
+  }
+ ]
+}

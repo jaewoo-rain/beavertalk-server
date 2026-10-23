@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T63-1",
+ "no": 438,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "대표님, 새 사업 전략을 들어 볼까요?",
+   "beaver_en": "Shall we hear the new business strategy?",
+   "beaver_roman": "Daepyonim, sae saeop jeollyageul deureo bolkkayo?",
+   "learner": "네, 농어촌 생산자와 직거래를 하려고 합니다.",
+   "en": "Yes, I plan to trade directly with rural producers.",
+   "roman": "Ne, nongeochon saengsanjawa jikgeoraereul haryeogo hamnida."
+  },
+  {
+   "n": 2,
+   "beaver": "직거래요? 물류는 어떻게 구축합니까?",
+   "beaver_en": "Direct trade? How will you build logistics?",
+   "beaver_roman": "Jikgeoraeyo? Mullyuneun eotteoke guchukamnikka?",
+   "learner": "생산지마다 유통망을 구축하겠습니다.",
+   "en": "I'll build a distribution network at each origin.",
+   "roman": "Saengsanjimada yutongmangeul guchukagetseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "인건비가 많이 들지 않겠습니까?",
+   "beaver_en": "Won't labor costs be high?",
+   "beaver_roman": "Ingeonbiga mani deulji anketseumnikka?",
+   "learner": "인건비는 물론이려니와 물류비도 줄어들 겁니다.",
+   "en": "Not only labor costs, but logistics costs will drop too.",
+   "roman": "Ingeonbineun mulloniryeoniwa mullyubido jureodeul geomnida."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 공장 가동도 줄일 겁니까?",
+   "beaver_en": "Then will you cut factory operations too?",
+   "beaver_roman": "Geureom gongjang gadongdo juril geomnikka?",
+   "learner": "아니요, 공장은 계속 가동할 겁니다.",
+   "en": "No, the factory will keep running.",
+   "roman": "Aniyo, gongjangeun gyesok gadonghal geomnida."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 상품이 부족하지 않겠습니까?",
+   "beaver_en": "Still, won't we be short on products?",
+   "beaver_roman": "Geuraedo sangpumi bujokaji anketseumnikka?",
+   "learner": "품종 개량으로 생산량을 늘리겠습니다.",
+   "en": "We'll increase output by improving varieties.",
+   "roman": "Pumjong gaeryangeuro saengsallyangeul neulligetseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "협력할 산업에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about partner industries?",
+   "beaver_roman": "Hyeomnyeokal saneobe daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "수산업은 물론이려니와 임업과도 협력하겠습니다.",
+   "en": "We'll work with fishing and forestry alike.",
+   "roman": "Suseobeun mulloniryeoniwa imeopgwado hyeomnyeokagetseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "광업이나 조선업은 어떻습니까?",
+   "beaver_en": "What about mining or shipbuilding?",
+   "beaver_roman": "Gwangeobina joseoneobeun eotteoseumnikka?",
+   "learner": "그건 어렵지만 대신 경공업 벤처와 손잡겠습니다.",
+   "en": "That's hard, but we'll team up with light-industry ventures instead.",
+   "roman": "Geugeon eoryeopjiman daesin gyeonggongeop bencheowa sonjapgetseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "지역 사회에도 도움이 될까요?",
+   "beaver_en": "Will it help local communities too?",
+   "beaver_roman": "Jiyeok sahoeedo doumi doelkkayo?",
+   "learner": "일자리 창출은 물론이려니와 자급자족에도 기여합니다.",
+   "en": "It creates jobs and also contributes to self-sufficiency.",
+   "roman": "Iljari changchureun mulloniryeoniwa jageupjajogedo giyeohamnida."
+  },
+  {
+   "n": 9,
+   "beaver": "판촉은 어떻게 할 생각입니까?",
+   "beaver_en": "How do you plan to do promotions?",
+   "beaver_roman": "Panchogeun eotteoke hal saenggagimnikka?",
+   "learner": "사업주들과 함께 판촉 행사를 열 겁니다.",
+   "en": "We'll hold promotional events with business owners.",
+   "roman": "Saeopjudeulgwa hamkke panchok haengsareul yeol geomnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋네요. 계획이 잘 무르익었군요.",
+   "beaver_en": "Great. The plan has really matured.",
+   "beaver_roman": "Jonneyo. Gyehoegi jal mureuigeotgunyo.",
+   "learner": "네, 영리보다 신뢰를 먼저 지키겠습니다.",
+   "en": "Yes, we'll put trust before profit.",
+   "roman": "Ne, yeongniboda silloereul meonjeo jikigetseumnida."
+  }
+ ]
+}

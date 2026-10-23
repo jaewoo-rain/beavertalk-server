@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T04-2",
+ "no": 210,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "새로 온 인턴 정민호 씨랑 일해 봤죠? 어때요?",
+   "beaver_en": "You've worked with the new intern, Jeong Minho, right? How is he?",
+   "beaver_roman": "saero on inteon jeongminho ssirang ilhae bwatjyo? eottaeyo?",
+   "learner": "네, 정말 점잖은 사람이에요. 말도 조심스럽게 해요.",
+   "en": "Yes, he's really well-mannered. He speaks carefully, too.",
+   "roman": "ne, jeongmal jeomjaneun saramieyo. maldo josimseureopge haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 일은 잘해요?",
+   "beaver_en": "Really? Is he good at his work?",
+   "beaver_roman": "geuraeyo? ireun jalhaeyo?",
+   "learner": "머리가 좋아서 일을 여간 빨리 배우는 게 아니에요.",
+   "en": "He's smart, so he learns the work incredibly fast.",
+   "roman": "meoriga joaseo ireul yeogan ppalli baeuneun ge anieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "성격은요? 화를 잘 내요?",
+   "beaver_en": "What about his personality? Does he get angry easily?",
+   "beaver_roman": "seonggyeogeunyo? hwareul jal naeyo?",
+   "learner": "아니요, 성격이 얌전하고 인정도 많아요.",
+   "en": "No, he's gentle and very kind-hearted.",
+   "roman": "aniyo, seonggyeogi yamjeonhago injeongdo manayo."
+  },
+  {
+   "n": 4,
+   "beaver": "눈치는 있어요?",
+   "beaver_en": "Does he read the room well?",
+   "beaver_roman": "nunchineun isseoyo?",
+   "learner": "눈치가 여간 빠르지 않아요. 제 기분을 금방 알아요.",
+   "en": "He's extremely quick at reading people. He notices my mood right away.",
+   "roman": "nunchiga yeogan ppareuji anayo. je gibuneul geumbang arayo."
+  },
+  {
+   "n": 5,
+   "beaver": "솔직한 편이에요?",
+   "beaver_en": "Is he fairly honest?",
+   "beaver_roman": "soljikan pyeonieyo?",
+   "learner": "네, 솔직하고 정직해요. 양심적인 사람이에요.",
+   "en": "Yes, he's frank and honest. He's a conscientious person.",
+   "roman": "ne, soljikago jeongjikaeyo. yangsimjeogin saramieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 잘난 척하지는 않아요?",
+   "beaver_en": "He doesn't show off, does he?",
+   "beaver_roman": "hoksi jallan cheokajineun anayo?",
+   "learner": "능력이 있어도 잘난 척을 안 해요. 인격이 좋아요.",
+   "en": "Even though he's capable, he doesn't show off. He has good character.",
+   "roman": "neungnyeogi isseodo jallan cheogeul an haeyo. ingyeogi joayo."
+  },
+  {
+   "n": 7,
+   "beaver": "또 어떤 점이 있어요?",
+   "beaver_en": "What else is he like?",
+   "beaver_roman": "tto eotteon jeomi isseoyo?",
+   "learner": "호기심이 많아서 질문이 여간 많은 것이 아니에요.",
+   "en": "He's so curious that he asks a huge number of questions.",
+   "roman": "hogisimi manaseo jilmuni yeogan maneun geosi anieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "일할 때 실수는 없어요?",
+   "beaver_en": "Does he make mistakes at work?",
+   "beaver_roman": "ilhal ttae silsuneun eopseoyo?",
+   "learner": "가끔 실수해도 씩씩하게 다시 해요.",
+   "en": "Even when he makes mistakes, he bravely tries again.",
+   "roman": "gakkeum silsuhaedo ssikssikage dasi haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "급한 일이 생기면 어때요?",
+   "beaver_en": "How is he when something urgent comes up?",
+   "beaver_roman": "geupan iri saenggimyeon eottaeyo?",
+   "learner": "위험한 건 본능적으로 먼저 알아채요.",
+   "en": "He senses danger first, by instinct.",
+   "roman": "wiheomhan geon bonneungjeogeuro meonjeo arachaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "칭찬이 많네요. 같이 일하기 좋겠어요.",
+   "beaver_en": "That's a lot of praise. He sounds great to work with.",
+   "beaver_roman": "chingchani manneyo. gachi ilhagi joketseoyo.",
+   "learner": "네, 사람이 좋아서 여간 편한 게 아니에요.",
+   "en": "Yes, he's a good person, so it's really comfortable.",
+   "roman": "ne, sarami joaseo yeogan pyeonhan ge anieyo."
+  }
+ ]
+}

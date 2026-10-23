@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T57-1",
+ "no": 111,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "뭐 쓰고 있어요?",
+   "beaver_en": "What are you writing?",
+   "beaver_roman": "mwo sseugo isseoyo?",
+   "learner": "새해 다짐을 적어요. 행동을 바꾸고 싶어요.",
+   "en": "I'm writing my New Year's resolutions. I want to change my behavior.",
+   "roman": "saehae dajimeul jeogeoyo. haengdongeul bakkugo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 점을요?",
+   "beaver_en": "In what way?",
+   "beaver_roman": "eotteon jeomeullyo?",
+   "learner": "첫째, 나는 지각하지 않는다.",
+   "en": "First, I am not late.",
+   "roman": "cheotjjae, naneun jigakaji anneunda."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요. 요즘 자주 늦었지요?",
+   "beaver_en": "Good. You've been late a lot lately, right?",
+   "beaver_roman": "joayo. yojeum jaju neujeotjiyo?",
+   "learner": "네. 둘째, 나는 말을 조심한다.",
+   "en": "Yes. Second, I am careful with my words.",
+   "roman": "ne. duljjae, naneun mareul josimhanda."
+  },
+  {
+   "n": 4,
+   "beaver": "말을 조심한다고요? 왜요?",
+   "beaver_en": "Careful with your words? Why?",
+   "beaver_roman": "mareul josimhandagoyo? waeyo?",
+   "learner": "제 태도가 가끔 바르지 않아요.",
+   "en": "My attitude is sometimes not proper.",
+   "roman": "je taedoga gakkeum bareuji anayo."
+  },
+  {
+   "n": 5,
+   "beaver": "그렇군요. 다음 다짐은 뭐예요?",
+   "beaver_en": "I see. What's your next resolution?",
+   "beaver_roman": "geureokunnyo. daeum dajimeun mwoyeyo?",
+   "learner": "셋째, 나는 매일 조금씩 노력한다.",
+   "en": "Third, I make a little effort every day.",
+   "roman": "setjjae, naneun maeil jogeumssik noryeokanda."
+  },
+  {
+   "n": 6,
+   "beaver": "어떤 노력을 할 거예요?",
+   "beaver_en": "What kind of effort will you make?",
+   "beaver_roman": "eotteon noryeogeul hal geoyeyo?",
+   "learner": "운동과 공부로 내 능력을 키운다.",
+   "en": "I build my abilities through exercise and study.",
+   "roman": "undonggwa gongburo nae neungnyeogeul kiunda."
+  },
+  {
+   "n": 7,
+   "beaver": "멋져요. 자신은 있어요?",
+   "beaver_en": "Cool. Are you confident?",
+   "beaver_roman": "meotjyeoyo. jasineun isseoyo?",
+   "learner": "네, 자신이 있어요. 나는 할 수 있다!",
+   "en": "Yes, I'm confident. I can do it!",
+   "roman": "ne, jasini isseoyo. naneun hal su itda!"
+  },
+  {
+   "n": 8,
+   "beaver": "마지막 다짐도 있어요?",
+   "beaver_en": "Do you have a last resolution?",
+   "beaver_roman": "majimak dajimdo isseoyo?",
+   "learner": "넷째, 행동이 말보다 중요하다.",
+   "en": "Fourth, actions are more important than words.",
+   "roman": "netjjae, haengdongi malboda jungyohada."
+  },
+  {
+   "n": 9,
+   "beaver": "좋은 말이에요. 어디에 붙일 거예요?",
+   "beaver_en": "Nice words. Where will you put it up?",
+   "beaver_roman": "joeun marieyo. eodie buchil geoyeyo?",
+   "learner": "책상 앞에 붙여요. 매일 볼 거예요.",
+   "en": "I'll put it up by my desk. I'll see it every day.",
+   "roman": "chaeksang ape buchyeoyo. maeil bol geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "응원할게요. 꼭 지켜요!",
+   "beaver_en": "I'm rooting for you. Stick to it!",
+   "beaver_roman": "eungwonhalgeyo. kkok jikyeoyo!",
+   "learner": "고마워요. 오늘이 시작이다!",
+   "en": "Thanks. Today is the start!",
+   "roman": "gomawoyo. oneuri sijagida!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T34-1",
+ "no": 145,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지야, 어제 전시회 잘 다녀왔어? 어땠어?",
+   "beaver_en": "Minji, did you enjoy the exhibition yesterday? How was it?",
+   "beaver_roman": "Minjiya, eoje jeonsihoe jal danyeowasseo? Eottaesseo?",
+   "learner": "응, 미술관에서 미술 전시를 봤어. 정말 좋았어.",
+   "en": "Yeah, I saw an art exhibition at the art museum. It was great.",
+   "roman": "Eung, misulgwaneseo misul jeonsireul bwasseo. Jeongmal joasseo."
+  },
+  {
+   "n": 2,
+   "beaver": "사람 많았어? 입장료는 얼마였어?",
+   "beaver_en": "Were there many people? How much was admission?",
+   "beaver_roman": "Saram manasseo? Ipjangnyoneun eolmayeosseo?",
+   "learner": "만 원이었어. 평일인데도 사람이 정말 많았어.",
+   "en": "It was 10,000 won. Even though it was a weekday, it was really crowded.",
+   "roman": "Man wonieosseo. Pyeongirindedo sarami jeongmal manasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "무슨 작품이 제일 기억에 남아?",
+   "beaver_en": "Which work do you remember most?",
+   "beaver_roman": "Museun jakpumi jeil gieoge nama?",
+   "learner": "무용 비디오를 상영했는데, 그게 제일 좋았어.",
+   "en": "They screened a dance video, and that was the best.",
+   "roman": "Muyong bidioreul sangyeonghaenneunde, geuge jeil joasseo."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 좋았겠다. 나는 어제 공연장에 갔어.",
+   "beaver_en": "Wow, sounds nice. I went to a concert hall yesterday.",
+   "beaver_roman": "Wa, joatgetda. Naneun eoje gongyeonjange gasseo.",
+   "learner": "그래? 무슨 공연이었어? 오페라였어?",
+   "en": "Really? What performance was it? An opera?",
+   "roman": "Geurae? Museun gongyeonieosseo? Operayeosseo?"
+  },
+  {
+   "n": 5,
+   "beaver": "아니, 음악회였어. 유명한 연예인도 나왔어.",
+   "beaver_en": "No, it was a concert. A famous celebrity was there too.",
+   "beaver_roman": "Ani, eumakoeyeosseo. Yumyeonghan yeonyeindo nawasseo.",
+   "learner": "우와! 무대는 어땠어? 연주도 좋았지?",
+   "en": "Wow! How was the stage? The playing was good too, right?",
+   "roman": "Uwa! Mudaeneun eottaesseo? Yeonjudo joatji?"
+  },
+  {
+   "n": 6,
+   "beaver": "응, 무대가 멋있었어. 북 연주가 최고였어.",
+   "beaver_en": "Yeah, the stage was cool. The drum performance was the best.",
+   "beaver_roman": "Eung, mudaega meosisseosseo. Buk yeonjuga choegoyeosseo.",
+   "learner": "관객들이 박수를 많이 쳤겠다.",
+   "en": "The audience must have clapped a lot.",
+   "roman": "Gwangaekdeuri baksureul mani chyeotgetda."
+  },
+  {
+   "n": 7,
+   "beaver": "그런데 중간에 마이크가 안 나왔어. 어휴.",
+   "beaver_en": "But in the middle, the microphone stopped working. Ugh.",
+   "beaver_roman": "Geureonde junggane maikeuga an nawasseo. Eohyu.",
+   "learner": "어떡해! 연예인인데도 많이 당황했겠다.",
+   "en": "Oh no! Even as a celebrity, they must have panicked.",
+   "roman": "Eotteokae! Yeonyeinindedo mani danghwanghaetgetda."
+  },
+  {
+   "n": 8,
+   "beaver": "근데 사회자가 농담을 해서 코미디 쇼 같았어.",
+   "beaver_en": "But the MC told jokes, so it felt like a comedy show.",
+   "beaver_roman": "Geunde sahoejaga nongdameul haeseo komidi syo gatasseo.",
+   "learner": "하하, 사회자가 진짜 주인공이었네.",
+   "en": "Haha, the MC was the real star then.",
+   "roman": "Haha, sahoejaga jinjja juingongieonne."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아. 끝나고 시디도 샀어. 같이 들을래?",
+   "beaver_en": "Right. I bought the CD afterward. Want to listen together?",
+   "beaver_roman": "Maja. Kkeunnago sidido sasseo. Gachi deureullae?",
+   "learner": "좋아! 다음 공연은 나도 같이 관람하고 싶어.",
+   "en": "Sure! I want to watch the next performance with you.",
+   "roman": "Joa! Daeum gongyeoneun nado gachi gwallamhago sipeo."
+  },
+  {
+   "n": 10,
+   "beaver": "그래, 다음 달에 같이 가자. 약속!",
+   "beaver_en": "Okay, let's go together next month. Promise!",
+   "beaver_roman": "Geurae, daeum dare gachi gaja. Yaksok!",
+   "learner": "응, 약속! 미술관에도 같이 가자!",
+   "en": "Yeah, promise! Let's go to the art museum together too!",
+   "roman": "Eung, yaksok! Misulgwanedo gachi gaja!"
+  }
+ ]
+}

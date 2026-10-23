@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T21-1",
+ "no": 310,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김민수 님, 그동안 무소식이라 걱정했습니다.",
+   "beaver_en": "Mr. Kim, I was worried since I heard nothing from you.",
+   "beaver_roman": "Gimminsu nim, geudongan musosigira geokjeonghaetseumnida.",
+   "learner": "죄송해요. 태풍으로 인해 연락이 늦었어요.",
+   "en": "I'm sorry. My contact was late due to the typhoon.",
+   "roman": "Joesonghaeyo. Taepungeuro inhae yeollagi neujeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그동안 연락을 시도해 보셨습니까?",
+   "beaver_en": "Did you try to contact us in the meantime?",
+   "beaver_roman": "Geudongan yeollageul sidohae bosyeotseumnikka?",
+   "learner": "네, 지난주에 서신을 우체통에 넣었어요.",
+   "en": "Yes, I put a letter in the postbox last week.",
+   "roman": "Ne, jinanjue seosineul uchetonge neoeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "서신은 아직 못 받았습니다. 등기로 보내셨습니까?",
+   "beaver_en": "We haven't received it yet. Did you send it registered?",
+   "beaver_roman": "Seosineun ajik mot badatseumnida. Deunggiro bonaesyeotseumnikka?",
+   "learner": "아니요, 일반 우편이에요. 등기로 할 걸 그랬어요.",
+   "en": "No, it was regular mail. I should have sent it registered.",
+   "roman": "Aniyo, ilban upyeonieyo. Deunggiro hal geol geuraesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다른 방법은 없었습니까?",
+   "beaver_en": "Was there no other way?",
+   "beaver_roman": "Dareun bangbeobeun eopseotseumnikka?",
+   "learner": "정전으로 인해 휴대폰이 꺼져서 공중전화를 썼어요.",
+   "en": "My phone died due to the blackout, so I used a pay phone.",
+   "roman": "Jeonjeoneuro inhae hyudaeponi kkeojeoseo gongjungjeonhwareul sseosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 저희는 전화를 받지 못했습니다.",
+   "beaver_en": "But we didn't get any call.",
+   "beaver_roman": "Geureonde jeohuineun jeonhwareul batji motaetseumnida.",
+   "learner": "여러 번 전화했는데 계속 통화 중이었어요.",
+   "en": "I called several times, but it was always busy.",
+   "roman": "Yeoreo beon jeonhwahaenneunde gyesok tonghwa jungieosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "아, 그 시간에 전화가 많이 몰렸습니다. 죄송합니다.",
+   "beaver_en": "Ah, we got a flood of calls then. I'm sorry.",
+   "beaver_roman": "A, geu sigane jeonhwaga mani mollyeotseumnida. Joesonghamnida.",
+   "learner": "괜찮아요. 그때는 전화가 많았겠죠.",
+   "en": "It's okay. You must have had lots of calls then.",
+   "roman": "Gwaenchanayo. Geuttaeneun jeonhwaga manatgetjyo."
+  },
+  {
+   "n": 7,
+   "beaver": "혹시 새 연락처가 있으십니까?",
+   "beaver_en": "Do you happen to have a new contact number?",
+   "beaver_roman": "Hoksi sae yeollakcheoga isseusimnikka?",
+   "learner": "서신 끝에 추신으로 새 번호를 적었어요.",
+   "en": "I wrote my new number in a postscript at the end of the letter.",
+   "roman": "Seosin kkeute chusineuro sae beonhoreul jeogeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "편지가 도착하면 바로 확인하겠습니다.",
+   "beaver_en": "I'll check the letter as soon as it arrives.",
+   "beaver_roman": "Pyeonjiga dochakamyeon baro hwaginhagetseumnida.",
+   "learner": "수신자는 박서연 담당자님으로 썼어요.",
+   "en": "I wrote you, Ms. Park Seoyeon, as the recipient.",
+   "roman": "Susinjaneun Bakseoyeon damdangjanimeuro sseosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "새 번호를 지금 알려 주시겠어요?",
+   "beaver_en": "Could you tell me the new number now?",
+   "beaver_roman": "Sae beonhoreul jigeum allyeo jusigesseoyo?",
+   "learner": "네, 문자로 보낼게요. 집 우편함도 매일 확인할게요.",
+   "en": "Yes, I'll text it to you. I'll also check my mailbox at home every day.",
+   "roman": "Ne, munjaro bonaelgeyo. Jip upyeonhamdo maeil hwaginhalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 연락 주셔서 감사합니다.",
+   "beaver_en": "Good. Thank you for getting in touch.",
+   "beaver_roman": "Jotseumnida. Yeollak jusyeoseo gamsahamnida.",
+   "learner": "오래 연락 못 드려서 죄송해요. 전화 기다릴게요.",
+   "en": "Sorry I couldn't reach you for so long. I'll wait for your call.",
+   "roman": "Orae yeollak mot deuryeoseo joesonghaeyo. Jeonhwa gidarilgeyo."
+  }
+ ]
+}

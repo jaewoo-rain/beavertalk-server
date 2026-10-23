@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T33-1",
+ "no": 186,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 바쁘죠? 동아리 활동은 어떻게 해요?",
+   "beaver_en": "You're busy these days, right? How's club activity going?",
+   "beaver_roman": "Yojeum bappeujyo? Dongari hwaldongeun eotteoke haeyo?",
+   "learner": "바쁜데도 불구하고 동아리 활동은 꼭 해요.",
+   "en": "Even though I'm busy, I never miss club activities.",
+   "roman": "Bappeundedo bulguhago dongari hwaldongeun kkok haeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "대단하네요. 여가 시간에는 주로 뭘 해요?",
+   "beaver_en": "Impressive. What do you usually do in your free time?",
+   "beaver_roman": "Daedanhaneyo. Yeoga siganeneun juro mwol haeyo?",
+   "learner": "여가에는 소설책을 읽고 시를 써요.",
+   "en": "In my free time, I read novels and write poems.",
+   "roman": "Yeogaeneun soseolchaegeul ilkko sireul sseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아하는 소설가가 있어요?",
+   "beaver_en": "Do you have a favorite novelist?",
+   "beaver_roman": "Joahaneun soseolgaga isseoyo?",
+   "learner": "김영하 소설가의 책은 다 읽었어요.",
+   "en": "I've read all of Kim Young-ha's books.",
+   "roman": "Gimyeongha soseolgae chaegeun da ilgeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "시집도 모은다고 들었어요. 수집이 취미예요?",
+   "beaver_en": "I heard you collect poetry books too. Is collecting your hobby?",
+   "beaver_roman": "Sijipdo moeundago deureosseoyo. Sujibi chwimiyeyo?",
+   "learner": "네, 시집 수집이 제 오랜 취미예요.",
+   "en": "Yes, collecting poetry books is my long-time hobby.",
+   "roman": "Ne, sijip sujibi je oraen chwimiyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "지금 몇 권이나 있어요?",
+   "beaver_en": "How many do you have now?",
+   "beaver_roman": "Jigeum myeot gwonina isseoyo?",
+   "learner": "백 권쯤 있어요. 올해만 열 권 늘었어요.",
+   "en": "About a hundred. I got ten more this year alone.",
+   "roman": "Baek gwonjjeum isseoyo. Olhaeman yeol gwon neureosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 집이 좁지 않아요?",
+   "beaver_en": "Wow, isn't your place getting cramped?",
+   "beaver_roman": "Wa, jibi jopji anayo?",
+   "learner": "방이 작은데도 불구하고 책장을 또 샀어요.",
+   "en": "Even though my room is small, I bought another bookshelf.",
+   "roman": "Bangi jageundedo bulguhago chaekjangeul tto sasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "하하. 원래 문학을 전공했어요?",
+   "beaver_en": "Haha. Did you major in literature?",
+   "beaver_roman": "Haha. Wollae munhageul jeongonghaesseoyo?",
+   "learner": "아니요, 공대생이었는데도 문학이 좋았어요.",
+   "en": "No, I loved literature even though I was an engineering student.",
+   "roman": "Aniyo, gongdaesaengieonneundedo munhagi joasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "요즘 야근도 많다면서요? 그래도 계속 읽어요?",
+   "beaver_en": "I heard you work late a lot. Do you still keep reading?",
+   "beaver_roman": "Yojeum yageundo mantamyeonseoyo? Geuraedo gyesok ilgeoyo?",
+   "learner": "야근하는데도 불구하고 자기 전에 꼭 읽어요.",
+   "en": "Even though I work late, I always read before bed.",
+   "roman": "Yageunhaneundedo bulguhago jagi jeone kkok ilgeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음 달에 동아리 공동 시집을 낼까 해요.",
+   "beaver_en": "We're thinking of publishing a joint club poetry book next month.",
+   "beaver_roman": "Daeum dare dongari gongdong sijibeul naelkka haeyo.",
+   "learner": "공동 시집이요? 저도 꼭 참여할게요!",
+   "en": "A joint poetry book? I'll definitely join in!",
+   "roman": "Gongdong sijibiyo? Jeodo kkok chamyeohalgeyo!"
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 그럼 토요일 모임에서 봐요!",
+   "beaver_en": "Thanks. See you at the Saturday meeting, then!",
+   "beaver_roman": "Gomawoyo. Geureom toyoil moimeseo bwayo!",
+   "learner": "네, 토요일에 새 시를 가지고 갈게요.",
+   "en": "Okay, I'll bring a new poem on Saturday.",
+   "roman": "Ne, toyoire sae sireul gajigo galgeyo."
+  }
+ ]
+}

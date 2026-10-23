@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T15-1",
+ "no": 452,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "김 대리, 기숙사 점검 결과를 보고해 주십시오.",
+   "beaver_en": "Mr. Kim, please report the dorm inspection results.",
+   "beaver_roman": "Gim daeri, gisuksa jeomgeom gyeolgwareul bogohae jusipsio.",
+   "learner": "네, 점검 결과를 보고드리겠습니다.",
+   "en": "Yes, I'll report the inspection results.",
+   "roman": "Ne, jeomgeom gyeolgwareul bogodeurigetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "먼저 가장 큰 문제는 어디입니까?",
+   "beaver_en": "First, where is the biggest problem?",
+   "beaver_roman": "Meonjeo gajang keun munjeneun eodiimnikka?",
+   "learner": "계단과 창고 등지에 사각지대가 있습니다.",
+   "en": "There are blind spots in places like the stairs and storage room.",
+   "roman": "Gyedangwa changgo deungjie sagakjidaega itseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "위치를 좀 더 구체적으로 말해 주세요.",
+   "beaver_en": "Please tell me the location more specifically.",
+   "beaver_roman": "Wichireul jom deo guchejeogeuro malhae juseyo.",
+   "learner": "건물 동쪽 출입구 근처입니다.",
+   "en": "It's near the east entrance of the building.",
+   "roman": "Geonmul dongjjok churipgu geuncheoimnida."
+  },
+  {
+   "n": 4,
+   "beaver": "왜 그쪽이 특히 위험합니까?",
+   "beaver_en": "Why is that area especially dangerous?",
+   "beaver_roman": "Wae geujjogi teuki wiheomhamnikka?",
+   "learner": "강가 쪽이라 사람들 눈에 잘 안 띕니다.",
+   "en": "It's by the river, so people rarely notice it.",
+   "roman": "Gangga jjogira saramdeul nune jal an ttimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "방 안 점검 결과는 어떻습니까?",
+   "beaver_en": "How about the results inside the rooms?",
+   "beaver_roman": "Bang an jeomgeom gyeolgwaneun eotteosseumnikka?",
+   "learner": "침대 머리맡 창문 틈새로 바람이 들어옵니다.",
+   "en": "Wind comes in through gaps in the window by the bed's head.",
+   "roman": "Chimdae meorimat changmun teumsaero barami deureoomnida."
+  },
+  {
+   "n": 6,
+   "beaver": "다른 곳에도 문제가 있습니까?",
+   "beaver_en": "Are there problems anywhere else?",
+   "beaver_roman": "Dareun gosedo munjega itseumnikka?",
+   "learner": "네, 문틀에도 틈이 꽤 있습니다.",
+   "en": "Yes, there are quite a few gaps in the door frames too.",
+   "roman": "Ne, munteuredo teumi kkwae itseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "공간 배치에는 문제가 없습니까?",
+   "beaver_en": "Is there any problem with the layout?",
+   "beaver_roman": "Gonggan baechieneun munjega eopseumnikka?",
+   "learner": "복도가 좁아서 대피가 어렵습니다.",
+   "en": "The hallway is narrow, so evacuation is hard.",
+   "roman": "Bokdoga jobaseo daepiga eoryeopseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "보완 계획은 어떻습니까?",
+   "beaver_en": "What's the plan to fix it?",
+   "beaver_roman": "Bowan gyehoegeun eotteosseumnikka?",
+   "learner": "사각지대에 카메라를 대폭 늘리겠습니다.",
+   "en": "We'll greatly increase cameras in the blind spots.",
+   "roman": "Sagakjidaee kamerareul daepok neulligetseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "누가 이 일을 맡아 줄 수 있습니까?",
+   "beaver_en": "Who can take charge of this?",
+   "beaver_roman": "Nuga i ireul mata jul su itseumnikka?",
+   "learner": "제가 앞장서서 다음 주까지 끝내겠습니다.",
+   "en": "I'll take the lead and finish by next week.",
+   "roman": "Jega apjangseoseo daeum jukkaji kkeunnaegetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 정리가 아주 잘됐습니다. 수고했습니다.",
+   "beaver_en": "Good. Very well organized. Nice work.",
+   "beaver_roman": "Josseumnida. Jeongniga aju jaldwaetseumnida. Sugohaetseumnida.",
+   "learner": "감사합니다. 틈새 보수도 바로 시작하겠습니다.",
+   "en": "Thank you. I'll start repairing the gaps right away.",
+   "roman": "Gamsahamnida. Teumsae bosudo baro sijakagetseumnida."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T34-1",
+ "no": 230,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 무슨 영화에 빠졌어? 계속 그 얘기만 하더라.",
+   "beaver_en": "What movie are you into lately? You keep talking about it.",
+   "beaver_roman": "yojeum museun yeonghwae ppajyeosseo? gyesok geu yaegiman hadeora.",
+   "learner": "'푸른 등대' 시리즈야. 고전인데도 안 지루해.",
+   "en": "The 'Blue Lighthouse' series. It's a classic, but it's not boring.",
+   "roman": "'pureun deungdae' sirijeuya. gojeonindedo an jiruhae."
+  },
+  {
+   "n": 2,
+   "beaver": "옛날 영화잖아. 어떤 점이 그렇게 좋았어?",
+   "beaver_en": "That's an old movie. What did you like so much?",
+   "beaver_roman": "yennal yeonghwajana. eotteon jeomi geureoke joasseo?",
+   "learner": "줄거리는 비극인데도 마지막에 희망이 느껴져.",
+   "en": "Even though the plot is a tragedy, the ending feels hopeful.",
+   "roman": "julgeorineun bigeugindedo majimage huimangi neukkyeojyeo."
+  },
+  {
+   "n": 3,
+   "beaver": "감독 연출은 어땠어? 장면이 예쁘다던데.",
+   "beaver_en": "How was the directing? I heard the scenes are pretty.",
+   "beaver_roman": "gamdok yeonchureun eottaesseo? jangmyeoni yeppeudadeonde.",
+   "learner": "연출이 정말 좋아. 화면이 물감으로 그린 그림 같아.",
+   "en": "The directing is great. The screen looks like a painting.",
+   "roman": "yeonchuri jeongmal joa. hwamyeoni mulgameuro geurin geurim gata."
+  },
+  {
+   "n": 4,
+   "beaver": "배우는? 누가 출연했어?",
+   "beaver_en": "What about the actors? Who's in it?",
+   "beaver_roman": "baeuneun? nuga churyeonhaesseo?",
+   "learner": "한수진이 출연했어. 대사 하나하나가 마음에 남아.",
+   "en": "Han Sujin is in it. Every line stays in my heart.",
+   "roman": "hansujini churyeonhaesseo. daesa hanahanaga maeume nama."
+  },
+  {
+   "n": 5,
+   "beaver": "옛날 영화인데 화질은 괜찮았어?",
+   "beaver_en": "It's an old movie. Was the picture quality okay?",
+   "beaver_roman": "yennal yeonghwainde hwajireun gwaenchanasseo?",
+   "learner": "응, 화질도 괜찮았어. 그리고 정말 감동적이었어.",
+   "en": "Yes, the picture quality was fine too. And it was really moving.",
+   "roman": "eung, hwajildo gwaenchanasseo. geurigo jeongmal gamdongjeogieosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "음악도 좋지? 영화 음악이 유명하던데.",
+   "beaver_en": "The music's good too, right? I heard it's famous.",
+   "beaver_roman": "eumakdo jochi? yeonghwa eumagi yumyeonghadeonde.",
+   "learner": "맞아. 작곡가 이름이 서민호인데, 곡이 다 좋아.",
+   "en": "Right. The composer is Seo Minho, and every song is great.",
+   "roman": "maja. jakgokga ireumi seominhoinde, gogi da joa."
+  },
+  {
+   "n": 7,
+   "beaver": "그래서 음반도 샀어?",
+   "beaver_en": "So did you buy the album too?",
+   "beaver_roman": "geuraeseo eumbando sasseo?",
+   "learner": "응, 음반도 샀어. 가사 없는 곡인데도 좋아.",
+   "en": "Yes, I bought it. Even without lyrics, the songs are great.",
+   "roman": "eung, eumbando sasseo. gasa eomneun gogindedo joa."
+  },
+  {
+   "n": 8,
+   "beaver": "완전히 팬이 됐네. 그 작곡가 다른 곡도 알아?",
+   "beaver_en": "You've become a real fan. Know his other songs?",
+   "beaver_roman": "wanjeonhi paeni dwaenne. geu jakgokga dareun gokdo ara?",
+   "learner": "응, 내가 어릴 때 부르던 동요도 그 사람 곡이래.",
+   "en": "Yes, a children's song I used to sing as a kid is his too.",
+   "roman": "eung, naega eoril ttae bureudeon dongyodo geu saram gogirae."
+  },
+  {
+   "n": 9,
+   "beaver": "진짜? 신기하다. 너도 뭔가 만들고 싶어졌어?",
+   "beaver_en": "Really? Amazing. Do you want to make something too?",
+   "beaver_roman": "jinjja? singihada. neodo mwonga mandeulgo sipeojyeosseo?",
+   "learner": "응, 나도 창작해 보고 싶어. 짧은 곡부터 써 볼래.",
+   "en": "Yes, I want to try creating too. I'll start with a short song.",
+   "roman": "eung, nado changjakae bogo sipeo. jjalbeun gokbuteo sseo bollae."
+  },
+  {
+   "n": 10,
+   "beaver": "멋지다! 이번 주말에 그 영화 같이 볼까?",
+   "beaver_en": "Cool! Want to watch that movie together this weekend?",
+   "beaver_roman": "meotjida! ibeon jumare geu yeonghwa gachi bolkka?",
+   "learner": "좋아! 내가 이 작품 꼭 보여 주고 싶었어.",
+   "en": "Sure! I really wanted to show you this work.",
+   "roman": "joa! naega i jakpum kkok boyeo jugo sipeosseo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T27-1",
+ "no": 315,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까. 인사처 김민수입니다.",
+   "beaver_en": "Hello. I'm Kim Minsu from the HR department.",
+   "beaver_roman": "annyeonghasimnikka. insacheo gimminsuimnida.",
+   "learner": "안녕하십니까. 영업처 이지은 차장입니다.",
+   "en": "Hello. I'm Lee Jieun, deputy manager in Sales.",
+   "roman": "annyeonghasimnikka. yeongeopcheo ijieun chajangimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "그동안의 경력을 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me about your career so far?",
+   "beaver_roman": "geudongane gyeongnyeogeul malsseumhae jusigetseumnikka?",
+   "learner": "사원으로 시작해서 대리를 거쳐 차장이 됐습니다.",
+   "en": "I started as a staff member, became an assistant manager, and then a deputy manager.",
+   "roman": "sawoneuro sijakaeseo daerireul geochyeo chajangi dwaetseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "처음 소속은 어디였습니까?",
+   "beaver_en": "Which team were you in at first?",
+   "beaver_roman": "cheoeum sosogeun eodiyeotseumnikka?",
+   "learner": "처음에는 고객센터 상담 요원이었습니다.",
+   "en": "At first, I was a customer service agent.",
+   "roman": "cheoeumeneun gogaeksenteo sangdam yowonieotseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "진급은 빨랐습니까?",
+   "beaver_en": "Were you promoted quickly?",
+   "beaver_roman": "jingeubeun ppallatseumnikka?",
+   "learner": "네, 팀을 이끌면서 빨리 진급했습니다.",
+   "en": "Yes, I led the team and got promoted quickly.",
+   "roman": "ne, timeul ikkeulmyeonseo ppalli jingeupaetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "급여는 어떻게 달라졌습니까?",
+   "beaver_en": "How has your salary changed?",
+   "beaver_roman": "geubyeoneun eotteoke dallajyeotseumnikka?",
+   "learner": "직위가 오르면서 급여와 수당도 늘었습니다.",
+   "en": "As my position rose, my salary and allowances went up too.",
+   "roman": "jigwiga oreumyeonseo geubyeowa sudangdo neureotseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "상여금 같은 대우는 어떻습니까?",
+   "beaver_en": "What about benefits like bonuses?",
+   "beaver_roman": "sangyeogeum gateun daeuneun eotteoseumnikka?",
+   "learner": "상여금도 받고 대우가 많이 좋아졌습니다.",
+   "en": "I get bonuses too, and my treatment has improved a lot.",
+   "roman": "sangyeogeumdo batgo daeuga mani joajyeotseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "힘든 시기는 없었습니까?",
+   "beaver_en": "Were there any hard times?",
+   "beaver_roman": "himdeun sigineun eopseotseumnikka?",
+   "learner": "불황 때 동료들이 해고되어 걱정이 컸습니다.",
+   "en": "During the recession, coworkers were laid off, so I was very worried.",
+   "roman": "bulhwang ttae dongnyodeuri haegodoeeo geokjeongi keotseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "이 회사를 평생직장으로 생각하십니까?",
+   "beaver_en": "Do you see this company as a lifelong workplace?",
+   "beaver_roman": "i hoesareul pyeongsaengjikjangeuro saenggakasimnikka?",
+   "learner": "네, 회사가 직원을 아껴서 오래 다니고 싶습니다.",
+   "en": "Yes, the company cares about its staff, so I want to stay long.",
+   "roman": "ne, hoesaga jigwoneul akkyeoseo orae danigo sipseumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "은퇴 뒤 계획은 있으십니까?",
+   "beaver_en": "Do you have plans after retirement?",
+   "beaver_roman": "euntoe dwi gyehoegeun isseusimnikka?",
+   "learner": "은퇴 후에는 복지관에서 봉사하고 싶습니다.",
+   "en": "After retiring, I want to volunteer at a welfare center.",
+   "roman": "euntoe hueneun bokjigwaneseo bongsahago sipseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "말씀 감사합니다. 신중히 검토하겠습니다.",
+   "beaver_en": "Thank you. We'll review it carefully.",
+   "beaver_roman": "malsseum gamsahamnida. sinjunghi geomtohagetseumnida.",
+   "learner": "감사합니다. 앞으로도 열심히 하겠습니다.",
+   "en": "Thank you. I'll keep working hard.",
+   "roman": "gamsahamnida. apeurodo yeolsimhi hagetseumnida."
+  }
+ ]
+}

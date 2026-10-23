@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T05-1",
+ "no": 402,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선배님, 하실 말씀 있다고 하셨죠?",
+   "beaver_en": "You said you had something to tell me?",
+   "beaver_roman": "Seonbaenim, hasil malsseum itdago hasyeotjyo?",
+   "learner": "응, 그런데 말을 꺼내자니 좀 민망하네.",
+   "en": "Yeah, but it's awkward to bring it up.",
+   "roman": "Eung, geureonde mareul kkeonaejani jom minmanghane."
+  },
+  {
+   "n": 2,
+   "beaver": "괜찮아요. 편하게 말씀해 주세요.",
+   "beaver_en": "It's okay. Please tell me freely.",
+   "beaver_roman": "Gwaenchanayo. Pyeonhage malsseumhae juseyo.",
+   "learner": "네가 낸 기획안 말이야. 부득이 보류됐어.",
+   "en": "About your proposal. It had to be put on hold.",
+   "roman": "Nega naen gihoegan mariya. Budeugi boryudwaesseo."
+  },
+  {
+   "n": 3,
+   "beaver": "네? 보류요? 좀 의아하네요.",
+   "beaver_en": "What? On hold? That's puzzling.",
+   "beaver_roman": "Ne? Boryuyo? Jom uiahaneyo.",
+   "learner": "나도 듣고 어리둥절했어. 어처구니없더라.",
+   "en": "I was bewildered too. It was absurd.",
+   "roman": "Nado deutgo eoridungjeolhaesseo. Eocheogunieopdeora."
+  },
+  {
+   "n": 4,
+   "beaver": "그 기획안에 정말 공을 많이 들였는데요.",
+   "beaver_en": "I put so much effort into that proposal.",
+   "beaver_roman": "Geu gihoegane jeongmal gongeul mani deuryeonneundeyo.",
+   "learner": "알아. 그래서 네가 더 안쓰러워.",
+   "en": "I know. That's why I feel even sorrier for you.",
+   "roman": "Ara. Geuraeseo nega deo ansseureowo."
+  },
+  {
+   "n": 5,
+   "beaver": "죄송합니다. 제가 부족했나 봐요.",
+   "beaver_en": "I'm sorry. I guess I wasn't good enough.",
+   "beaver_roman": "Joesonghamnida. Jega bujokaenna bwayo.",
+   "learner": "아니야, 순전히 회사 사정이야.",
+   "en": "No, it's purely the company's situation.",
+   "roman": "Aniya, sunjeonhi hoesa sajeongiya."
+  },
+  {
+   "n": 6,
+   "beaver": "선배님은 그 얘기 듣고 어떠셨어요?",
+   "beaver_en": "How did you feel when you heard it?",
+   "beaver_roman": "Seonbaenimeun geu yaegi deutgo eotteosyeosseoyo?",
+   "learner": "처음엔 경악했고, 그다음엔 탄식만 나왔어.",
+   "en": "At first I was shocked, then I could only sigh.",
+   "roman": "Cheoeumen gyeongakaetgo, geudaeumen tansingman nawasseo."
+  },
+  {
+   "n": 7,
+   "beaver": "회의에서는 어떤 분위기였어요?",
+   "beaver_en": "What was the mood in the meeting?",
+   "beaver_roman": "Hoeuieseoneun eotteon bunwigiyeosseoyo?",
+   "learner": "한 분 말투가 좀 거슬리고 불쾌했어.",
+   "en": "One person's tone was jarring and unpleasant.",
+   "roman": "Han bun maltuga jom geoseulligo bulkwaehaesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "선배님도 많이 속상하셨겠네요.",
+   "beaver_en": "You must have been upset too.",
+   "beaver_roman": "Seonbaenimdo mani soksanghasyeotgenneyo.",
+   "learner": "응, 너한테 말하자니 감정이 북받쳐.",
+   "en": "Yeah, telling you makes my emotions well up.",
+   "roman": "Eung, neohante malhajani gamjeongi bukbachyeo."
+  },
+  {
+   "n": 9,
+   "beaver": "처음 발표했을 때는 반응이 좋았잖아요.",
+   "beaver_en": "The reaction was good when we first presented.",
+   "beaver_roman": "Cheoeum balpyohaesseul ttaeneun baneungi joatjanayo.",
+   "learner": "맞아, 다들 감탄했지. 나도 소름 돋았어.",
+   "en": "Right, everyone was impressed. I got goosebumps too.",
+   "roman": "Maja, dadeul gamtanhaetji. Nado soreum dodasseo."
+  },
+  {
+   "n": 10,
+   "beaver": "다시 도전해 볼게요. 응원해 주세요.",
+   "beaver_en": "I'll try again. Please cheer me on.",
+   "beaver_roman": "Dasi dojeonhae bolgeyo. Eungwonhae juseyo.",
+   "learner": "그래, 응원할게. 그때 그 감격 다시 느껴 보자.",
+   "en": "Sure, I'll cheer you on. Let's feel that thrill again.",
+   "roman": "Geurae, eungwonhalge. Geuttae geu gamgyeok dasi neukkyeo boja."
+  }
+ ]
+}

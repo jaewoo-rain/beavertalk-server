@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T07-1",
+ "no": 50,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이삿짐 다 옮겼어요. 힘들었죠?",
+   "beaver_en": "All the moving boxes are in. Tiring, right?",
+   "beaver_roman": "isatjim da omgyeosseoyo. himdeureotjyo?",
+   "learner": "네, 좀 힘들었어요. 이제 짐이 다 왔네요.",
+   "en": "Yes, a bit tiring. Now everything's here.",
+   "roman": "ne, jom himdeureosseoyo. ije jimi da wanneyo."
+  },
+  {
+   "n": 2,
+   "beaver": "동네는 마음에 들어요?",
+   "beaver_en": "Do you like the neighborhood?",
+   "beaver_roman": "dongneneun maeume deureoyo?",
+   "learner": "네, 조용히 살 수 있어서 좋아요.",
+   "en": "Yes, I like that I can live quietly.",
+   "roman": "ne, joyonghi sal su isseoseo joayo."
+  },
+  {
+   "n": 3,
+   "beaver": "전에는 어디에 살았어요?",
+   "beaver_en": "Where did you live before?",
+   "beaver_roman": "jeoneneun eodie sarasseoyo?",
+   "learner": "전에는 시내 하숙집에 살았어요.",
+   "en": "Before, I lived in a boarding house downtown.",
+   "roman": "jeoneneun sinae hasukjibe sarasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "시내는 어땠어요? 도시라서 편했죠?",
+   "beaver_en": "How was downtown? Convenient, being the city?",
+   "beaver_roman": "sinaeneun eottaesseoyo? dosiraseo pyeonhaetjyo?",
+   "learner": "편했지만 하숙비가 비쌌어요.",
+   "en": "It was convenient, but the boarding fee was expensive.",
+   "roman": "pyeonhaetjiman hasukbiga bissasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "이 집은 어때요? 엘리베이터는 있어요?",
+   "beaver_en": "How's this place? Is there an elevator?",
+   "beaver_roman": "i jibeun eottaeyo? ellibeiteoneun isseoyo?",
+   "learner": "엘리베이터는 없어요. 큰 건물이 아니라서요.",
+   "en": "There's no elevator. It's not a big building.",
+   "roman": "ellibeiteoneun eopseoyo. keun geonmuri aniraseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "지하에는 뭐가 있어요?",
+   "beaver_en": "What's in the basement?",
+   "beaver_roman": "jihaeneun mwoga isseoyo?",
+   "learner": "지하에 창고가 있어요. 뒤에는 작은 정원도 있어요.",
+   "en": "A storage room. There's a small garden out back too.",
+   "roman": "jihae changgoga isseoyo. dwieneun jageun jeongwondo isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "정원 좋네요! 방은 어때요?",
+   "beaver_en": "A garden, nice! How are the rooms?",
+   "beaver_roman": "jeongwon jonneyo! bangeun eottaeyo?",
+   "learner": "방이 좀 작아요. 벽은 새로 칠했어요.",
+   "en": "The rooms are a bit small. The walls are freshly painted.",
+   "roman": "bangi jom jagayo. byeogeun saero chilhaesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "이삿짐은 다 풀었어요?",
+   "beaver_en": "Have you unpacked everything?",
+   "beaver_roman": "isatjimeun da pureosseoyo?",
+   "learner": "짐을 풀다가 너무 피곤해서 쉬었어요.",
+   "en": "I was unpacking, then got tired and rested.",
+   "roman": "jimeul puldaga neomu pigonhaeseo swieosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "옆집 사람도 만났어요?",
+   "beaver_en": "Did you meet the people next door?",
+   "beaver_roman": "yeopjip saramdo mannasseoyo?",
+   "learner": "네, 계단을 올라가다가 옆집 이웃을 만났어요.",
+   "en": "Yes, I met them while going up the stairs.",
+   "roman": "ne, gyedaneul ollagadaga yeopjip iuseul mannasseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "잘됐네요. 필요하면 언제든 말해요.",
+   "beaver_en": "Great. Tell me anytime you need help.",
+   "beaver_roman": "jaldwaenneyo. piryohamyeon eonjedeun malhaeyo.",
+   "learner": "이사 도와주셔서 고마워요. 다음에 놀러 오세요.",
+   "en": "Thanks for helping me move. Come visit sometime.",
+   "roman": "isa dowajusyeoseo gomawoyo. daeume nolleo oseyo."
+  }
+ ]
+}

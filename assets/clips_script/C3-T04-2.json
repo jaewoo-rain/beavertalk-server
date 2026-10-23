@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T04-2",
+ "no": 401,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 프로젝트에 누구를 추천하겠습니까?",
+   "beaver_en": "Who would you recommend for this project?",
+   "beaver_roman": "ibeon peurojekteue nugureul chucheonhagetseumnikka?",
+   "learner": "박서준 대리를 추천합니다. 아주 착실한 사람입니다.",
+   "en": "I recommend Assistant Manager Park Seojun. He's very steady.",
+   "roman": "Bak Seojun daerireul chucheonhamnida. aju chaksilhan saramimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "첫인상은 어떻습니까?",
+   "beaver_en": "What's your first impression of him?",
+   "beaver_roman": "cheodinsangeun eotteoseumnikka?",
+   "learner": "처음엔 수줍어 보이지만 언행에 품위가 있습니다.",
+   "en": "He seems shy at first, but his words and deeds have class.",
+   "roman": "cheoeumen sujubeo boijiman eonhaenge pumwiga itseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "일하는 태도는 어떻습니까?",
+   "beaver_en": "How is his attitude toward work?",
+   "beaver_roman": "ilhaneun taedoneun eotteoseumnikka?",
+   "learner": "근면하고 세심해서 실수가 거의 없습니다.",
+   "en": "He's diligent and meticulous, so he rarely makes mistakes.",
+   "roman": "geunmyeonhago sesimhaeseo silsuga geoui eopseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "성격과 기질에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about his personality and temperament?",
+   "beaver_roman": "seonggyeokgwa gijire daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "외유내강형입니다. 겉은 부드럽지만 속은 강인합니다.",
+   "en": "He's gentle outside, strong inside. Soft on the surface, but tough within.",
+   "roman": "oeyunaeganghyeongimnida. geoteun budeureopjiman sogeun ganginhamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "압박이 심할 때는 어떻습니까?",
+   "beaver_en": "How is he under heavy pressure?",
+   "beaver_roman": "apbagi simhal ttaeneun eotteoseumnikka?",
+   "learner": "위기에도 담담하고 의젓하게 대처합니다.",
+   "en": "Even in a crisis, he handles things calmly and maturely.",
+   "roman": "wigiedo damdamhago uijeotage daecheohamnida."
+  },
+  {
+   "n": 6,
+   "beaver": "윗사람 앞에서는 어떤 편입니까?",
+   "beaver_en": "What is he like in front of superiors?",
+   "beaver_roman": "witsaram apeseoneun eotteon pyeonimnikka?",
+   "learner": "강직해서 비굴하거나 비겁하게 굴지 않습니다.",
+   "en": "He's upright, so he never acts servile or cowardly.",
+   "roman": "gangjikaeseo bigulhageona bigeopage gulji anseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "단점은 없습니까?",
+   "beaver_en": "Doesn't he have any weaknesses?",
+   "beaver_roman": "danjeomeun eopseumnikka?",
+   "learner": "결점이라면 조금 조급하다는 점입니다.",
+   "en": "If he has a flaw, it's that he's a little impatient.",
+   "roman": "gyeoljeomiramyeon jogeum jogeupadaneun jeomimnida."
+  },
+  {
+   "n": 8,
+   "beaver": "조급하면 일을 그르치기 쉽지 않습니까?",
+   "beaver_en": "Isn't it easy to ruin work when you're impatient?",
+   "beaver_roman": "jogeupamyeon ireul geureuchigi swipji anseumnikka?",
+   "learner": "네, 서두르면 실수하기 십상이라 늘 조심합니다.",
+   "en": "Yes, rushing is likely to cause mistakes, so he's always careful.",
+   "roman": "ne, seodureumyeon silsuhagi sipsangira neul josimhamnida."
+  },
+  {
+   "n": 9,
+   "beaver": "동료들과는 잘 어울립니까?",
+   "beaver_en": "Does he get along well with colleagues?",
+   "beaver_roman": "dongnyodeulgwaneun jal eoullimnikka?",
+   "learner": "익살스럽고 시원시원해서 인기가 많습니다.",
+   "en": "He's funny and frank, so he's very popular.",
+   "roman": "iksalseureopgo siwonsiwonhaeseo ingiga manseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 그럼 박 대리로 정하겠습니다.",
+   "beaver_en": "Good. Then I'll go with Mr. Park.",
+   "beaver_roman": "joseumnida. geureom bak daeriro jeonghagetseumnida.",
+   "learner": "감사합니다. 성실하고 겸허해서 잘 해낼 겁니다.",
+   "en": "Thank you. He's sincere and humble, so he'll do well.",
+   "roman": "gamsahamnida. seongsilhago gyeomheohaeseo jal haenael geomnida."
+  }
+ ]
+}

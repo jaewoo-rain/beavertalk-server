@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T44-1",
+ "no": 239,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 주말에 유적지 답사 가자. 뭘 보고 싶어?",
+   "beaver_en": "Let's go see a historic site this weekend. What do you want to see?",
+   "beaver_roman": "ibeon jumare yujeokji dapsa gaja. mwol bogo sipeo?",
+   "learner": "고려 시대 유적지에 가 보고 싶어.",
+   "en": "I want to visit a Goryeo-era historic site.",
+   "roman": "goryeo sidae yujeokjie ga bogo sipeo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아! 거기 박물관에 보물도 많대.",
+   "beaver_en": "Great! They say the museum there has lots of treasures.",
+   "beaver_roman": "joa! geogi bangmulgwane bomuldo mantae.",
+   "learner": "보물이든 그림이든 다 보고 싶어.",
+   "en": "Whether treasures or paintings, I want to see it all.",
+   "roman": "bomurideun geurimideun da bogo sipeo."
+  },
+  {
+   "n": 3,
+   "beaver": "고려는 전쟁을 많이 겪었잖아.",
+   "beaver_en": "Goryeo went through a lot of wars, you know.",
+   "beaver_roman": "goryeoneun jeonjaengeul mani gyeokkeotjana.",
+   "learner": "맞아, 전쟁 영웅 이야기도 듣고 싶어.",
+   "en": "Right, I want to hear stories of war heroes too.",
+   "roman": "maja, jeonjaeng yeongung iyagido deutgo sipeo."
+  },
+  {
+   "n": 4,
+   "beaver": "맞아, 몽골과의 전쟁은 정말 길었지.",
+   "beaver_en": "Right, the war with the Mongols was really long.",
+   "beaver_roman": "maja, monggolgwaui jeonjaengeun jeongmal gireotji.",
+   "learner": "그 시대 사람들 정말 대단했던 것 같아.",
+   "en": "The people of that era must have been amazing.",
+   "roman": "geu sidae saramdeul jeongmal daedanhaetdeon geot gata."
+  },
+  {
+   "n": 5,
+   "beaver": "근처에 고려 공주 이야기가 있는 절도 있어.",
+   "beaver_en": "Nearby there's also a temple with a story about a Goryeo princess.",
+   "beaver_roman": "geuncheoe goryeo gongju iyagiga inneun jeoldo isseo.",
+   "learner": "공주 이야기? 그 절도 꼭 가 보자.",
+   "en": "A princess story? Let's definitely visit that temple too.",
+   "roman": "gongju iyagi? geu jeoldo kkok ga boja."
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 버스로 갈까, 기차로 갈까?",
+   "beaver_en": "By the way, should we go by bus or by train?",
+   "beaver_roman": "geureonde beoseuro galkka, gicharo galkka?",
+   "learner": "버스든지 기차든지 빨리 가는 걸로 하자.",
+   "en": "Bus or train, let's take whichever is faster.",
+   "roman": "beoseudeunji gichadeunji ppalli ganeun geollo haja."
+  },
+  {
+   "n": 7,
+   "beaver": "기차가 더 빨라. 표는 내가 예매할게.",
+   "beaver_en": "The train is faster. I'll book the tickets.",
+   "beaver_roman": "gichaga deo ppalla. pyoneun naega yemaehalge.",
+   "learner": "고마워. 세계 최초의 금속 활자도 보고 싶어.",
+   "en": "Thanks. I also want to see the world's first metal type.",
+   "roman": "gomawo. segye choechoui geumsok hwaljado bogo sipeo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아. 고대 유적지도 하나 더 갈까?",
+   "beaver_en": "Okay. Should we visit one more ancient site too?",
+   "beaver_roman": "joa. godae yujeokjido hana deo galkka?",
+   "learner": "응, 고대 역사도 궁금했어.",
+   "en": "Yes, I've been curious about ancient history too.",
+   "roman": "eung, godae yeoksado gunggeumhaesseo."
+  },
+  {
+   "n": 9,
+   "beaver": "가서 역사 이야기 더 많이 하자.",
+   "beaver_en": "Let's talk a lot more about history when we get there.",
+   "beaver_roman": "gaseo yeoksa iyagi deo mani haja.",
+   "learner": "좋아. 비가 와도 꼭 가서 이야기하자.",
+   "en": "Sure. Even if it rains, let's go and talk there.",
+   "roman": "joa. biga wado kkok gaseo iyagihaja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아! 그럼 토요일 아침에 역에서 만나.",
+   "beaver_en": "Great! Then let's meet at the station Saturday morning.",
+   "beaver_roman": "joa! geureom toyoil achime yeogeseo manna.",
+   "learner": "응, 드디어 계획 다 세웠다! 토요일에 봐.",
+   "en": "Okay, we finally finished the plan! See you Saturday.",
+   "roman": "eung, deudieo gyehoek da sewotda! toyoire bwa."
+  }
+ ]
+}

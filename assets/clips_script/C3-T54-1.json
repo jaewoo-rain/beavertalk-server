@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T54-1",
+ "no": 430,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 김민수 씨. 재판 절차를 상의해 볼까요?",
+   "beaver_en": "Hello, Mr. Kim Minsu. Shall we discuss the trial procedure?",
+   "beaver_roman": "annyeonghaseyo, gimminsu ssi. jaepan jeolchareul sanguihae bolkkayo?",
+   "learner": "네, 저작권 문제로 상대방이 저를 고소했어요.",
+   "en": "Yes, the other party sued me over a copyright issue.",
+   "roman": "ne, jeojakgwon munjero sangdaebangi jeoreul gosohaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "검찰도 수사를 시작했습니다. 일이 커졌어요.",
+   "beaver_en": "The prosecution has also started an investigation. It's gotten bigger.",
+   "beaver_roman": "geomchaldo susareul sijakaetseumnida. iri keojyeosseoyo.",
+   "learner": "어제 형사와 수사관이 영장을 들고 왔어요.",
+   "en": "Yesterday a detective and an investigator came with a warrant.",
+   "roman": "eoje hyeongsawa susagwani yeongjangeul deulgo wasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "압수 수색 영장이었군요. 무엇을 가져갔습니까?",
+   "beaver_en": "So it was a search warrant. What did they take?",
+   "beaver_roman": "apsu susaek yeongjangieotgunyo. mueoseul gajyeogatseumnikka?",
+   "learner": "컴퓨터를 가져갔어요. 제가 용의자인가요?",
+   "en": "They took my computer. Am I a suspect?",
+   "roman": "keompyuteoreul gajyeogasseoyo. jega yonguijaingayo?"
+  },
+  {
+   "n": 4,
+   "beaver": "지금은 피의자예요. 기소되면 피고인이 됩니다.",
+   "beaver_en": "For now you're a suspect. If indicted, you'll be the defendant.",
+   "beaver_roman": "jigeumeun piuijayeyo. gisodoemyeon pigoini doemnida.",
+   "learner": "그런데 이 계약서가 허락받은 증거예요.",
+   "en": "But this contract is proof that I got permission.",
+   "roman": "geureonde i gyeyakseoga heorakbadeun jeunggeoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋은 증거네요. 당사자끼리 풀 수는 없습니까?",
+   "beaver_en": "That's good evidence. Can't the parties settle it themselves?",
+   "beaver_roman": "joeun jeunggeoneyo. dangsajakkiri pul suneun eopseumnikka?",
+   "learner": "상대방이 만나 주지를 않아요.",
+   "en": "The other party just won't meet me.",
+   "roman": "sangdaebangi manna jujireul anayo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 법정에서 다퉈야겠네요. 많이 걱정되시죠?",
+   "beaver_en": "Then we'll have to fight it in court. You must be worried.",
+   "beaver_roman": "geureom beopjeongeseo datwoyagenneyo. mani geokjeongdoesijyo?",
+   "learner": "피고로 법정에 서는 건 처음이에요. 설명해 주세요.",
+   "en": "It's my first time in court as a defendant. Please explain.",
+   "roman": "pigoro beopjeonge seoneun geon cheoeumieyo. seolmyeonghae juseyo."
+  },
+  {
+   "n": 7,
+   "beaver": "피고는 진술을 거부할 권리가 있습니다.",
+   "beaver_en": "A defendant has the right to remain silent.",
+   "beaver_roman": "pigoneun jinsureul geobuhal gwolliga itseumnida.",
+   "learner": "헌법이 제 권리를 보호해 주는군요.",
+   "en": "So the constitution protects my rights.",
+   "roman": "heonbeobi je gwollireul bohohae juneungunyo."
+  },
+  {
+   "n": 8,
+   "beaver": "맞습니다. 그리고 요즘 새 저작권 법안도 있어요.",
+   "beaver_en": "Right. And there's also a new copyright bill these days.",
+   "beaver_roman": "matseumnida. geurigo yojeum sae jeojakgwon beobando isseoyo.",
+   "learner": "그 법안이 제 사건에도 영향이 있나요?",
+   "en": "Does that bill affect my case too?",
+   "roman": "geu beobani je sageonedo yeonghyangi innayo?"
+  },
+  {
+   "n": 9,
+   "beaver": "아직 통과 전이라 영향은 없습니다. 안심하세요.",
+   "beaver_en": "It hasn't passed yet, so no effect. Don't worry.",
+   "beaver_roman": "ajik tonggwa jeonira yeonghyangeun eopseumnida. ansimhaseyo.",
+   "learner": "다행이네요. 검찰 조사가 빨리 끝나면 좋겠어요.",
+   "en": "That's a relief. I hope the prosecution's inquiry ends soon.",
+   "roman": "dahaengineyo. geomchal josaga ppalli kkeunnamyeon joketseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 준비합시다. 계약서와 메일을 보내 주세요.",
+   "beaver_en": "Then let's prepare. Please send me the contract and emails.",
+   "beaver_roman": "geureom junbihapsida. gyeyakseowa meireul bonae juseyo.",
+   "learner": "네, 오늘 바로 보낼게요. 감사합니다, 변호사님.",
+   "en": "Okay, I'll send them today. Thank you, sir.",
+   "roman": "ne, oneul baro bonaelgeyo. gamsahamnida, byeonhosanim."
+  }
+ ]
+}

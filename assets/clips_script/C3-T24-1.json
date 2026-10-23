@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T24-1",
+ "no": 407,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "무슨 일로 보자고 했어요? 바쁜데요.",
+   "beaver_en": "Why did you want to see me? I'm busy.",
+   "beaver_roman": "museun illo bojago haesseoyo? bappeundeyo.",
+   "learner": "지난번 회의 때 티격태격한 일 때문에요.",
+   "en": "It's about how we bickered at the last meeting.",
+   "roman": "jinanbeon hoeui ttae tigyeoktaegyeokan il ttaemuneyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그쪽에서 먼저 트집을 잡았잖아요.",
+   "beaver_en": "You were the one who picked on me first.",
+   "beaver_roman": "geujjogeseo meonjeo teujibeul jabatjanayo.",
+   "learner": "맞아요. 괜한 트집을 잡아서 미안해요.",
+   "en": "You're right. I'm sorry I found fault for no reason.",
+   "roman": "majayo. gwaenhan teujibeul jabaseo mianhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그날 저만 부장님께 야단맞았어요.",
+   "beaver_en": "That day, only I got scolded by the manager.",
+   "beaver_roman": "geunal jeoman bujangnimkke yadanmajasseoyo.",
+   "learner": "저 때문에 야단맞게 해서 정말 죄송해요.",
+   "en": "I'm really sorry you got scolded because of me.",
+   "roman": "jeo ttaemune yadanmatge haeseo jeongmal joesonghaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다른 사람들 앞에서 저를 헐뜯었죠?",
+   "beaver_en": "You spoke ill of me in front of others, didn't you?",
+   "beaver_roman": "dareun saramdeul apeseo jeoreul heoltteudeotjyo?",
+   "learner": "헐뜯을 생각은 없었는데 말이 심했어요.",
+   "en": "I didn't mean to bad-mouth you, but I said too much.",
+   "roman": "heoltteudeul saenggageun eopseonneunde mari simhaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "다들 저한테 눈총을 줘서 힘들었어요.",
+   "beaver_en": "Everyone gave me dirty looks, and it was hard.",
+   "beaver_roman": "dadeul jeohante nunchongeul jwoseo himdeureosseoyo.",
+   "learner": "저까지 등을 돌려서 많이 속상했죠?",
+   "en": "Even I turned my back on you, so you were really hurt, right?",
+   "roman": "jeokkaji deungeul dollyeoseo mani soksanghaetjyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "네, 솔직히 믿음을 저버린 것 같았어요.",
+   "beaver_en": "Yes, honestly it felt like you betrayed my trust.",
+   "beaver_roman": "ne, soljiki mideumeul jeobeorin geot gatasseoyo.",
+   "learner": "제가 믿음을 저버린 것 같아 마음이 무거워요.",
+   "en": "I feel heavy-hearted that I let down your trust.",
+   "roman": "jega mideumeul jeobeorin geot gata maeumi mugeowoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "사실 저도 부장님께 대든 건 잘못했어요.",
+   "beaver_en": "Actually, I was wrong to talk back to the manager too.",
+   "beaver_roman": "sasil jeodo bujangnimkke daedeun geon jalmotaesseoyo.",
+   "learner": "저도 뒤에서 푸념하고 비방까지 했어요.",
+   "en": "I also grumbled behind your back and even slandered you.",
+   "roman": "jeodo dwieseo punyeomhago bibangkkaji haesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "우리가 왜 이렇게까지 됐을까요?",
+   "beaver_en": "How did things get this bad between us?",
+   "beaver_roman": "uriga wae ireokekkaji dwaesseulkkayo?",
+   "learner": "작은 시비가 반목으로 커진 것 같아요.",
+   "en": "I think a small quarrel grew into real hostility.",
+   "roman": "jageun sibiga banmogeuro keojin geot gatayo."
+  },
+  {
+   "n": 9,
+   "beaver": "맞아요. 팀 분위기마저 나빠졌죠.",
+   "beaver_en": "Right. Even the team's mood got worse.",
+   "beaver_roman": "majayo. tim bunwigimajeo nappajyeotjyo.",
+   "learner": "불화가 계속되면 말썽만 생길 거예요.",
+   "en": "If the discord goes on, it'll only cause trouble.",
+   "roman": "bulhwaga gyesokdoemyeon malsseongman saenggil geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "이제 어떻게 할 거예요? 저도 노력할게요.",
+   "beaver_en": "So what now? I'll make an effort too.",
+   "beaver_roman": "ije eotteoke hal geoyeyo? jeodo noryeokalgeyo.",
+   "learner": "앞으론 서운한 일이 있으면 먼저 대화해요.",
+   "en": "From now on, if something hurts, let's talk first.",
+   "roman": "apeuron seounhan iri isseumyeon meonjeo daehwahaeyo."
+  }
+ ]
+}

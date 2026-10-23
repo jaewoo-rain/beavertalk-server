@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T24-1",
+ "no": 102,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 무슨 일로 전화했어?",
+   "beaver_en": "Minsu, why did you call?",
+   "beaver_roman": "minsuya, museun illo jeonhwahaesseo?",
+   "learner": "지수야, 어제 일 사과하고 싶어서.",
+   "en": "Jisu, I want to apologize for yesterday.",
+   "roman": "jisuya, eoje il sagwahago sipeoseo."
+  },
+  {
+   "n": 2,
+   "beaver": "어제 우리 크게 싸웠잖아.",
+   "beaver_en": "We had a big fight yesterday.",
+   "beaver_roman": "eoje uri keuge ssawojjana.",
+   "learner": "응, 내가 잘못했어. 정말 미안해.",
+   "en": "Yeah, I was wrong. I'm really sorry.",
+   "roman": "eung, naega jalmotaesseo. jeongmal mianhae."
+  },
+  {
+   "n": 3,
+   "beaver": "내가 왜 화났는지 알아?",
+   "beaver_en": "Do you know why I got angry?",
+   "beaver_roman": "naega wae hwananneunji ara?",
+   "learner": "내가 너한테 거짓말해서 그렇지?",
+   "en": "It's because I lied to you, right?",
+   "roman": "naega neohante geojinmalhaeseo geureochi?"
+  },
+  {
+   "n": 4,
+   "beaver": "맞아. 정말 많이 속상했어.",
+   "beaver_en": "Right. I was really upset.",
+   "beaver_roman": "maja. jeongmal mani soksanghaesseo.",
+   "learner": "거짓말을 하면 안 되는데, 내가 잘못 생각했어.",
+   "en": "I shouldn't lie, but I thought wrongly.",
+   "roman": "geojinmareul hamyeon an doeneunde, naega jalmot saenggakaesseo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 왜 거짓말을 했어?",
+   "beaver_en": "But why did you lie?",
+   "beaver_roman": "geureonde wae geojinmareul haesseo?",
+   "learner": "네 부탁을 거절하기가 어려웠어.",
+   "en": "It was hard to refuse your request.",
+   "roman": "ne butageul geojeolhagiga eoryeowosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "그냥 솔직하게 말하면 되잖아.",
+   "beaver_en": "You could have just told me honestly.",
+   "beaver_roman": "geunyang soljikage malhamyeon doejana.",
+   "learner": "맞아. 거절은 잘못이 아닌데.",
+   "en": "Right. Refusing isn't a wrong thing.",
+   "roman": "maja. geojeoreun jalmosi aninde."
+  },
+  {
+   "n": 7,
+   "beaver": "다음에는 거짓말하지 마.",
+   "beaver_en": "Don't lie next time.",
+   "beaver_roman": "daeumeneun geojinmalhaji ma.",
+   "learner": "알겠어. 다시는 거짓말 안 할게.",
+   "en": "Got it. I won't lie again.",
+   "roman": "algesseo. dasineun geojinmal an halge."
+  },
+  {
+   "n": 8,
+   "beaver": "그래. 사과해 줘서 고마워.",
+   "beaver_en": "Okay. Thanks for apologizing.",
+   "beaver_roman": "geurae. sagwahae jwoseo gomawo.",
+   "learner": "내 사과를 받아 줘서 고마워.",
+   "en": "Thanks for accepting my apology.",
+   "roman": "nae sagwareul bada jwoseo gomawo."
+  },
+  {
+   "n": 9,
+   "beaver": "나도 화를 너무 냈어. 미안해.",
+   "beaver_en": "I got too angry too. Sorry.",
+   "beaver_roman": "nado hwareul neomu naesseo. mianhae.",
+   "learner": "아니야. 우리 이제 싸우지 말자.",
+   "en": "It's okay. Let's not fight anymore.",
+   "roman": "aniya. uri ije ssauji malja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 내일 같이 점심 먹을래?",
+   "beaver_en": "Okay. Want to have lunch tomorrow?",
+   "beaver_roman": "joa. naeil gachi jeomsim meogeullae?",
+   "learner": "좋아! 점심은 내가 살게. 내일 봐!",
+   "en": "Sure! Lunch is on me. See you tomorrow!",
+   "roman": "joa! jeomsimeun naega salge. naeil bwa!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T62-1",
+ "no": 204,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 고객님. 어떤 상담을 도와드릴까요?",
+   "beaver_en": "Hello. How can I help you today?",
+   "beaver_roman": "annyeonghaseyo, gogaengnim. eotteon sangdameul dowadeurilkkayo?",
+   "learner": "생활비 관리 방법을 상담하고 싶어서 왔어요.",
+   "en": "I came to get advice on managing living expenses.",
+   "roman": "saenghwalbi gwalli bangbeobeul sangdamhago sipeoseo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 좋습니다. 요즘 어떤 점이 어려우세요?",
+   "beaver_en": "Sure. What's been difficult lately?",
+   "beaver_roman": "ne, jotseumnida. yojeum eotteon jeomi eoryeouseyo?",
+   "learner": "월세가 인상돼서 생활비가 많이 부족해요.",
+   "en": "My rent went up, so I'm short on living expenses.",
+   "roman": "wolsega insangdwaeseo saenghwalbiga mani bujokaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "한 달 생활비는 주로 어디에 쓰세요?",
+   "beaver_en": "What do you mostly spend your monthly living costs on?",
+   "beaver_roman": "han dal saenghwalbineun juro eodie sseuseyo?",
+   "learner": "식비하고 교통비가 제일 많이 나가요.",
+   "en": "Food and transportation cost the most.",
+   "roman": "sikbihago gyotongbiga jeil mani nagayo."
+  },
+  {
+   "n": 4,
+   "beaver": "계좌는 어떤 걸 쓰세요?",
+   "beaver_en": "What kind of account do you use?",
+   "beaver_roman": "gyejwaneun eotteon geol sseuseyo?",
+   "learner": "월급 계좌 하나로 결제도 다 하고 있어요.",
+   "en": "I make all payments from my one salary account.",
+   "roman": "wolgeup gyejwa hanaro gyeoljedo da hago isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "생활비 계좌를 따로 만들어 보시면 좋아요.",
+   "beaver_en": "It's good to open a separate account for living costs.",
+   "beaver_roman": "saenghwalbi gyejwareul ttaro mandeureo bosimyeon joayo.",
+   "learner": "그 방법은 한번 해 볼 만하네요.",
+   "en": "That method is worth a try.",
+   "roman": "geu bangbeobeun hanbeon hae bol manhaneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "저축은 하고 계세요?",
+   "beaver_en": "Are you saving money?",
+   "beaver_roman": "jeochugeun hago gyeseyo?",
+   "learner": "아니요, 아직 저축을 못 하고 있어요.",
+   "en": "No, I haven't been able to save yet.",
+   "roman": "aniyo, ajik jeochugeul mo tago isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "매달 돈을 넣는 적금 상품이 있어요.",
+   "beaver_en": "We have a savings plan where you deposit money every month.",
+   "beaver_roman": "maedal doneul neonneun jeokgeum sangpumi isseoyo.",
+   "learner": "그 적금 상품은 들어 볼 만한가요?",
+   "en": "Is that savings plan worth signing up for?",
+   "roman": "geu jeokgeum sangpumeun deureo bol manhangayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 이자가 괜찮아요. 혹시 부채는 없으세요?",
+   "beaver_en": "Yes, the interest is good. Do you have any debt?",
+   "beaver_roman": "ne, ijaga gwaenchanayo. hoksi buchaeneun eopseuseyo?",
+   "learner": "카드 부채가 조금 있어서 걱정이에요.",
+   "en": "I have a little credit card debt, so I'm worried.",
+   "roman": "kadeu buchaega jogeum isseoseo geokjeongieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "신용 관리도 중요하니 빚부터 갚으시는 게 좋아요.",
+   "beaver_en": "Credit matters too, so it's best to pay off the debt first.",
+   "beaver_roman": "sinyong gwallido jungyohani bitbuteo gapeusineun ge joayo.",
+   "learner": "네, 신용이 나빠지면 안 되니까 먼저 갚을게요.",
+   "en": "Okay, I can't let my credit get worse, so I'll pay it first.",
+   "roman": "ne, sinyongi nappajimyeon an doenikka meonjeo gapeulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋습니다. 이렇게 하면 돈을 잘 모으실 거예요.",
+   "beaver_en": "Great. If you do this, you'll save money well.",
+   "beaver_roman": "jotseumnida. ireoke hamyeon doneul jal moeusil geoyeyo.",
+   "learner": "감사합니다. 이제 돈 걱정이 좀 줄겠네요.",
+   "en": "Thank you. Now I'll worry a bit less about money.",
+   "roman": "gamsahamnida. ije don geokjeongi jom julgenneyo."
+  }
+ ]
+}

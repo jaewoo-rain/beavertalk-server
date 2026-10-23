@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T09-1",
+ "no": 26,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨, 내일 어떤 옷을 입을 거예요?",
+   "beaver_en": "Minji, what are you going to wear tomorrow?",
+   "beaver_roman": "Minji ssi, naeil eotteon oseul ibeul geoyeyo?",
+   "learner": "저는 티셔츠하고 바지를 입을 거예요.",
+   "en": "I'm going to wear a T-shirt and pants.",
+   "roman": "Jeoneun tisyeocheuhago bajireul ibeul geoyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그 옷은 왜 입고 싶어요?",
+   "beaver_en": "Why do you want to wear that?",
+   "beaver_roman": "Geu oseun wae ipgo sipeoyo?",
+   "learner": "내일 공원에서 많이 걸을 거예요.",
+   "en": "We're going to walk a lot in the park tomorrow.",
+   "roman": "Naeil gongwoneseo mani georeul geoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그렇죠. 치마는 안 입을 거예요?",
+   "beaver_en": "Ah, right. You won't wear a skirt?",
+   "beaver_roman": "A, geureochyo. Chimaneun an ibeul geoyeyo?",
+   "learner": "네, 치마는 안 입을 거예요. 바지가 편해요.",
+   "en": "No, I won't wear a skirt. Pants are comfortable.",
+   "roman": "Ne, chimaneun an ibeul geoyeyo. Bajiga pyeonhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "신발은 뭘 신을 거예요?",
+   "beaver_en": "What shoes are you going to wear?",
+   "beaver_roman": "Sinbareun mwol sineul geoyeyo?",
+   "learner": "운동화를 신을 거예요. 구두는 불편해요.",
+   "en": "I'll wear sneakers. Dress shoes are uncomfortable.",
+   "roman": "Undonghwareul sineul geoyeyo. Guduneun bulpyeonhaeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋아요. 저도 운동화를 신을 거예요.",
+   "beaver_en": "Good. I'll wear sneakers too.",
+   "beaver_roman": "Joayo. Jeodo undonghwareul sineul geoyeyo.",
+   "learner": "무슨 색 티셔츠를 입을 거예요?",
+   "en": "What color T-shirt will you wear?",
+   "roman": "Museun saek tisyeocheureul ibeul geoyeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "하얀 티셔츠를 입을 거예요.",
+   "beaver_en": "I'll wear a white T-shirt.",
+   "beaver_roman": "Hayan tisyeocheureul ibeul geoyeyo.",
+   "learner": "저도 하얀색이에요! 우리 똑같네요.",
+   "en": "Mine's white too! We're matching.",
+   "roman": "Jeodo hayansaegieyo! Uri ttokkanneyo."
+  },
+  {
+   "n": 7,
+   "beaver": "좋아요! 내일은 햇빛이 강할 거예요.",
+   "beaver_en": "Great! The sun will be strong tomorrow.",
+   "beaver_roman": "Joayo! Naeireun haetbichi ganghal geoyeyo.",
+   "learner": "그럼 저는 모자를 쓸 거예요.",
+   "en": "Then I'll wear a hat.",
+   "roman": "Geureom jeoneun mojareul sseul geoyeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저도 모자를 가져갈 거예요.",
+   "beaver_en": "I'll bring a hat too.",
+   "beaver_roman": "Jeodo mojareul gajyeogal geoyeyo.",
+   "learner": "신발하고 모자를 오늘 미리 준비할 거예요.",
+   "en": "I'll get my shoes and hat ready today.",
+   "roman": "Sinbalhago mojareul oneul miri junbihal geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "내일 몇 시에 만날 거예요?",
+   "beaver_en": "What time are we meeting tomorrow?",
+   "beaver_roman": "Naeil myeot sie mannal geoyeyo?",
+   "learner": "열 시에 공원 앞에서 만날 거예요.",
+   "en": "We'll meet at ten in front of the park.",
+   "roman": "Yeol sie gongwon apeseo mannal geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 내일 봐요!",
+   "beaver_en": "Okay. See you tomorrow, then!",
+   "beaver_roman": "Joayo. Geureom naeil bwayo!",
+   "learner": "네, 내일 봐요! 잘 자요.",
+   "en": "Yes, see you tomorrow! Good night.",
+   "roman": "Ne, naeil bwayo! Jal jayo."
+  }
+ ]
+}

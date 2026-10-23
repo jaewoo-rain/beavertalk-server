@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T03-1",
+ "no": 48,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지금 역 앞이에요. 수진 씨는 어떤 모습이에요?",
+   "beaver_en": "I'm in front of the station now. What does Sujin look like?",
+   "beaver_roman": "jigeum yeogapieyo. sujin ssineun eotteon moseubieyo?",
+   "learner": "키가 크고 얼굴이 예뻐요. 머리는 조금 셌어요.",
+   "en": "She's tall and has a pretty face. Her hair is a little gray.",
+   "roman": "kiga keugo eolguri yeppeoyo. meorineun jogeum sesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "머리가 셌어요? 나이가 많아요?",
+   "beaver_en": "Her hair is gray? Is she old?",
+   "beaver_roman": "meoriga sesseoyo? naiga manayo?",
+   "learner": "아니요, 아직 젊어요. 그래도 멋있어요.",
+   "en": "No, she's still young. But it looks cool.",
+   "roman": "aniyo, ajik jeolmeoyo. geuraedo meosisseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "멋있어요? 옷은 뭐 입었어요?",
+   "beaver_en": "Cool? What is she wearing?",
+   "beaver_roman": "meosisseoyo? oseun mwo ibeosseoyo?",
+   "learner": "빨간색 코트를 입었어요. 그래서 잘 보여요.",
+   "en": "She's wearing a red coat. So she's easy to spot.",
+   "roman": "ppalgansaek koteureul ibeosseoyo. geuraeseo jal boyeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아, 저분인가? 손에 뭐 들고 있어요?",
+   "beaver_en": "Oh, is that her? Is she holding anything?",
+   "beaver_roman": "a, jeobuninga? sone mwo deulgo isseoyo?",
+   "learner": "화장품 가게 쇼핑백을 들고 있을 거예요.",
+   "en": "She'll be holding a cosmetics shop bag.",
+   "roman": "hwajangpum gage syopingbaegeul deulgo isseul kkeoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "화장품 가게요? 수진 씨는 무슨 일을 해요?",
+   "beaver_en": "A cosmetics shop? What does Sujin do?",
+   "beaver_roman": "hwajangpum gageyo? sujin ssineun museun ireul haeyo?",
+   "learner": "미용실에서 일해요. 그래서 멋을 잘 내요.",
+   "en": "She works at a hair salon. So she dresses really well.",
+   "roman": "miyongsireseo iraeyo. geuraeseo meoseul jal naeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 그럼 머리도 직접 해요?",
+   "beaver_en": "Wow, so does she do her own hair too?",
+   "beaver_roman": "wa, geureom meorido jikjeop haeyo?",
+   "learner": "네, 그런데 염색은 안 해요.",
+   "en": "Yes, but she doesn't dye it.",
+   "roman": "ne, geureonde yeomsaegeun an haeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그런데 수진 씨는 왜 염색을 안 해요?",
+   "beaver_en": "But why doesn't Sujin dye her hair?",
+   "beaver_roman": "geureonde sujin ssineun wae yeomsaegeul an haeyo?",
+   "learner": "흰머리가 멋있어서 그냥 둬요.",
+   "en": "Her gray hair looks cool, so she leaves it.",
+   "roman": "hinmeoriga meosisseoseo geunyang dwoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저도 머리가 세면 멋있을까요? 농담이에요.",
+   "beaver_en": "Would I look cool with gray hair too? Just kidding.",
+   "beaver_roman": "jeodo meoriga semyeon meosisseulkkayo? nongdamieyo.",
+   "learner": "하하, 얼굴이 멋있어서 괜찮을 거예요.",
+   "en": "Haha, you have a nice face, so you'd be fine.",
+   "roman": "haha, eolguri meosisseoseo gwaenchaneul kkeoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "아, 빨간 코트! 저기 뛰어가는 분이에요?",
+   "beaver_en": "Oh, a red coat! Is it the woman running over there?",
+   "beaver_roman": "a, ppalgan koteu! jeogi ttwieoganeun bunieyo?",
+   "learner": "네, 아마 그 사람이 수진 씨일 거예요.",
+   "en": "Yes, that's probably Sujin.",
+   "roman": "ne, ama geu sarami sujin ssiil kkeoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 이제 인사하러 갈게요.",
+   "beaver_en": "Thanks. I'll go say hello now.",
+   "beaver_roman": "gomawoyo. ije insahareo galkkeyo.",
+   "learner": "네, 수진 씨랑 맛있는 거 드세요!",
+   "en": "Okay, enjoy something tasty with Sujin!",
+   "roman": "ne, sujin ssirang masinneun geo deuseyo!"
+  }
+ ]
+}

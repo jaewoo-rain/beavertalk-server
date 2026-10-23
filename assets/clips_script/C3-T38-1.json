@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T38-1",
+ "no": 419,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 조사 구역은 어떤 곳이에요?",
+   "beaver_en": "What kind of place is today's survey area?",
+   "beaver_roman": "oneul josa guyeogeun eotteon gosieyo?",
+   "learner": "수목이 우거진 숲 근처 해안이에요.",
+   "en": "It's a coast near a forest thick with trees.",
+   "roman": "sumogi ugeojin sup geuncheo haeanieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "숲 상태는 어땠어요?",
+   "beaver_en": "How was the forest?",
+   "beaver_roman": "sup sangtaeneun eottaesseoyo?",
+   "learner": "풀이 무성해서 걷기가 힘들었어요.",
+   "en": "The grass was so overgrown it was hard to walk.",
+   "roman": "puri museonghaeseo geotgiga himdeureosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "동물과 식물에 대해 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me more about the animals and plants?",
+   "beaver_roman": "dongmulgwa singmure daehae deo malsseumhae jusigesseoyo?",
+   "learner": "펭귄들이 숲속에 둥지를 짓고 있었어요.",
+   "en": "Penguins were building nests in the forest.",
+   "roman": "pengwindeuri supsoge dungjireul jitgo isseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "지금은 번식기라 위험해요.",
+   "beaver_en": "It's breeding season now, so it's dangerous.",
+   "beaver_roman": "jigeumeun beonsikgira wiheomhaeyo.",
+   "learner": "네, 번식기에는 예민한 법이에요.",
+   "en": "Yes, animals are always sensitive in breeding season.",
+   "roman": "ne, beonsikgieneun yeminhan beobieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "어떤 펭귄이 제일 예민했어요?",
+   "beaver_en": "Which penguins were the most sensitive?",
+   "beaver_roman": "eotteon pengwini jeil yeminhaesseoyo?",
+   "learner": "수컷이 둥지를 지키며 소리를 질렀어요.",
+   "en": "The males shouted while guarding the nests.",
+   "roman": "sukeosi dungjireul jikimyeo sorireul jilleosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "가까이 가지 않는 게 좋겠네요.",
+   "beaver_en": "We'd better not get close.",
+   "beaver_roman": "gakkai gaji anneun ge jokenneyo.",
+   "learner": "맞아요. 사람이 가면 놀라는 법이니까요.",
+   "en": "Right. They naturally get startled when people come.",
+   "roman": "majayo. sarami gamyeon nollaneun beobinikkayo."
+  },
+  {
+   "n": 7,
+   "beaver": "식물은 어땠어요? 새싹도 있었어요?",
+   "beaver_en": "What about the plants? Were there sprouts?",
+   "beaver_roman": "singmureun eottaesseoyo? saessakdo isseosseoyo?",
+   "learner": "네, 비가 와서 새싹이 많이 텄어요.",
+   "en": "Yes, it rained, so lots of sprouts came up.",
+   "roman": "ne, biga waseo saessagi mani teosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "벌레도 많지 않았어요?",
+   "beaver_en": "Weren't there a lot of bugs too?",
+   "beaver_roman": "beolledo manchi anasseoyo?",
+   "learner": "네, 모기가 엄청 많았어요.",
+   "en": "Yes, there were tons of mosquitoes.",
+   "roman": "ne, mogiga eomcheong manasseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "습하고 따뜻하면 벌레가 많은 법이죠.",
+   "beaver_en": "When it's humid and warm, there are always many bugs.",
+   "beaver_roman": "seupago ttatteutamyeon beollega maneun beobijyo.",
+   "learner": "네, 다음엔 방충 장비를 챙길게요.",
+   "en": "Yes, next time I'll bring insect protection gear.",
+   "roman": "ne, daeumen bangchung jangbireul chaenggilgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 내일부터 본격적으로 조사해요.",
+   "beaver_en": "Good. Let's start the survey in earnest tomorrow.",
+   "beaver_roman": "joayo. naeilbuteo bongyeokjeogeuro josahaeyo.",
+   "learner": "네, 보고서 정리해서 드릴게요.",
+   "en": "Okay, I'll organize the report and give it to you.",
+   "roman": "ne, bogoseo jeongnihaeseo deurilgeyo."
+  }
+ ]
+}

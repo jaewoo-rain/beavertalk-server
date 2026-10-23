@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T09-1",
+ "no": 447,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "내일 결혼식에 뭐 입지? 옷이 너무 많아.",
+   "beaver_en": "What should I wear to the wedding tomorrow? I have too many clothes.",
+   "beaver_roman": "naeil gyeolhonsige mwo ipji? osi neomu mana.",
+   "learner": "결혼식이면 복장은 단정했으면 해.",
+   "en": "If it's a wedding, I hope your attire is neat.",
+   "roman": "gyeolhonsigimyeon bokjangeun danjeonghaesseumyeon hae."
+  },
+  {
+   "n": 2,
+   "beaver": "유행은 따라야 하지 않아? 이 옷 요즘 유행이야.",
+   "beaver_en": "Shouldn't I follow trends? This is in style now.",
+   "beaver_roman": "yuhaengeun ttaraya haji ana? i ot yojeum yuhaengiya.",
+   "learner": "유행보다 몸에 맞는 옷이 중요해. 맞춤이면 더 좋고.",
+   "en": "Fit matters more than trends. Custom-made is even better.",
+   "roman": "yuhaengboda mome manneun osi jungyohae. matchumimyeon deo joko."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 뭐가 제일 중요해?",
+   "beaver_en": "Then what's most important?",
+   "beaver_roman": "geureom mwoga jeil jungyohae?",
+   "learner": "소재가 제일 중요해. 땀이 잘 마르는 게 좋아.",
+   "en": "The material matters most. Quick-drying is good.",
+   "roman": "sojaega jeil jungyohae. ttami jal mareuneun ge joa."
+  },
+  {
+   "n": 4,
+   "beaver": "이 셔츠는 어때? 좀 투박한가?",
+   "beaver_en": "How about this shirt? Is it a bit clunky?",
+   "beaver_roman": "i syeocheuneun eottae? jom tubakanga?",
+   "learner": "깃이 너무 커. 좀 더 작으면 좋겠어.",
+   "en": "The collar is too big. I'd like it a bit smaller.",
+   "roman": "gisi neomu keo. jom deo jageumyeon jokesseo."
+  },
+  {
+   "n": 5,
+   "beaver": "이 얇은 코트는? 내일 추울 것 같은데.",
+   "beaver_en": "What about this thin coat? It might be cold tomorrow.",
+   "beaver_roman": "i yalbeun koteuneun? naeil chuul geot gateunde.",
+   "learner": "추우면 안에 옷을 껴입는 게 나아.",
+   "en": "If it's cold, it's better to layer underneath.",
+   "roman": "chuumyeon ane oseul kkyeoimneun ge naa."
+  },
+  {
+   "n": 6,
+   "beaver": "이 치마는 어때? 옷자락이 길어서 멋있지?",
+   "beaver_en": "How about this skirt? The long hem looks nice, right?",
+   "beaver_roman": "i chimaneun eottae? otjaragi gireoseo meositji?",
+   "learner": "옷자락이 바닥에 안 닿았으면 해.",
+   "en": "I hope the hem doesn't touch the floor.",
+   "roman": "otjaragi badage an daasseumyeon hae."
+  },
+  {
+   "n": 7,
+   "beaver": "신발은 뭐가 좋을까? 구두?",
+   "beaver_en": "What shoes would be good? Dress shoes?",
+   "beaver_roman": "sinbareun mwoga joeulkka? gudu?",
+   "learner": "밑창이 미끄럽지 않은 걸로 신었으면 해.",
+   "en": "I hope you wear ones with non-slip soles.",
+   "roman": "mitchangi mikkeureopji aneun geollo sineosseumyeon hae."
+  },
+  {
+   "n": 8,
+   "beaver": "할머니는 옛날에 고무신만 신으셨대.",
+   "beaver_en": "Grandma says she only wore rubber shoes back then.",
+   "beaver_roman": "halmeonineun yennare gomusinman sineusyeotdae.",
+   "learner": "고무신이라니! 그때는 의생활이 확연히 달랐지.",
+   "en": "Rubber shoes! Clothing life was clearly different then.",
+   "roman": "gomusinirani! geuttaeneun uisaenghwari hwagyeonhi dallatji."
+  },
+  {
+   "n": 9,
+   "beaver": "옷차림에 대해 더 말해 줄래? 장신구는?",
+   "beaver_en": "Tell me more about outfits? What about accessories?",
+   "beaver_roman": "otcharime daehae deo malhae jullae? jangsinguneun?",
+   "learner": "장신구는 하나만 해. 그게 더 멋스러워.",
+   "en": "Wear just one accessory. That's more stylish.",
+   "roman": "jangsinguneun hanaman hae. geuge deo meotseureowo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워. 덕분에 내일 옷 다 골랐어!",
+   "beaver_en": "Thanks. Thanks to you, I picked my outfit!",
+   "beaver_roman": "gomawo. deokbune naeil ot da gollasseo!",
+   "learner": "잘됐다. 내일 즐거운 하루가 됐으면 해!",
+   "en": "Great. I hope you have a fun day tomorrow!",
+   "roman": "jaldwaetda. naeil jeulgeoun haruga dwaesseumyeon hae!"
+  }
+ ]
+}

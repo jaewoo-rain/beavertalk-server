@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T29-1",
+ "no": 105,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 괜찮아요? 얼굴이 빨개요.",
+   "beaver_en": "Minsu, are you okay? Your face is red.",
+   "beaver_roman": "minsu ssi, gwaenchanayo? eolguri ppalgaeyo.",
+   "learner": "아니요, 너무 덥기 때문에 힘들어요.",
+   "en": "No, it's hard because it's so hot.",
+   "roman": "aniyo, neomu deopgi ttaemune himdeureoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이마에 땀이 많이 나요. 좀 쉬어요.",
+   "beaver_en": "You're sweating a lot on your forehead. Take a rest.",
+   "beaver_roman": "imae ttami mani nayo. jom swieoyo.",
+   "learner": "네, 등에도 땀이 많이 나요.",
+   "en": "Yes, my back is sweating a lot too.",
+   "roman": "ne, deungedo ttami mani nayo."
+  },
+  {
+   "n": 3,
+   "beaver": "저기 나무 밑 의자로 가요.",
+   "beaver_en": "Let's go to the bench under that tree.",
+   "beaver_roman": "jeogi namu mit uijaro gayo.",
+   "learner": "많이 걸었기 때문에 발바닥이 아파요.",
+   "en": "The soles of my feet hurt because we walked a lot.",
+   "roman": "mani georeotgi ttaemune balbadagi apayo."
+  },
+  {
+   "n": 4,
+   "beaver": "신발 벗고 발을 좀 움직여 봐요.",
+   "beaver_en": "Take off your shoes and move your feet a bit.",
+   "beaver_roman": "sinbal beotgo bareul jom umjigyeo bwayo.",
+   "learner": "발가락도 아파요. 신발이 작기 때문이에요.",
+   "en": "My toes hurt too. It's because my shoes are small.",
+   "roman": "balgarakdo apayo. sinbari jakgi ttaemunieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "물을 마셔요. 제 물 드릴게요.",
+   "beaver_en": "Drink some water. I'll give you mine.",
+   "beaver_roman": "mureul masyeoyo. je mul deurilgeyo.",
+   "learner": "고마워요. 입술이 너무 말랐어요.",
+   "en": "Thanks. My lips are so dry.",
+   "roman": "gomawoyo. ipsuri neomu mallasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다른 데는 괜찮아요? 머리는요?",
+   "beaver_en": "Is everything else okay? How about your head?",
+   "beaver_roman": "dareun deneun gwaenchanayo? meorineunyo?",
+   "learner": "머리는 괜찮아요. 그런데 가슴이 좀 답답해요.",
+   "en": "My head is fine. But my chest feels a bit tight.",
+   "roman": "meorineun gwaenchanayo. geureonde gaseumi jom dapdapaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "오늘 너무 덥기 때문에 그래요. 천천히 쉬어요.",
+   "beaver_en": "It's because it's so hot today. Rest slowly.",
+   "beaver_roman": "oneul neomu deopgi ttaemune geuraeyo. cheoncheonhi swieoyo.",
+   "learner": "네, 다리를 의자에 올려도 돼요?",
+   "en": "Okay, can I put my legs up on the bench?",
+   "roman": "ne, darireul uijae ollyeodo dwaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "그럼요. 다리를 올리면 더욱 편해요.",
+   "beaver_en": "Of course. It's even more comfortable with your legs up.",
+   "beaver_roman": "geureomyo. darireul ollimyeon deouk pyeonhaeyo.",
+   "learner": "정말 좋아요. 이제 땀이 좀 덜 나요.",
+   "en": "This is great. I'm sweating a little less now.",
+   "roman": "jeongmal joayo. ije ttami jom deol nayo."
+  },
+  {
+   "n": 9,
+   "beaver": "좀 쉬고 시원한 카페에 갈까요?",
+   "beaver_en": "Shall we rest a bit and go to a cool café?",
+   "beaver_roman": "jom swigo siwonhan kapee galkkayo?",
+   "learner": "좋아요. 카페는 시원하기 때문에 편해요.",
+   "en": "Sounds good. Cafés are comfortable because they're cool.",
+   "roman": "joayo. kapeneun siwonhagi ttaemune pyeonhaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 일어나요. 제가 가방 들게요.",
+   "beaver_en": "Then let's get up. I'll carry your bag.",
+   "beaver_roman": "geureom ireonayo. jega gabang deulgeyo.",
+   "learner": "고마워요. 이제 등도 가슴도 괜찮아요.",
+   "en": "Thanks. My back and chest are fine now.",
+   "roman": "gomawoyo. ije deungdo gaseumdo gwaenchanayo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T09-1",
+ "no": 53,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "내일 뭐 입을 거예요? 정했어요?",
+   "beaver_en": "What are you going to wear tomorrow? Did you decide?",
+   "beaver_roman": "naeil mwo ibeul kkeoyeyo? jeonghaesseoyo?",
+   "learner": "청바지하고 흰 블라우스를 입을 거예요.",
+   "en": "I'm going to wear jeans and a white blouse.",
+   "roman": "cheongbajihago hin beullauseureul ibeul kkeoyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 그런데 내일 밖이 추워요.",
+   "beaver_en": "Nice. But it's cold outside tomorrow.",
+   "beaver_roman": "joayo. geureonde naeil bakki chuwoyo.",
+   "learner": "그럼 목도리를 하고 장갑도 낄 거예요.",
+   "en": "Then I'll wear a scarf and gloves too.",
+   "roman": "geureom mokdorireul hago janggapdo kkil kkeoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "저는 넥타이를 맬 거예요. 좋은 식당에 가니까요.",
+   "beaver_en": "I'll wear a tie, since we're going to a nice restaurant.",
+   "beaver_roman": "jeoneun nektaireul mael kkeoyeyo. joeun sikdange ganikkayo.",
+   "learner": "와, 멋있어요! 무슨 색 넥타이를 맬 거예요?",
+   "en": "Wow, cool! What color tie will you wear?",
+   "roman": "wa, meosisseoyo! museun saek nektaireul mael kkeoyeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "파란색이요. 가방은 뭐 들 거예요?",
+   "beaver_en": "Blue. What bag will you take?",
+   "beaver_roman": "paransaegiyo. gabangeun mwo deul kkeoyeyo?",
+   "learner": "작은 가방을 어깨에 멜 거예요.",
+   "en": "I'll carry a small bag on my shoulder.",
+   "roman": "jageun gabangeul eokkaee mel kkeoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "오후에 수영장도 가요. 잊지 마세요.",
+   "beaver_en": "We're going to the pool in the afternoon too. Don't forget.",
+   "beaver_roman": "ohue suyeongjangdo gayo. itji maseyo.",
+   "learner": "네, 수영복은 가방 주머니에 넣을 거예요.",
+   "en": "Yes, I'll put my swimsuit in the bag's pocket.",
+   "roman": "ne, suyeongbogeun gabang jumeonie neoeul kkeoyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "시계도 찰 거예요?",
+   "beaver_en": "Will you wear a watch too?",
+   "beaver_roman": "sigyedo chal kkeoyeyo?",
+   "learner": "네, 시계를 차고 반지도 낄 거예요.",
+   "en": "Yes, I'll wear a watch and a ring too.",
+   "roman": "ne, sigyereul chago bandido kkil kkeoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "블라우스 단추는 무슨 색이에요?",
+   "beaver_en": "What color are the blouse buttons?",
+   "beaver_roman": "beullauseu danchuneun museun saegieyo?",
+   "learner": "금색 단추예요. 요즘 유행이에요.",
+   "en": "They're gold buttons. They're in fashion these days.",
+   "roman": "geumsaek danchuyeyo. yojeum yuhaengieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "예쁘겠네요. 신발은요?",
+   "beaver_en": "That sounds pretty. What about shoes?",
+   "beaver_roman": "yeppeugenneyo. sinbareunyo?",
+   "learner": "운동화에 두꺼운 양말을 신을 거예요.",
+   "en": "I'll wear sneakers with thick socks.",
+   "roman": "undonghwae dukkeoun yangmareul sineul kkeoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 내일 몇 시에 만날까요?",
+   "beaver_en": "Great. What time should we meet tomorrow?",
+   "beaver_roman": "joayo. naeil myeot ssie mannalkkayo?",
+   "learner": "열한 시에 학교 앞에서 만나요.",
+   "en": "Let's meet at eleven in front of the school.",
+   "roman": "yeolhan sie hakgyo apeseo mannayo."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠어요. 내일 따뜻하게 입고 와요!",
+   "beaver_en": "Got it. Dress warmly tomorrow!",
+   "beaver_roman": "algesseoyo. naeil ttatteutage ipgo wayo!",
+   "learner": "네, 내일 봐요. 늦지 않을 거예요!",
+   "en": "Okay, see you tomorrow. I won't be late!",
+   "roman": "ne, naeil bwayo. neutji aneul kkeoyeyo!"
+  }
+ ]
+}

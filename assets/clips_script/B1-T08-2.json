@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T08-2",
+ "no": 121,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 관리인입니다. 어디가 불편하세요?",
+   "beaver_en": "Hello, I'm the building manager. What's bothering you?",
+   "beaver_roman": "annyeonghaseyo, gwalliinimnida. eodiga bulpyeonhaseyo?",
+   "learner": "안녕하세요. 냉방이 제대로 안 돼요.",
+   "en": "Hello. The air conditioning doesn't work properly.",
+   "roman": "annyeonghaseyo. naengbangi jedaero an dwaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "냉방이요? 에어컨을 켜도 안 시원해요?",
+   "beaver_en": "The AC? It's not cool even when it's on?",
+   "beaver_roman": "naengbangiyo? eeokeoneul kyeodo an siwonhaeyo?",
+   "learner": "네, 아무리 틀어도 방이 더워요.",
+   "en": "Yes, no matter how much I run it, the room is hot.",
+   "roman": "ne, amuri teureodo bangi deowoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 필터에 먼지가 쌓였네요. 청소할게요.",
+   "beaver_en": "Ah, dust has built up in the filter. I'll clean it.",
+   "beaver_roman": "a, pilteoe meonjiga ssayeonneyo. cheongsohalgeyo.",
+   "learner": "고마워요. 전자레인지도 자꾸 꺼져요.",
+   "en": "Thanks. The microwave keeps turning off too.",
+   "roman": "gomawoyo. jeonjareinjido jakku kkeojyeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "전자레인지가요? 언제 꺼져요?",
+   "beaver_en": "The microwave? When does it turn off?",
+   "beaver_roman": "jeonjareinjigayo? eonje kkeojyeoyo?",
+   "learner": "용기를 넣고 돌리면 바로 꺼져요.",
+   "en": "It turns off as soon as I put a container in and start it.",
+   "roman": "yonggireul neoko dollimyeon baro kkeojyeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "플러그를 바꿔 볼게요. 가스레인지는요?",
+   "beaver_en": "I'll try changing the plug. What about the gas stove?",
+   "beaver_roman": "peulleogeureul bakkwo bolgeyo. gaseureinjineunyo?",
+   "learner": "가스레인지는 괜찮은데 가스 냄새가 나요.",
+   "en": "The gas stove is fine, but I smell gas.",
+   "roman": "gaseureinjineun gwaenchaneunde gaseu naemsaega nayo."
+  },
+  {
+   "n": 6,
+   "beaver": "가스 냄새요? 위험해요. 바로 볼게요.",
+   "beaver_en": "A gas smell? That's dangerous. I'll check right away.",
+   "beaver_roman": "gaseu naemsaeyo? wiheomhaeyo. baro bolgeyo.",
+   "learner": "밤새 냄새가 나서 정말 무서웠어요.",
+   "en": "It smelled all night, so I was really scared.",
+   "roman": "bamsae naemsaega naseo jeongmal museowosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "밸브가 헐거웠네요. 조였으니 이제 괜찮아요.",
+   "beaver_en": "The valve was loose. I tightened it, so it's fine now.",
+   "beaver_roman": "baelbeuga heolgeowonneyo. joyeosseuni ije gwaenchanayo.",
+   "learner": "난로하고 가습기도 한번 봐 주세요.",
+   "en": "Please check the heater and the humidifier too.",
+   "roman": "nallohago gaseupgido hanbeon bwa juseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "둘 다 잘 돼요. 다리미는 어때요?",
+   "beaver_en": "Both work fine. How about the iron?",
+   "beaver_roman": "dul da jal dwaeyo. darimineun eottaeyo?",
+   "learner": "다리미가 뜨겁지 않아서 다림질을 못 해요.",
+   "en": "The iron doesn't get hot, so I can't do any ironing.",
+   "roman": "darimiga tteugeopji anaseo darimjireul mot haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "새 다리미로 바꿔 드릴게요. 다른 건요?",
+   "beaver_en": "I'll replace it with a new iron. Anything else?",
+   "beaver_roman": "sae darimiro bakkwo deurilgeyo. dareun geonyo?",
+   "learner": "화장대 위 액자가 자꾸 떨어져요.",
+   "en": "The picture frame above the dressing table keeps falling.",
+   "roman": "hwajangdae wi aekjaga jakku tteoreojyeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "못을 다시 박을게요. 이제 다 됐어요.",
+   "beaver_en": "I'll put the nail back in. Now everything's done.",
+   "beaver_roman": "moseul dasi bageulgeyo. ije da dwaesseoyo.",
+   "learner": "정말 감사해요. 이제 편하게 살 수 있겠어요.",
+   "en": "Thank you so much. Now I can live comfortably.",
+   "roman": "jeongmal gamsahaeyo. ije pyeonhage sal su itgesseoyo."
+  }
+ ]
+}

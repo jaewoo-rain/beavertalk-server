@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T22-1",
+ "no": 266,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "나 요즘 고민이 있어. 들어 줄래?",
+   "beaver_en": "I've been worried lately. Will you listen?",
+   "beaver_roman": "Na yojeum gomini isseo. Deureo jullae?",
+   "learner": "그럼. 무슨 일인데? 편하게 말해 봐.",
+   "en": "Of course. What's up? Tell me.",
+   "roman": "Geureom. Museun irinde? Pyeonhage malhae bwa."
+  },
+  {
+   "n": 2,
+   "beaver": "동기 수진이랑 사이가 좀 어색해졌어.",
+   "beaver_en": "Things got awkward with Sujin, my classmate.",
+   "beaver_roman": "Donggi sujinirang saiga jom eosaekaejyeosseo.",
+   "learner": "수진이는 네 과제 파트너잖아. 무슨 일 있었어?",
+   "en": "Sujin's your project partner. What happened?",
+   "roman": "Sujinineun ne gwaje pateuneojana. Museun il isseosseo?"
+  },
+  {
+   "n": 3,
+   "beaver": "과제를 거의 나 혼자 했어. 화가 나.",
+   "beaver_en": "I did almost all the work alone. I'm upset.",
+   "beaver_roman": "Gwajereul geoui na honja haesseo. Hwaga na.",
+   "learner": "수진이한테 솔직하게 말해 봤어?",
+   "en": "Have you talked honestly with Sujin?",
+   "roman": "Sujinihante soljikage malhae bwasseo?"
+  },
+  {
+   "n": 4,
+   "beaver": "아니, 관계가 나빠질까 봐 가만있었어.",
+   "beaver_en": "No, I stayed quiet in case it hurt our friendship.",
+   "beaver_roman": "Ani, gwangyega nappajilkka bwa gamanisseosseo.",
+   "learner": "말 안 하면 오해가 쌓여. 얘기해 봐.",
+   "en": "If you don't talk, misunderstandings pile up. Talk to her.",
+   "roman": "Mal an hamyeon ohaega ssayeo. Yaegihae bwa."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 도저히 먼저 말을 못 꺼내겠어.",
+   "beaver_en": "Still, I just can't bring it up first.",
+   "beaver_roman": "Geuraedo dojeohi meonjeo mareul mot kkeonaegesseo.",
+   "learner": "내가 충고를 하나 해 줄까?",
+   "en": "Can I give you some advice?",
+   "roman": "Naega chunggoreul hana hae julkka?"
+  },
+  {
+   "n": 6,
+   "beaver": "응, 해 줘. 네 말은 잘 들을게.",
+   "beaver_en": "Yes, please. I'll listen to you.",
+   "beaver_roman": "Eung, hae jwo. Ne mareun jal deureulge.",
+   "learner": "최소한 한 번은 시도해 봐. 짧게라도.",
+   "en": "At least try once. Even briefly.",
+   "roman": "Choesohan han beoneun sidohae bwa. Jjalgerado."
+  },
+  {
+   "n": 7,
+   "beaver": "뭐라고 말을 시작하면 좋을까?",
+   "beaver_en": "How should I start the conversation?",
+   "beaver_roman": "Mworago mareul sijakamyeon joeulkka?",
+   "learner": "\"요즘 바빴어?\" 하고 물으면서 손길을 내밀어 봐.",
+   "en": "Ask, \"Have you been busy lately?\" and offer a helping hand.",
+   "roman": "\"Yojeum bappasseo?\" hago mureumyeonseo sonkkireul naemireo bwa."
+  },
+  {
+   "n": 8,
+   "beaver": "손길? 내가 먼저 도와주라는 거야?",
+   "beaver_en": "A helping hand? You mean I help her first?",
+   "beaver_roman": "Sonkkil? Naega meonjeo dowajuraneun geoya?",
+   "learner": "응. 서로 돕는 거니까 먼저 다가가 봐.",
+   "en": "Yes. It's about helping each other, so reach out first.",
+   "roman": "Eung. Seoro domneun geonikka meonjeo dagaga bwa."
+  },
+  {
+   "n": 9,
+   "beaver": "네 말 들으니까 좀 용기가 나네.",
+   "beaver_en": "Hearing you gives me some courage.",
+   "beaver_roman": "Ne mal deureunikka jom yonggiga nane.",
+   "learner": "둘이 뭉치면 과제도 더 잘될 거야.",
+   "en": "If you two team up, the project will go better.",
+   "roman": "Duri mungchimyeon gwajedo deo jaldoel geoya."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워. 내일 수진이한테 말해 볼게.",
+   "beaver_en": "Thanks. I'll talk to Sujin tomorrow.",
+   "beaver_roman": "Gomawo. Naeil sujinihante malhae bolge.",
+   "learner": "잘될 거야. 끝나면 꼭 이야기해 줘!",
+   "en": "It'll go well. Tell me how it went!",
+   "roman": "Jaldoel geoya. Kkeunnamyeon kkok iyagihae jwo!"
+  }
+ ]
+}

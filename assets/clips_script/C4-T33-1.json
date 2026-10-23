@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T33-1",
+ "no": 464,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 모임에 처음 오셨죠? 어떤 취미가 있으세요?",
+   "beaver_en": "Is this your first time at our meeting? What's your hobby?",
+   "beaver_roman": "oneul moime cheoeum osyeotjyo? eotteon chwimiga isseuseyo?",
+   "learner": "저는 시 낭송을 해요. 벌써 십 년째예요.",
+   "en": "I do poetry recitation. It's already been ten years.",
+   "roman": "jeoneun si nangsongeul haeyo. beolsseo sim nyeonjjaeyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "시 낭송이요? 혹시 시도 직접 쓰세요?",
+   "beaver_en": "Poetry recitation? Do you also write poems yourself?",
+   "beaver_roman": "si nangsongiyo? hoksi sido jikjeop sseuseyo?",
+   "learner": "네, 작년에 제 첫 시집을 냈어요.",
+   "en": "Yes, I published my first poetry collection last year.",
+   "roman": "ne, jangnyeone je cheot sijibeul naesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 대단하시네요! 어떤 시들이 실려 있어요?",
+   "beaver_en": "Wow, that's amazing! What poems are in it?",
+   "beaver_roman": "wa, daedanhasineyo! eotteon sideuri sillyeo isseoyo?",
+   "learner": "캠프 이야기예요. 천막에서 쓴 시가 많아요.",
+   "en": "It's about camping. Many poems were written in a tent.",
+   "roman": "kaempeu iyagiyeyo. cheonmageseo sseun siga manayo."
+  },
+  {
+   "n": 4,
+   "beaver": "캠프에서도 낭송하셨다면서요?",
+   "beaver_en": "I heard you recited at camp too?",
+   "beaver_roman": "kaempeueseodo nangsonghasyeotdamyeonseoyo?",
+   "learner": "네, 밤에 옹기종기 모여 앉아 낭송했어요.",
+   "en": "Yes, we sat huddled together at night and recited.",
+   "roman": "ne, bame onggijonggi moyeo anja nangsonghaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "분위기가 정말 좋았겠어요.",
+   "beaver_en": "The atmosphere must have been great.",
+   "beaver_roman": "bunwigiga jeongmal joatgesseoyo.",
+   "learner": "별빛 아래라 아름답기가 이를 데 없었어요.",
+   "en": "Under the starlight, it was beautiful beyond words.",
+   "roman": "byeolbit araera areumdapgiga ireul de eopseosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "어떤 시인을 좋아하세요?",
+   "beaver_en": "Which poets do you like?",
+   "beaver_roman": "eotteon siineul joahaseyo?",
+   "learner": "윤동주 시인을 좋아해서 시집은 다 읽었어요.",
+   "en": "I like the poet Yun Dong-ju, so I've read all his collections.",
+   "roman": "yundongju siineul joahaeseo sijibeun da ilgeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "낭송할 때 떨리지는 않으세요?",
+   "beaver_en": "Don't you get nervous when reciting?",
+   "beaver_roman": "nangsonghal ttae tteollijineun aneuseyo?",
+   "learner": "처음엔 떨려서 실수도 했어요. 지금은 괜찮아요.",
+   "en": "At first I was nervous and made mistakes. Now I'm fine.",
+   "roman": "cheoeumen tteollyeoseo silsudo haesseoyo. jigeumeun gwaenchanayo."
+  },
+  {
+   "n": 8,
+   "beaver": "주말에는 주로 뭐 하세요?",
+   "beaver_en": "What do you usually do on weekends?",
+   "beaver_roman": "jumareneun juro mwo haseyo?",
+   "learner": "주말엔 동호인들과 시를 쓰고, 함께 낭송해요.",
+   "en": "On weekends I write poems with club members and recite together.",
+   "roman": "jumaren donghoindeulgwa sireul sseugo, hamkke nangsonghaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "저도 다음 캠프에 같이 가 봐도 될까요?",
+   "beaver_en": "Could I come along to the next camp?",
+   "beaver_roman": "jeodo daeum kaempeue gachi ga bwado doelkkayo?",
+   "learner": "물론이에요. 천막은 제가 준비할게요.",
+   "en": "Of course. I'll prepare the tent.",
+   "roman": "mullonieyo. cheonmageun jega junbihalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 그때 시집에 사인도 해 주세요.",
+   "beaver_en": "Thanks. Please sign your poetry collection for me then.",
+   "beaver_roman": "gomawoyo. geuttae sijibe saindo hae juseyo.",
+   "learner": "좋아요. 그럼 캠프에서 뵐게요!",
+   "en": "Sure. Then I'll see you at camp!",
+   "roman": "joayo. geureom kaempeueseo boelgeyo!"
+  }
+ ]
+}

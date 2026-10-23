@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T33-1",
+ "no": 144,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요! 동호회에 처음 오셨죠?",
+   "beaver_en": "Hello! Is this your first time at the club?",
+   "beaver_roman": "annyeonghaseyo! donghohoee cheoeum osyeotjyo?",
+   "learner": "네, 사진 동호회에 처음 왔어요.",
+   "en": "Yes, it's my first time at the photo club.",
+   "roman": "ne, sajin donghohoee cheoeum wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "반가워요. 사진 찍는 거 좋아하세요?",
+   "beaver_en": "Nice to meet you. Do you like taking photos?",
+   "beaver_roman": "bangawoyo. sajin jjingneun geo joahaseyo?",
+   "learner": "네, 제 특기는 사진 촬영이에요.",
+   "en": "Yes, my special talent is taking photos.",
+   "roman": "ne, je teukgineun sajin chwaryeongieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 멋있네요. 주로 어디서 찍어요?",
+   "beaver_en": "Wow, cool. Where do you usually shoot?",
+   "beaver_roman": "wa, meosinneyo. juro eodiseo jjigeoyo?",
+   "learner": "놀이공원이나 놀이터에서 자주 찍어요.",
+   "en": "I often shoot at amusement parks or playgrounds.",
+   "roman": "norigongwonina noriteoeseo jaju jjigeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "재미있네요. 주말에는 뭐 하세요?",
+   "beaver_en": "Interesting. What do you do on weekends?",
+   "beaver_roman": "jaemiinneyo. jumareneun mwo haseyo?",
+   "learner": "주말에는 친구와 드라이브를 가요.",
+   "en": "On weekends, I go for a drive with a friend.",
+   "roman": "jumareneun chinguwa deuraibeureul gayo."
+  },
+  {
+   "n": 5,
+   "beaver": "드라이브 좋죠. 다른 취미도 있어요?",
+   "beaver_en": "Drives are nice. Do you have other hobbies?",
+   "beaver_roman": "deuraibeu jochyo. dareun chwimido isseoyo?",
+   "learner": "바둑을 좋아해요. 오락실도 가끔 가요.",
+   "en": "I like baduk. I sometimes go to arcades too.",
+   "roman": "badugeul joahaeyo. oraksildo gakkeum gayo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 취향이 굉장히 다양하시네요!",
+   "beaver_en": "Wow, your tastes are really diverse!",
+   "beaver_roman": "wa, chwihyangi goengjanghi dayanghasineyo!",
+   "learner": "네, 근데 요즘은 사진이 더 좋아졌어요.",
+   "en": "Yes, but these days I've come to like photos more.",
+   "roman": "ne, geunde yojeumeun sajini deo joajyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "사진은 어디서 배웠어요?",
+   "beaver_en": "Where did you learn photography?",
+   "beaver_roman": "sajineun eodiseo baewosseoyo?",
+   "learner": "사진관에서 배우고 책도 많이 읽었어요.",
+   "en": "I learned at a photo studio and read a lot of books too.",
+   "roman": "sajingwaneseo baeugo chaekdo mani ilgeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "어떤 책을 읽었어요?",
+   "beaver_en": "What books did you read?",
+   "beaver_roman": "eotteon chaegeul ilgeosseoyo?",
+   "learner": "유명한 사진작가가 쓴 책을 읽었어요.",
+   "en": "I read books written by a famous photographer.",
+   "roman": "yumyeonghan sajinjakgaga sseun chaegeul ilgeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음 주에 공원에서 촬영해요. 올래요?",
+   "beaver_en": "We're shooting at the park next week. Want to come?",
+   "beaver_roman": "daeum jue gongwoneseo chwaryeonghaeyo. ollaeyo?",
+   "learner": "좋아요! 저도 꼭 갈게요.",
+   "en": "Great! I'll definitely come too.",
+   "roman": "joayo! jeodo kkok galgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 다음 주 토요일에 봐요!",
+   "beaver_en": "Great. See you next Saturday, then!",
+   "beaver_roman": "joayo. geureom daeum ju toyoire bwayo!",
+   "learner": "네, 제 취향 이야기 들어 줘서 고마워요!",
+   "en": "Okay, thanks for listening to me talk about my tastes!",
+   "roman": "ne, je chwihyang iyagi deureo jwoseo gomawoyo!"
+  }
+ ]
+}

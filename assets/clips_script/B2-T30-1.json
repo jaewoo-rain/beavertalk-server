@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T30-1",
+ "no": 184,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘은 어디가 불편하세요?",
+   "beaver_en": "Hello. What's bothering you today?",
+   "beaver_roman": "Annyeonghaseyo. Oneureun eodiga bulpyeonhaseyo?",
+   "learner": "눈이 아프고 귀도 아파요. 어느 과로 가야 해요?",
+   "en": "My eyes and ears hurt. Which department should I go to?",
+   "roman": "Nuni apeugo gwido apayo. Eoneu gwaro gaya haeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "언제부터 아프셨어요?",
+   "beaver_en": "Since when has it hurt?",
+   "beaver_roman": "Eonjebuteo apeusyeosseoyo?",
+   "learner": "지난 주말에 수영했을 때부터 아팠어요.",
+   "en": "It has hurt since I went swimming last weekend.",
+   "roman": "Jinan jumare suyeonghaesseul ttaebuteo apasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "눈은 안과, 귀는 이비인후과로 가세요.",
+   "beaver_en": "Go to ophthalmology for your eyes and ENT for your ears.",
+   "beaver_roman": "Nuneun angwa, gwineun ibiinhugwaro gaseyo.",
+   "learner": "네, 안과에서 안약도 받을 수 있어요?",
+   "en": "Okay. Can I get eye drops at ophthalmology too?",
+   "roman": "Ne, angwaeseo anyakdo badeul su isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 의사 선생님이 처방해 주실 거예요.",
+   "beaver_en": "Yes, the doctor will prescribe them.",
+   "beaver_roman": "Ne, uisa seonsaengnimi cheobanghae jusil geoyeyo.",
+   "learner": "그리고 넘어져서 무릎도 다쳤어요.",
+   "en": "Also, I fell and hurt my knee.",
+   "roman": "Geurigo neomeojyeoseo mureupdo dachyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "저런, 많이 아프세요?",
+   "beaver_en": "Oh no, does it hurt a lot?",
+   "beaver_roman": "Jeoreon, mani apeuseyo?",
+   "learner": "조금요. 외과로 가야 해요, 정형외과로 가야 해요?",
+   "en": "A little. Should I go to surgery or orthopedics?",
+   "roman": "Jogeumyo. Oegwaro gaya haeyo, jeonghyeongoegwaro gaya haeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "뼈가 아프면 정형외과, 상처는 외과예요.",
+   "beaver_en": "Bone pain is orthopedics; wounds are surgery.",
+   "beaver_roman": "Ppyeoga apeumyeon jeonghyeongoegwa, sangcheoneun oegwayeyo.",
+   "learner": "상처만 있어요. 소독하고 연고를 바르면 돼요?",
+   "en": "It's just a wound. Do I just disinfect it and put ointment on?",
+   "roman": "Sangcheoman isseoyo. Sodokago yeongoreul bareumyeon dwaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "외과에서 간호사가 소독해 줄 거예요.",
+   "beaver_en": "A nurse in surgery will disinfect it for you.",
+   "beaver_roman": "Oegwaeseo ganhosaga sodokae jul geoyeyo.",
+   "learner": "간호실은 어디에 있어요?",
+   "en": "Where is the nurses' station?",
+   "roman": "Ganhosireun eodie isseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "2층 외과 옆에 있어요. 진단서도 필요하세요?",
+   "beaver_en": "Next to surgery on the 2nd floor. Do you need a medical certificate?",
+   "beaver_roman": "Icheung oegwa yeope isseoyo. Jindanseodo piryohaseyo?",
+   "learner": "네, 회사에 낼 진단서가 필요해요.",
+   "en": "Yes, I need a medical certificate for my company.",
+   "roman": "Ne, hoesae nael jindanseoga piryohaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "진단서는 진료 때 말씀하시고, 약은 1층 약국이에요.",
+   "beaver_en": "Ask for the certificate during your visit. The pharmacy is on the 1st floor.",
+   "beaver_roman": "Jindanseoneun jillyo ttae malsseumhasigo, yageun ilcheung yakgugieyo.",
+   "learner": "약국에서 약 먹는 방법도 알려 줘요?",
+   "en": "Will the pharmacy tell me how to take the medicine?",
+   "roman": "Yakgugeseo yak meongneun bangbeopdo allyeo jwoyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 약사가 자세히 설명해 줄 거예요.",
+   "beaver_en": "Yes, the pharmacist will explain it in detail.",
+   "beaver_roman": "Ne, yaksaga jasehi seolmyeonghae jul geoyeyo.",
+   "learner": "감사합니다. 눈병 예방 방법도 물어볼게요.",
+   "en": "Thank you. I'll also ask how to prevent eye infections.",
+   "roman": "Gamsahamnida. Nunbyeong yebang bangbeopdo mureobolgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T63-1",
+ "no": 159,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 민수 씨. 무슨 좋은 소식 있어요?",
+   "beaver_en": "Hello, Minsu. Any good news?",
+   "beaver_roman": "annyeonghaseyo, minsu ssi. museun joeun sosik isseoyo?",
+   "learner": "네, 우리 동네에 새 공장이 생긴대요.",
+   "en": "Yes, they say a new factory is coming to our town.",
+   "roman": "ne, uri dongnee sae gongjangi saenggindaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 무슨 사업이래요?",
+   "beaver_en": "Really? What kind of business is it?",
+   "beaver_roman": "jeongmallyo? museun saeobiraeyo?",
+   "learner": "철을 만드는 사업이래요.",
+   "en": "They say it's an iron-making business.",
+   "roman": "cheoreul mandeuneun saeobiraeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "철 공장이요? 큰 회사인가 봐요.",
+   "beaver_en": "An iron factory? It must be a big company.",
+   "beaver_roman": "cheol gongjangiyo? keun hoesainga bwayo.",
+   "learner": "네, 석유 회사도 같이 한대요.",
+   "en": "Yes, an oil company is joining too.",
+   "roman": "ne, seogyu hoesado gachi handaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 기름 냄새가 나지 않을까요?",
+   "beaver_en": "Then won't it smell like oil?",
+   "beaver_roman": "geureom gireum naemsaega naji aneulkkayo?",
+   "learner": "저도 그게 걱정이에요.",
+   "en": "That worries me too.",
+   "roman": "jeodo geuge geokjeongieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "공사는 언제 시작해요?",
+   "beaver_en": "When does construction start?",
+   "beaver_roman": "gongsaneun eonje sijakaeyo?",
+   "learner": "내년 봄에 공사를 시작한대요.",
+   "en": "They say construction starts next spring.",
+   "roman": "naenyeon bome gongsareul sijakandaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "생각보다 빠르네요. 어디서 들었어요?",
+   "beaver_en": "Sooner than I thought. Where did you hear that?",
+   "beaver_roman": "saenggakboda ppareuneyo. eodiseo deureosseoyo?",
+   "learner": "시청에서 공장에 대한 설명회를 했어요.",
+   "en": "City hall held a briefing about the factory.",
+   "roman": "sicheongeseo gongjange daehan seolmyeonghoereul haesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "설명회에서 또 무슨 이야기를 했어요?",
+   "beaver_en": "What else did they talk about there?",
+   "beaver_roman": "seolmyeonghoeeseo tto museun iyagireul haesseoyo?",
+   "learner": "공장 옆에 발전 시설도 만든대요.",
+   "en": "They'll also build a power plant next to it.",
+   "roman": "gongjang yeope baljeon siseoldo mandeundaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "전기도 만들어요? 일자리가 많이 생기겠네요.",
+   "beaver_en": "Electricity too? There will be lots of jobs.",
+   "beaver_roman": "jeongido mandeureoyo? iljariga mani saenggigenneyo.",
+   "learner": "네, 그래서 사업에 대한 기대가 커요.",
+   "en": "Yes, so people expect a lot from the business.",
+   "roman": "ne, geuraeseo saeobe daehan gidaega keoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그 회사에 대해 더 알아볼 수 있을까요?",
+   "beaver_en": "Could we find out more about that company?",
+   "beaver_roman": "geu hoesae daehae deo arabol su isseulkkayo?",
+   "learner": "다음 주에 회사 설명 모임이 있대요.",
+   "en": "They say there's a company briefing next week.",
+   "roman": "daeum jue hoesa seolmyeong moimi itdaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 같이 가서 들어 봐요.",
+   "beaver_en": "Great. Let's go and listen together.",
+   "beaver_roman": "joayo. gachi gaseo deureo bwayo.",
+   "learner": "네, 그럼 다음 주에 같이 가요!",
+   "en": "Okay, let's go together next week!",
+   "roman": "ne, geureom daeum jue gachi gayo!"
+  }
+ ]
+}

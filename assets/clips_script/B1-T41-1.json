@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T41-1",
+ "no": 148,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 오늘 환율 뉴스 봤어요? 또 올랐대요.",
+   "beaver_en": "Minsu, did you see the exchange rate news? It went up again.",
+   "beaver_roman": "Minsu ssi, oneul hwanyul nyuseu bwasseoyo? Tto ollatdaeyo.",
+   "learner": "네, 봤어요. 달러를 미리 바꿔 둘걸 그랬어요.",
+   "en": "Yes, I did. I should have exchanged dollars earlier.",
+   "roman": "Ne, bwasseoyo. Dalleoreul miri bakkwo dulkkeol geuraesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜요? 다음 달에 여행 가요?",
+   "beaver_en": "Why? Are you traveling next month?",
+   "beaver_roman": "Waeyo? Daeum dare yeohaeng gayo?",
+   "learner": "네, 다음 달에 미국에 가요. 시기가 안 좋네요.",
+   "en": "Yes, I'm going to the US next month. Bad timing.",
+   "roman": "Ne, daeum dare miguge gayo. Sigiga an jonneyo."
+  },
+  {
+   "n": 3,
+   "beaver": "물가도 올랐지요?",
+   "beaver_en": "Prices went up too, right?",
+   "beaver_roman": "Mulkkado ollatjiyo?",
+   "learner": "네, 수입 과일 값이 많이 올랐어요.",
+   "en": "Yes, imported fruit got a lot more expensive.",
+   "roman": "Ne, suip gwail gapsi mani ollasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "환율이 오르면 수입 물건이 비싸지니까요.",
+   "beaver_en": "When the exchange rate rises, imports get pricier.",
+   "beaver_roman": "Hwanyuri oreumyeon suip mulgeoni bissajinikkayo.",
+   "learner": "마트 물건 값도 다 올랐어요.",
+   "en": "Prices at the supermarket all went up too.",
+   "roman": "Mateu mulgeon gapdo da ollasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 수출하는 회사는 좋을 수도 있어요.",
+   "beaver_en": "Still, exporting companies might benefit.",
+   "beaver_roman": "Geuraedo suchulhaneun hoesaneun joeul ssudo isseoyo.",
+   "learner": "맞아요. 회사마다 사정이 다르겠네요.",
+   "en": "Right. Every company's situation must be different.",
+   "roman": "Majayo. Hoesamada sajeongi dareugenneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "주식은 어때요? 민수 씨도 주식 있잖아요.",
+   "beaver_en": "How about stocks? You have some too, don't you?",
+   "beaver_roman": "Jusigeun eottaeyo? Minsu ssido jusik itjanayo.",
+   "learner": "경기가 나빠서 제 주식도 떨어졌어요.",
+   "en": "The economy is bad, so my stocks fell too.",
+   "roman": "Gyeonggiga nappaseo je jusikdo tteoreojyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "금값은요? 요즘 많이 올랐다던데요.",
+   "beaver_en": "What about gold? I heard it went up a lot lately.",
+   "beaver_roman": "Geumkkapseunyo? Yojeum mani ollatdadeondeyo.",
+   "learner": "네, 금이나 은을 사 둘걸 그랬어요.",
+   "en": "Yes, I should have bought some gold or silver.",
+   "roman": "Ne, geumina euneul sa dulkkeol geuraesseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "사람들은 경기가 나쁘면 금을 많이 사요.",
+   "beaver_en": "People buy a lot of gold when the economy is bad.",
+   "beaver_roman": "Saramdeureun gyeonggiga nappeumyeon geumeul mani sayo.",
+   "learner": "통화 가치가 떨어지면 금이 안전하니까요.",
+   "en": "Because gold is safe when currency value drops.",
+   "roman": "Tonghwa gachiga tteoreojimyeon geumi anjeonhanikkayo."
+  },
+  {
+   "n": 9,
+   "beaver": "경제 얘기 좀 더 해 볼래요?",
+   "beaver_en": "Want to talk a bit more about the economy?",
+   "beaver_roman": "Gyeongje yaegi jom deo hae bollaeyo?",
+   "learner": "좋아요. 경제 공부를 미리 할걸 그랬어요.",
+   "en": "Sure. I should have studied economics earlier.",
+   "roman": "Joayo. Gyeongje gongbureul miri halkkeol geuraesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "마침 점심시간이니까 커피 마시면서 해요.",
+   "beaver_en": "It's lunchtime anyway, so let's talk over coffee.",
+   "beaver_roman": "Machim jeomsimsiganinikka keopi masimyeonseo haeyo.",
+   "learner": "좋아요. 이번엔 제가 커피 살게요.",
+   "en": "Great. I'll buy the coffee this time.",
+   "roman": "Joayo. Ibeonen jega keopi salkkeyo."
+  }
+ ]
+}

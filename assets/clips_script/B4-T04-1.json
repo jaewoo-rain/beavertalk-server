@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T04-1",
+ "no": 255,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번에 우리 팀에 오는 지훈 씨 알아요?",
+   "beaver_en": "Do you know Jihun, who's joining our team?",
+   "beaver_roman": "ibeone uri time oneun jihun ssi arayo?",
+   "learner": "네, 소문에 의하면 성격이 원만하대요.",
+   "en": "Yes, according to rumors, he's easygoing.",
+   "roman": "ne, somune uihamyeon seonggyeogi wonmanhadaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "다행이네요. 예전에는 소극적이었죠?",
+   "beaver_en": "That's a relief. He used to be passive, right?",
+   "beaver_roman": "dahaengineyo. yejeoneneun sogeukjeogieotjyo?",
+   "learner": "네, 소극적이었는데 지금은 활동적이래요.",
+   "en": "Yes, he was passive, but now he's active.",
+   "roman": "ne, sogeukjeogieonneunde jigeumeun hwaldongjeogiraeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래요? 다른 이야기도 들었어요?",
+   "beaver_en": "Really? Did you hear anything else?",
+   "beaver_roman": "geuraeyo? dareun iyagido deureosseoyo?",
+   "learner": "배려를 잘하고 지혜롭다고 들었어요.",
+   "en": "I heard he's considerate and wise.",
+   "roman": "baeryeoreul jalhago jihyeropdago deureosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "좋네요. 그런데 약점은 없어요?",
+   "beaver_en": "Nice. But doesn't he have any weak points?",
+   "beaver_roman": "jonneyo. geureonde yakjeomeun eopseoyo?",
+   "learner": "약점이라면 자존심이 좀 세다고 해요.",
+   "en": "If anything, they say he's a bit proud.",
+   "roman": "yakjeomiramyeon jajonsimi jom sedago haeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그 정도는 누구나 있죠.",
+   "beaver_en": "Everyone has that much.",
+   "beaver_roman": "geu jeongdoneun nuguna itjyo.",
+   "learner": "가끔 엉뚱한 말을 해서 웃긴대요.",
+   "en": "They say he's funny, saying unexpected things.",
+   "roman": "gakkeum eongttunghan mareul haeseo utgindaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "엉뚱한 사람은 보통 순수하더라고요.",
+   "beaver_en": "Quirky people are usually pure-hearted.",
+   "beaver_roman": "eongttunghan sarameun botong sunsuhadeoragoyo.",
+   "learner": "맞아요. 순수하고 인간적이래요.",
+   "en": "Right. They say he's pure and very human.",
+   "roman": "majayo. sunsuhago inganjeogiraeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "혹시 이기적이라는 말은 없었어요?",
+   "beaver_en": "Did anyone say he's selfish?",
+   "beaver_roman": "hoksi igijeogiraneun mareun eopseosseoyo?",
+   "learner": "아니요, 전혀 이기적이지 않대요.",
+   "en": "No, they say he's not selfish at all.",
+   "roman": "aniyo, jeonhyeo igijeogiji antaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "또 다른 얘기는 없었어요?",
+   "beaver_en": "Wasn't there anything else?",
+   "beaver_roman": "tto dareun yaegineun eopseosseoyo?",
+   "learner": "가끔 유치하지만 일할 때는 성숙하대요.",
+   "en": "He's childish sometimes but mature at work.",
+   "roman": "gakkeum yuchihajiman ilhal ttaeneun seongsukadaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "부정적인 소문은 하나도 없네요.",
+   "beaver_en": "There are no negative rumors at all.",
+   "beaver_roman": "bujeongjeogin somuneun hanado eomneyo.",
+   "learner": "팀장님 말에 의하면 부정적인 말을 안 한대요.",
+   "en": "According to the manager, he never talks negatively.",
+   "roman": "timjangnim mare uihamyeon bujeongjeogin mareul an handaeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "이제야 마음이 놓이네요. 빨리 만나고 싶어요.",
+   "beaver_en": "Now I feel at ease. I want to meet him soon.",
+   "beaver_roman": "ijeya maeumi noineyo. ppalli mannago sipeoyo.",
+   "learner": "저도요. 다음 주에 같이 환영해요.",
+   "en": "Me too. Let's welcome him together next week.",
+   "roman": "jeodoyo. daeum jue gachi hwanyeonghaeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T40-1",
+ "no": 110,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 국제 시민 센터예요. 처음 오셨어요?",
+   "beaver_en": "Hello. This is the International Citizens Center. Is this your first visit?",
+   "beaver_roman": "annyeonghaseyo. gukje simin senteoyeyo. cheoeum osyeosseoyo?",
+   "learner": "네, 처음이에요. 규칙을 알고 싶어요.",
+   "en": "Yes, it's my first time. I'd like to know the rules.",
+   "roman": "ne, cheoeumieyo. gyuchigeul algo sipeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 한국에 오신 지 얼마나 됐어요?",
+   "beaver_en": "Great. How long has it been since you came to Korea?",
+   "beaver_roman": "joayo. hanguge osin ji eolmana dwaesseoyo?",
+   "learner": "한국에 온 지 1년 됐어요. 한국 생활이 재미있어요.",
+   "en": "It's been a year since I came to Korea. Life in Korea is fun.",
+   "roman": "hanguge on ji illyeon dwaesseoyo. hanguk saenghari jaemiisseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "이 센터에는 세계 여러 나라 사람들이 와요.",
+   "beaver_en": "People from many countries around the world come to this center.",
+   "beaver_roman": "i senteoeneun segye yeoreo nara saramdeuri wayo.",
+   "learner": "여러 나라 사람들이 모이네요. 국제 행사도 있어요?",
+   "en": "People from many countries gather here. Are there international events too?",
+   "roman": "yeoreo nara saramdeuri moineyo. gukje haengsado isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 매달 있어요. 그리고 저쪽은 출입 금지예요.",
+   "beaver_en": "Yes, every month. And that area over there is off-limits.",
+   "beaver_roman": "ne, maedal isseoyo. geurigo jeojjogeun churip geumjiyeyo.",
+   "learner": "아, 금지 구역에는 들어가면 안 되죠?",
+   "en": "Ah, I shouldn't go into restricted areas, right?",
+   "roman": "a, geumji guyeogeneun deureogamyeon an doejyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "맞아요. 그리고 안에서 음식을 먹을 수 없어요.",
+   "beaver_en": "That's right. Also, you can't eat food inside.",
+   "beaver_roman": "majayo. geurigo aneseo eumsigeul meogeul su eopseoyo.",
+   "learner": "네, 규칙이 간단해서 잘 알겠어요.",
+   "en": "Okay, the rules are simple, so I understand them well.",
+   "roman": "ne, gyuchigi gandanhaeseo jal algesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "이 동네에 사신 지는 얼마나 됐어요?",
+   "beaver_en": "How long have you lived in this neighborhood?",
+   "beaver_roman": "i dongnee sasin jineun eolmana dwaesseoyo?",
+   "learner": "이 동네에 산 지 6개월 됐어요.",
+   "en": "I've lived in this neighborhood for six months.",
+   "roman": "i dongnee san ji yukgaewol dwaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 동네 규칙도 잘 아시겠네요.",
+   "beaver_en": "Then you must know the neighborhood rules well.",
+   "beaver_roman": "geureom dongne gyuchikdo jal asigenneyo.",
+   "learner": "네, 쓰레기 규칙이 제일 중요해요.",
+   "en": "Yes, the trash rules are the most important.",
+   "roman": "ne, sseuregi gyuchigi jeil jungyohaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아요. 불조심도 중요해요. 여기서 담배는 금지예요.",
+   "beaver_en": "Right. Fire safety matters too. Smoking is prohibited here.",
+   "beaver_roman": "majayo. buljosimdo jungyohaeyo. yeogiseo dambaeneun geumjiyeyo.",
+   "learner": "작은 불이 큰불이 될 수 있죠. 조심할게요.",
+   "en": "A small fire can turn into a big one. I'll be careful.",
+   "roman": "jageun buri keunburi doel su itjyo. josimhalgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 이 센터는 시민 누구나 쓸 수 있어요.",
+   "beaver_en": "Good. Any citizen can use this center.",
+   "beaver_roman": "joayo. i senteoneun simin nuguna sseul su isseoyo.",
+   "learner": "한국어를 배운 지 오래 안 됐어요. 괜찮아요?",
+   "en": "I haven't been learning Korean for long. Is that okay?",
+   "roman": "hangugeoreul baeun ji orae an dwaesseoyo. gwaenchanayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "그럼요. 외국 분들도 많이 오셔서 괜찮아요.",
+   "beaver_en": "Of course. Many foreigners come here too, so it's fine.",
+   "beaver_roman": "geureomyo. oeguk bundeuldo mani osyeoseo gwaenchanayo.",
+   "learner": "감사합니다. 다음 주에 또 올게요.",
+   "en": "Thank you. I'll come again next week.",
+   "roman": "gamsahamnida. daeum jue tto olgeyo."
+  }
+ ]
+}

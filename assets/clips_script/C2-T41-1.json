@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T41-1",
+ "no": 381,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 경기가 안 좋은데, 주식 투자를 해도 될까요?",
+   "beaver_en": "The economy's bad lately. Is it okay to invest in stocks?",
+   "beaver_roman": "Yojeum gyeonggiga an joeunde, jusik tujareul haedo doelkkayo?",
+   "learner": "불경기에는 신중해야 한다는 지적이 있어요.",
+   "en": "It's been pointed out that you should be careful in a downturn.",
+   "roman": "Bulgyeonggieneun sinjunghaeya handaneun jijeogi isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래도 주가가 낮을 때 사 두면 좋지 않을까요?",
+   "beaver_en": "Still, wouldn't it be good to buy while prices are low?",
+   "beaver_roman": "Geuraedo jugaga najeul ttae sa dumyeon jochi aneulkkayo?",
+   "learner": "경기 침체가 오래갈 수 있다는 지적이 있어요.",
+   "en": "It's been pointed out that the slump could last a long time.",
+   "roman": "Gyeonggi chimchega oraegal su itdaneun jijeogi isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 지금 주식을 사는 건 위험할까요?",
+   "beaver_en": "Then is it risky to buy stocks now?",
+   "beaver_roman": "Geureom jigeum jusigeul saneun geon wiheomhalkkayo?",
+   "learner": "증권 매매는 단기로 하면 위험할 수 있어요.",
+   "en": "Trading securities short-term can be risky.",
+   "roman": "Jeunggwon maemaeneun dangiro hamyeon wiheomhal su isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "부동산 매입은 어때요? 집값이 많이 내렸던데요.",
+   "beaver_en": "What about buying property? House prices dropped a lot.",
+   "beaver_roman": "Budongsan maeibeun eottaeyo? Jipkkapsi mani naeryeotdeondeyo.",
+   "learner": "매입하기 전에 재정 상황부터 살펴보세요.",
+   "en": "Before buying, check your financial situation first.",
+   "roman": "Maeipagi jeone jaejeong sanghwangbuteo salpyeoboseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "제 재정 상태는 나쁘지 않은 편이에요.",
+   "beaver_en": "My finances are not too bad.",
+   "beaver_roman": "Je jaejeong sangtaeneun nappeuji aneun pyeonieyo.",
+   "learner": "그래도 대출 금리가 높다는 지적이 있어요.",
+   "en": "Still, it's been pointed out that loan rates are high.",
+   "roman": "Geuraedo daechul geumniga nopdaneun jijeogi isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "요즘 경기 상황을 좀 더 얘기해 주실래요?",
+   "beaver_en": "Could you tell me more about the economy these days?",
+   "beaver_roman": "Yojeum gyeonggi sanghwangeul jom deo yaegihae jusillaeyo?",
+   "learner": "소비가 침체되고 투자도 뚜렷이 줄었어요.",
+   "en": "Spending has slumped and investment has clearly dropped.",
+   "roman": "Sobiga chimchedoego tujado tturyeosi jureosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 지금 사기보다 기다리는 게 낫겠네요.",
+   "beaver_en": "Then waiting seems better than buying now.",
+   "beaver_roman": "Geureom jigeum sagiboda gidarineun ge natgenneyo.",
+   "learner": "네, 첫발을 내딛기 전에 계획을 세워 보세요.",
+   "en": "Yes, make a plan before taking the first step.",
+   "roman": "Ne, cheotbareul naeditgi jeone gyehoegeul sewo boseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "현금을 조금 남겨 두는 건 어때요?",
+   "beaver_en": "How about keeping some cash aside?",
+   "beaver_roman": "Hyeongeumeul jogeum namgyeo duneun geon eottaeyo?",
+   "learner": "좋아요. 재정적으로 여유가 있어야 버틸 수 있어요.",
+   "en": "Good. You need financial room to hold out.",
+   "roman": "Joayo. Jaejeongjeogeuro yeoyuga isseoya beotil su isseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "아내도 걱정을 내비치던데, 같이 상의해 볼게요.",
+   "beaver_en": "My wife hinted she's worried too, so I'll talk with her.",
+   "beaver_roman": "Anaedo geokjeongeul naebichideonde, gachi sanguihae bolgeyo.",
+   "learner": "좋은 생각이에요. 백지장도 맞들면 낫잖아요.",
+   "en": "Good idea. Two heads are better than one, right?",
+   "roman": "Joeun saenggagieyo. Baekjjijangdo matdeulmyeon natjanayo."
+  },
+  {
+   "n": 10,
+   "beaver": "덕분에 생각이 또렷해졌어요. 고마워요.",
+   "beaver_en": "Thanks to you, my thoughts are clearer. Thank you.",
+   "beaver_roman": "Deokbune saenggagi ttoryeotaejeosseoyo. Gomawoyo.",
+   "learner": "천만에요. 불경기가 끝나면 다시 이야기해요.",
+   "en": "You're welcome. Let's talk again when the downturn ends.",
+   "roman": "Cheonmaneyo. Bulgyeonggiga kkeunnamyeon dasi iyagihaeyo."
+  }
+ ]
+}

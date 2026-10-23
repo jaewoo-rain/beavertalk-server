@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T11-1",
+ "no": 10,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "리나 씨, 점심에 뭐 먹을까요?",
+   "beaver_en": "Rina, what shall we eat for lunch?",
+   "beaver_roman": "Rina ssi, jeomsime mwo meogeulkkayo?",
+   "learner": "음… 김밥이나 라면을 먹을까요?",
+   "en": "Hmm… shall we eat gimbap or ramyeon?",
+   "roman": "Eum… gimbabina ramyeoneul meogeulkkayo?"
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 저 가게 떡볶이도 맛있어요.",
+   "beaver_en": "Sounds good. That shop's tteokbokki is tasty too.",
+   "beaver_roman": "Joayo. Jeo gage tteokbokkido masisseoyo.",
+   "learner": "저도 들었어요. 그 가게 떡볶이 먹을까요?",
+   "en": "I heard that too. Shall we eat that shop's tteokbokki?",
+   "roman": "Jeodo deureosseoyo. Geu gage tteokbokki meogeulkkayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요! 떡볶이 몇 인분 시킬까요?",
+   "beaver_en": "Great! How many servings of tteokbokki shall we order?",
+   "beaver_roman": "Joayo! Tteokbokki myeodinbun sikilkkayo?",
+   "learner": "이 인분 시킬까요? 김밥도 같이 먹어요.",
+   "en": "Shall we order two servings? Let's eat gimbap too.",
+   "roman": "I inbun sikilkkayo? Gimbapdo gachi meogeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "고기는 안 먹어요? 삼계탕도 있어요.",
+   "beaver_en": "No meat? They have samgyetang too.",
+   "beaver_roman": "Gogineun an meogeoyo? Samgyetangdo isseoyo.",
+   "learner": "삼계탕은 내일 먹을까요? 갈비탕도 좋아요.",
+   "en": "Shall we have samgyetang tomorrow? Galbitang is good too.",
+   "roman": "Samgyetangeun naeil meogeulkkayo? Galbitangdo joayo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋아요. 그럼 내일은 고기 먹어요.",
+   "beaver_en": "Okay. Then let's eat meat tomorrow.",
+   "beaver_roman": "Joayo. Geureom naeireun gogi meogeoyo.",
+   "learner": "네, 저는 고기랑 밥을 좋아해요.",
+   "en": "Yes, I like meat and rice.",
+   "roman": "Ne, jeoneun gogirang babeul joahaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "음료는 뭘 마셔요?",
+   "beaver_en": "What will you drink?",
+   "beaver_roman": "Eumnyoneun mwol masyeoyo?",
+   "learner": "저는 오렌지 주스를 마실 거예요.",
+   "en": "I'll drink orange juice.",
+   "roman": "Jeoneun orenji juseureul masil geoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "저는 물을 마실게요. 술도 마실까요?",
+   "beaver_en": "I'll drink water. Shall we have some alcohol too?",
+   "beaver_roman": "Jeoneun mureul masilgeyo. Suldo masilkkayo?",
+   "learner": "점심에 술은 안 돼요! 과일도 살까요?",
+   "en": "No alcohol at lunch! Shall we buy fruit too?",
+   "roman": "Jeomsime sureun an dwaeyo! Gwaildo salkkayo?"
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 이 가게에 사과하고 포도가 있어요.",
+   "beaver_en": "Sure. This store has apples and grapes.",
+   "beaver_roman": "Joayo. I gagee sagwahago podoga isseoyo.",
+   "learner": "저 감도 맛있겠어요. 감도 살까요?",
+   "en": "Those persimmons look tasty. Shall we buy some too?",
+   "roman": "Jeo gamdo masitgesseoyo. Gamdo salkkayo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네, 좋아요. 빵은 안 사요?",
+   "beaver_en": "Yes, good. Aren't you buying bread?",
+   "beaver_roman": "Ne, joayo. Ppangeun an sayo?",
+   "learner": "빵은 괜찮아요. 떡볶이 가게까지 걸어갈까요?",
+   "en": "No bread, thanks. Shall we walk to the tteokbokki shop?",
+   "roman": "Ppangeun gwaenchanayo. Tteokbokki gagekkaji georeogalkkayo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 같이 걸어가요. 정말 배고파요!",
+   "beaver_en": "Yes, let's walk together. I'm so hungry!",
+   "beaver_roman": "Ne, gachi georeogayo. Jeongmal baegopayo!",
+   "learner": "저도요. 빨리 가서 맛있게 먹어요!",
+   "en": "Me too. Let's go quickly and enjoy our food!",
+   "roman": "Jeodoyo. Ppalli gaseo masitge meogeoyo!"
+  }
+ ]
+}

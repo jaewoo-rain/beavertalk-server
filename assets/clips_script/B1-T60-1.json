@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T60-1",
+ "no": 157,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 내일 기말시험 준비 다 했어요?",
+   "beaver_en": "Minsu, are you all ready for tomorrow's final exam?",
+   "beaver_roman": "Minsu ssi, naeil gimalsiheom junbi da haesseoyo?",
+   "learner": "아직이요. 오늘 밤에 한 과목 더 공부해요.",
+   "en": "Not yet. I'm studying one more subject tonight.",
+   "roman": "Ajigiyo. Oneul bame han gwamok deo gongbuhaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떻게 공부해요?",
+   "beaver_en": "How do you study?",
+   "beaver_roman": "Eotteoke gongbuhaeyo?",
+   "learner": "자기 전에 문제를 풀고 정답을 확인해요.",
+   "en": "Before bed, I solve problems and check the answers.",
+   "roman": "Jagi jeone munjereul pulgo jeongdabeul hwaginhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "좋네요. 모르는 단어는 어떻게 해요?",
+   "beaver_en": "Nice. What do you do with words you don't know?",
+   "beaver_roman": "Jonneyo. Moreuneun daneoneun eotteoke haeyo?",
+   "learner": "전자사전으로 찾아요. 아주 편해요.",
+   "en": "I look them up in my e-dictionary. It's very handy.",
+   "roman": "Jeonjasajeoneuro chajayo. Aju pyeonhaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "전자사전 배터리는 괜찮아요?",
+   "beaver_en": "Is your e-dictionary's battery okay?",
+   "beaver_roman": "Jeonjasajeon baeteorineun gwaenchanayo?",
+   "learner": "아, 시험 보기 전에 배터리를 갈아야겠어요.",
+   "en": "Oh, I should change the battery before the exam.",
+   "roman": "A, siheom bogi jeone baeteorireul garayagesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "요즘 중급 과정은 어때요?",
+   "beaver_en": "How's the intermediate course these days?",
+   "beaver_roman": "Yojeum junggeup gwajeongeun eottaeyo?",
+   "learner": "어렵지만 재미있어요. 집중이 잘 안 돼서 걱정이에요.",
+   "en": "It's hard but fun. I worry because I can't focus well.",
+   "roman": "Eoryeopjiman jaemiisseoyo. Jipjungi jal an dwaeseo geokjeongieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "공부하기 전에 휴대폰을 끄면 좋아요.",
+   "beaver_en": "It helps to turn off your phone before studying.",
+   "beaver_roman": "Gongbuhagi jeone hyudaeponeul kkeumyeon joayo.",
+   "learner": "좋은 생각이에요. 오늘부터 해 볼게요.",
+   "en": "Good idea. I'll try it starting today.",
+   "roman": "Joeun saenggagieyo. Oneulbuteo hae bolgeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "이번 시험에 합격하면 뭐 할 거예요?",
+   "beaver_en": "What will you do if you pass this exam?",
+   "beaver_roman": "Ibeon siheome hapgyeokamyeon mwo hal geoyeyo?",
+   "learner": "다음 과정으로 올라가요. 내년엔 입학시험도 봐요.",
+   "en": "I'll move up to the next course. Next year I take an entrance exam too.",
+   "roman": "Daeum gwajeongeuro ollagayo. Naenyeonen ipaksiheomdo bwayo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 대단해요! 입학시험은 어려워요?",
+   "beaver_en": "Wow, amazing! Is the entrance exam hard?",
+   "beaver_roman": "Wa, daedanhaeyo! Ipaksiheomeun eoryeowoyo?",
+   "learner": "네, 그래서 시험 보기 전에 열심히 해야 해요.",
+   "en": "Yes, so I have to study hard before the exam.",
+   "roman": "Ne, geuraeseo siheom bogi jeone yeolsimhi haeya haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "시험 보기 전에 아침은 꼭 먹어요.",
+   "beaver_en": "Be sure to eat breakfast before the exam.",
+   "beaver_roman": "Siheom bogi jeone achimeun kkok meogeoyo.",
+   "learner": "네, 밥을 먹고 물병도 채워서 갈게요.",
+   "en": "Okay, I'll eat and fill my water bottle before going.",
+   "roman": "Ne, babeul meokgo mulbyeongdo chaewoseo galgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 그럼 내일 시험 잘 봐요!",
+   "beaver_en": "Great. Then good luck on the exam tomorrow!",
+   "beaver_roman": "Joayo. Geureom naeil siheom jal bwayo!",
+   "learner": "고마워요. 시험 끝나고 같이 밥 먹어요!",
+   "en": "Thanks. Let's eat together after the exam!",
+   "roman": "Gomawoyo. Siheom kkeunnago gachi bap meogeoyo!"
+  }
+ ]
+}

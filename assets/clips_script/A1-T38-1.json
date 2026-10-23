@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T38-1",
+ "no": 19,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여기 나무가 많습니다. 뭐가 보입니까?",
+   "beaver_en": "There are lots of trees here. What do you see?",
+   "beaver_roman": "yeogi namuga manseumnida. mwoga boimnikka?",
+   "learner": "저기 고양이가 있습니다. 나무 밑에 있습니다.",
+   "en": "There's a cat over there. It's under the tree.",
+   "roman": "jeogi goyangiga itseumnida. namu mite itseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "고양이가 몇 마리입니까?",
+   "beaver_en": "How many cats are there?",
+   "beaver_roman": "goyangiga myeot mariimnikka?",
+   "learner": "세 마리입니다. 아주 귀엽습니다.",
+   "en": "Three. They're very cute.",
+   "roman": "se mariimnida. aju gwiyeopseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "저 개도 보입니까?",
+   "beaver_en": "Do you see that dog too?",
+   "beaver_roman": "jeo gaedo boimnikka?",
+   "learner": "네, 개가 고양이를 봅니다.",
+   "en": "Yes, the dog is looking at the cats.",
+   "roman": "ne, gaega goyangireul bomnida."
+  },
+  {
+   "n": 4,
+   "beaver": "이 나뭇가지가 아주 깁니다.",
+   "beaver_en": "This tree branch is really long.",
+   "beaver_roman": "i namutgajiga aju gimnida.",
+   "learner": "네, 가지에 꽃이 있습니다.",
+   "en": "Yes, there are flowers on the branch.",
+   "roman": "ne, gajie kkochi itseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "무슨 꽃입니까?",
+   "beaver_en": "What kind of flower is it?",
+   "beaver_roman": "museun kkochimnikka?",
+   "learner": "이것은 벚꽃입니다. 아주 예쁩니다.",
+   "en": "These are cherry blossoms. They're very pretty.",
+   "roman": "igeoseun beotkkochimnida. aju yeppeumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "또 뭐가 보입니까?",
+   "beaver_en": "What else do you see?",
+   "beaver_roman": "tto mwoga boimnikka?",
+   "learner": "음, 나무 위에 새가 있습니다.",
+   "en": "Hmm, there's a bird up in the tree.",
+   "roman": "eum, namu wie saega itseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "새가 무엇을 합니까?",
+   "beaver_en": "What is the bird doing?",
+   "beaver_roman": "saega mueoseul hamnikka?",
+   "learner": "가지 위에서 노래합니다.",
+   "en": "It's singing on a branch.",
+   "roman": "gaji wieseo noraehamnida."
+  },
+  {
+   "n": 8,
+   "beaver": "저기 저 남자 보입니까?",
+   "beaver_en": "Do you see that man over there?",
+   "beaver_roman": "jeogi jeo namja boimnikka?",
+   "learner": "네, 저 사람이 담배를 피웁니다.",
+   "en": "Yes, that man is smoking.",
+   "roman": "ne, jeo sarami dambaereul piumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "공원에서 담배는 안 됩니다.",
+   "beaver_en": "Smoking isn't allowed in the park.",
+   "beaver_roman": "gongwoneseo dambaeneun an doemnida.",
+   "learner": "맞습니다. 담배는 몸에 나쁩니다.",
+   "en": "Right. Smoking is bad for your health.",
+   "roman": "matseumnida. dambaeneun mome nappeumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "벌써 다섯 시입니다. 금요일에 또 옵시다.",
+   "beaver_en": "It's already five. Let's come again on Friday.",
+   "beaver_roman": "beolsseo daseot siimnida. geumyoire tto opsida.",
+   "learner": "좋습니다. 금요일에 만납시다.",
+   "en": "Sounds good. See you on Friday.",
+   "roman": "jotseumnida. geumyoire mannapsida."
+  }
+ ]
+}

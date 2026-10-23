@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T45-1",
+ "no": 240,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 좌우명 적었어요? 한번 보여 줄래요?",
+   "beaver_en": "Minsu, did you write your motto? Can you show me?",
+   "beaver_roman": "Minsu ssi, jwaumyeong jeogeosseoyo? Hanbeon boyeo jullaeyo?",
+   "learner": "네, \"도전하지 않음이 곧 불행이다.\"예요.",
+   "en": "Yes, it's \"Not taking on challenges is misfortune.\"",
+   "roman": "Ne, \"dojeonhaji aneumi got bulhaengida.\"yeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "뜻이 좋네요. 왜 그렇게 정했어요?",
+   "beaver_en": "That's a good meaning. Why did you choose it?",
+   "beaver_roman": "Tteusi jonneyo. Wae geureoke jeonghaesseoyo?",
+   "learner": "대학 시절에 도전을 피해서 후회했거든요.",
+   "en": "In college I avoided challenges and regretted it.",
+   "roman": "Daehak sijeore dojeoneul pihaeseo huhoehaetgeodeunyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그 일에서 어떤 교훈이 남았어요?",
+   "beaver_en": "What lesson did you take from that?",
+   "beaver_roman": "Geu ireseo eotteon gyohuni namasseoyo?",
+   "learner": "실천하지 않으면 앞길이 안 열린다는 교훈이요.",
+   "en": "That without action, the road ahead won't open.",
+   "roman": "Silcheonhaji aneumyeon apkkiri an yeollindaneun gyohuniyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 민수 씨 가치관은 뭐예요?",
+   "beaver_en": "Then what are your values, Minsu?",
+   "beaver_roman": "Geureom Minsu ssi gachigwaneun mwoyeyo?",
+   "learner": "생명을 소중히 여기는 것과 정의를 지키는 거예요.",
+   "en": "Valuing life and standing up for justice.",
+   "roman": "Saengmyeongeul sojunghi yeogineun geotgwa jeonguireul jikineun geoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "왜 생명을 그렇게 중요하게 생각해요?",
+   "beaver_en": "Why do you think life is so important?",
+   "beaver_roman": "Wae saengmyeongeul geureoke jungyohage saenggakaeyo?",
+   "learner": "작년에 사고가 났는데 겨우 목숨을 건졌어요.",
+   "en": "Last year I had an accident and barely survived.",
+   "roman": "Jangnyeone sagoga nanneunde gyeou moksumeul geonjeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "정말요? 많이 놀랐겠어요.",
+   "beaver_en": "Really? You must have been shocked.",
+   "beaver_roman": "Jeongmallyo? Mani nollatgesseoyo.",
+   "learner": "네, 그때 살아 있는 게 기적이라는 걸 깨달았어요.",
+   "en": "Yes, I realized that being alive is a miracle.",
+   "roman": "Ne, geuttae sara inneun ge gijeogiraneun geol kkaedarasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그냥 재수가 좋았던 거 아닐까요?",
+   "beaver_en": "Maybe you were just lucky?",
+   "beaver_roman": "Geunyang jaesuga joatdeon geo anilkkayo?",
+   "learner": "재수도 좋았죠. 하지만 생존 자체가 교훈이었어요.",
+   "en": "I was lucky. But surviving itself was a lesson.",
+   "roman": "Jaesudo joatjyo. Hajiman saengjon jachega gyohunieosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "가치관과 삶의 의미에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Shall we talk more about values and life's meaning?",
+   "beaver_roman": "Gachigwangwa salme uimie daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 저는 사상보다 실천이 더 중요하다고 봐요.",
+   "en": "Sure. I think practice matters more than ideas.",
+   "roman": "Joayo. Jeoneun sasangboda silcheoni deo jungyohadago bwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 마지막으로 하나만 더 써 볼래요?",
+   "beaver_en": "Then will you write just one more?",
+   "beaver_roman": "Geureom majimageuro hanaman deo sseo bollaeyo?",
+   "learner": "\"진리는 머리보다 영혼에 있음.\" 이렇게요.",
+   "en": "\"Truth lies in the soul, not the head.\" Like this.",
+   "roman": "\"Jillineun meoriboda yeonghone isseum.\" Ireokeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "멋져요. 민수 씨 앞길이 기대돼요.",
+   "beaver_en": "Wonderful. I look forward to your future, Minsu.",
+   "beaver_roman": "Meotjyeoyo. Minsu ssi apkkiri gidaedwaeyo.",
+   "learner": "감사합니다, 선배. 앞으로 더 실천하는 후배가 될게요.",
+   "en": "Thank you. From now on, I'll put things into action more.",
+   "roman": "Gamsahamnida, seonbae. Apeuro deo silcheonhaneun hubaega doelgeyo."
+  }
+ ]
+}

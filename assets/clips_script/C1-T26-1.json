@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T26-1",
+ "no": 314,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 와요. 오늘은 어떤 상담을 하고 싶어요?",
+   "beaver_en": "Welcome. What would you like to talk about today?",
+   "beaver_roman": "eoseo wayo. oneureun eotteon sangdameul hago sipeoyo?",
+   "learner": "요즘 장래성이 있는 직종이 궁금해서 왔어요.",
+   "en": "I came because I'm curious about occupations with good potential.",
+   "roman": "yojeum jangnaeseongi inneun jikjongi gunggeumhaeseo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아요. 관심 있는 직업이 있어요?",
+   "beaver_en": "Good. Is there a job you're interested in?",
+   "beaver_roman": "joayo. gwansim inneun jigeobi isseoyo?",
+   "learner": "조리사와 조종사 중에 뭐가 더 유망해요?",
+   "en": "Which is more promising, chef or pilot?",
+   "roman": "jorisawa jojongsa junge mwoga deo yumanghaeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "조리사는 전문성을 쌓으면 장래성이 있어요.",
+   "beaver_en": "Chefs have good prospects if they build expertise.",
+   "beaver_roman": "jorisaneun jeonmunseongeul ssaeumyeon jangnaeseongi isseoyo.",
+   "learner": "조리사는 기술을 배울뿐더러 창업도 할 수 있죠?",
+   "en": "Chefs not only learn skills but can also start a business, right?",
+   "roman": "jorisaneun gisureul baeulppundeoreo changeopdo hal ssu itjyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "맞아요. 나중에 자영업자가 될 수도 있어요.",
+   "beaver_en": "Right. You could become self-employed later.",
+   "beaver_roman": "majayo. najunge jayeongeopjaga doel ssudo isseoyo.",
+   "learner": "자영업은 위험할뿐더러 쉬기도 어렵잖아요.",
+   "en": "But running your own business is risky and it's hard to rest.",
+   "roman": "jayeongeobeun wiheomhalppundeoreo swigido eoryeopjanayo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런 면도 있어요. 조종사는 어때요?",
+   "beaver_en": "That's true in some ways. What about pilots?",
+   "beaver_roman": "geureon myeondo isseoyo. jojongsaneun eottaeyo?",
+   "learner": "조종사는 월급이 많을뿐더러 정규직이 많대요.",
+   "en": "I heard pilots earn a lot and many have permanent positions.",
+   "roman": "jojongsaneun wolgeubi maneulppundeoreo jeonggyujigi mantaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "네, 하지만 지원자가 많아서 경쟁이 세요.",
+   "beaver_en": "Yes, but there are many applicants, so competition is tough.",
+   "beaver_roman": "ne, hajiman jiwonjaga manaseo gyeongjaengi seyo.",
+   "learner": "요즘 구직난이라 지원자가 더 많죠.",
+   "en": "Jobs are hard to find these days, so there are even more applicants.",
+   "roman": "yojeum gujingnanira jiwonjaga deo manchyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그래서 인턴 경험이 중요해요.",
+   "beaver_en": "That's why internship experience matters.",
+   "beaver_roman": "geuraeseo inteon gyeongheomi jungyohaeyo.",
+   "learner": "인턴을 하면 전문성도 쌓을 수 있죠?",
+   "en": "If I do an internship, I can build expertise too, right?",
+   "roman": "inteoneul hamyeon jeonmunseongdo ssaeul ssu itjyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 성실히 하면 정규직 기회도 생겨요. 다른 꿈은요?",
+   "beaver_en": "Yes, if you work hard, you may get a permanent job. Any other dreams?",
+   "beaver_roman": "ne, seongsiri hamyeon jeonggyujik gihoedo saenggyeoyo. dareun kkumeunyo?",
+   "learner": "예전에는 교사나 철학자를 꿈꿨어요.",
+   "en": "I used to dream of becoming a teacher or a philosopher.",
+   "roman": "yejeoneneun gyosana cheolhakjareul kkumkkwosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋네요. 진로에 대해 더 말해 줄래요?",
+   "beaver_en": "Nice. Can you tell me more about your career plans?",
+   "beaver_roman": "jonneyo. jilloe daehae deo malhae jullaeyo?",
+   "learner": "먼저 지원서와 자기소개서를 잘 쓰고 싶어요.",
+   "en": "First, I want to write a good application and cover letter.",
+   "roman": "meonjeo jiwonseowa jagisogaeseoreul jal sseugo sipeoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 다음 주에 함께 써 봐요.",
+   "beaver_en": "Great. Let's write them together next week.",
+   "beaver_roman": "joayo. daeum jue hamkke sseo bwayo.",
+   "learner": "감사합니다. 다음 주에 다시 올게요.",
+   "en": "Thank you. I'll come back next week.",
+   "roman": "gamsahamnida. daeum jue dasi olgeyo."
+  }
+ ]
+}

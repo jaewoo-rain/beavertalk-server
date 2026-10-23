@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T19-1",
+ "no": 265,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "아이고, 민준 씨 왔어요? 정말 오랜만이에요.",
+   "beaver_en": "Oh my, Minjun, you're here? It's been so long.",
+   "beaver_roman": "aigo, minjun ssi wasseoyo? jeongmal oraenmanieyo.",
+   "learner": "선생님, 그동안 잘 지내셨어요? 이제야 찾아뵙네요.",
+   "en": "Sir, have you been well? I'm only now coming to visit.",
+   "roman": "seonsaengnim, geudongan jal jinaesyeosseoyo? ijeya chajabwemneyo."
+  },
+  {
+   "n": 2,
+   "beaver": "이렇게 찾아와 줘서 고마워요. 어서 들어와요.",
+   "beaver_en": "Thank you for coming. Come on in.",
+   "beaver_roman": "ireoke chajawa jwoseo gomawoyo. eoseo deureowayo.",
+   "learner": "반겨 주셔서 감사합니다. 이거 작은 선물이에요.",
+   "en": "Thank you for welcoming me. This is a small gift.",
+   "roman": "bangyeo jusyeoseo gamsahamnida. igeo jageun seonmurieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "뭘 이런 걸 다. 빈손으로 와도 되는데.",
+   "beaver_en": "Oh, you shouldn't have. You could've come empty-handed.",
+   "beaver_roman": "mwol ireon geol da. binsoneuro wado doeneunde.",
+   "learner": "그래도 빈손으로 올 수는 없었어요.",
+   "en": "Still, I couldn't come empty-handed.",
+   "roman": "geuraedo binsoneuro ol suneun eopseosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "예의도 바르네요. 앉아서 차 한잔해요.",
+   "beaver_en": "You're so well-mannered. Sit down and have some tea.",
+   "beaver_roman": "yeuido bareuneyo. anjaseo cha hanjanhaeyo.",
+   "learner": "다 선생님께 배운 거예요.",
+   "en": "I learned it all from you.",
+   "roman": "da seonsaengnimkke baeun geoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "요즘 회사 생활은 어때요? 힘들지 않아요?",
+   "beaver_en": "How's work these days? Isn't it hard?",
+   "beaver_roman": "yojeum hoesa saenghwareun eottaeyo? himdeulji anayo?",
+   "learner": "바쁘지만 선배님들이 잘 대해 주세요.",
+   "en": "It's busy, but my seniors treat me well.",
+   "roman": "bappeujiman seonbaenimdeuri jal daehae juseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다행이네요. 동료들하고도 잘 지내요?",
+   "beaver_en": "That's a relief. Do you get along with your coworkers too?",
+   "beaver_roman": "dahaengineyo. dongnyodeulhagodo jal jinaeyo?",
+   "learner": "네, 서로 존중하는 분위기라서 좋아요.",
+   "en": "Yes, it's an atmosphere of mutual respect, so it's nice.",
+   "roman": "ne, seoro jonjunghaneun bunwigiraseo joayo."
+  },
+  {
+   "n": 7,
+   "beaver": "어머님은 잘 지내시고요?",
+   "beaver_en": "And how is your mother doing?",
+   "beaver_roman": "eomeonimeun jal jinaesigoyo?",
+   "learner": "네, 어머니도 선생님께 늘 고마워하세요.",
+   "en": "Yes, my mother is always grateful to you, too.",
+   "roman": "ne, eomeonido seonsaengnimkke neul gomawohaseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "그래요? 어머님께도 안부 전해 줘요.",
+   "beaver_en": "Really? Please give my regards to your mother.",
+   "beaver_roman": "geuraeyo? eomeonimkkedo anbu jeonhae jwoyo.",
+   "learner": "어머니께서 꼭 식사 대접을 하고 싶어 하세요.",
+   "en": "My mother really wants to treat you to a meal.",
+   "roman": "eomeonikkeseo kkok siksa daejeobeul hago sipeo haseyo."
+  },
+  {
+   "n": 9,
+   "beaver": "고맙지만 대접은 내가 해야지요. 밥 먹고 가요.",
+   "beaver_en": "Thanks, but I should be the host. Eat before you go.",
+   "beaver_roman": "gomapjiman daejeobeun naega haeyajiyo. bap meokgo gayo.",
+   "learner": "아니에요, 오늘은 제가 대접할게요.",
+   "en": "No, today I'll treat you.",
+   "roman": "anieyo, oneureun jega daejeopalgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "허허, 그럼 다음에 또 찾아와요. 기다릴게요.",
+   "beaver_en": "Ha ha, then come again next time. I'll be waiting.",
+   "beaver_roman": "heoheo, geureom daeume tto chajawayo. gidarilgeyo.",
+   "learner": "네, 자주 찾아뵙겠습니다. 건강하세요, 선생님.",
+   "en": "Yes, I'll visit often. Please stay healthy, sir.",
+   "roman": "ne, jaju chajabwepgetseumnida. geonganghaseyo, seonsaengnim."
+  }
+ ]
+}

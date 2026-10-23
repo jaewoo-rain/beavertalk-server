@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T27-1",
+ "no": 37,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요? 오늘 처음 온 김민준이에요.",
+   "beaver_en": "Hello! I'm Kim Minjun. Today's my first day.",
+   "beaver_roman": "Annyeonghaseyo? Oneul cheoeum on Gimminjunieyo.",
+   "learner": "반가워요. 저는 박수진이에요. 잘 부탁해요.",
+   "en": "Nice to meet you. I'm Park Sujin. I look forward to working with you.",
+   "roman": "Bangawoyo. Jeoneun Baksujinieyo. Jal butakaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "사무실에 직원이 많아요?",
+   "beaver_en": "Are there many staff in the office?",
+   "beaver_roman": "Samusire jigwoni manayo?",
+   "learner": "네, 오십 명쯤 있어요. 사무실이 커서 좋아요.",
+   "en": "Yes, about fifty. The office is big, so it's nice.",
+   "roman": "Ne, osip myeongjjeum isseoyo. Samusiri keoseo joayo."
+  },
+  {
+   "n": 3,
+   "beaver": "출근은 몇 시에 해요?",
+   "beaver_en": "What time do we start work?",
+   "beaver_roman": "Chulgeuneun myeot sie haeyo?",
+   "learner": "아홉 시에 와요. 일은 여섯 시에 끝나요.",
+   "en": "We come at nine. Work ends at six.",
+   "roman": "Ahop sie wayo. Ireun yeoseot sie kkeunnayo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 여섯 시에 퇴근해요?",
+   "beaver_en": "So we leave work at six?",
+   "beaver_roman": "Geureom yeoseot sie toegeunhaeyo?",
+   "learner": "네, 그런데 일이 많아서 늦게 퇴근할 때도 있어요.",
+   "en": "Yes, but sometimes we leave late because there's a lot of work.",
+   "roman": "Ne, geureonde iri manaseo neutge toegeunhal ttaedo isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "점심시간은 얼마나 돼요?",
+   "beaver_en": "How long is the lunch break?",
+   "beaver_roman": "Jeomsimsiganeun eolmana dwaeyo?",
+   "learner": "한 시간이에요. 열두 시부터 한 시까지예요.",
+   "en": "One hour. From twelve to one.",
+   "roman": "Han siganieyo. Yeoldu sibuteo han sikkajiyeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "휴가는 언제예요?",
+   "beaver_en": "When is vacation?",
+   "beaver_roman": "Hyuganeun eonjeyeyo?",
+   "learner": "보통 여름에 가요. 휴가는 인사팀에 말해요.",
+   "en": "Usually in summer. Tell the HR team about your leave.",
+   "roman": "Botong yeoreume gayo. Hyuganeun insatime malhaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "인사팀은 어디에 있어요?",
+   "beaver_en": "Where is the HR team?",
+   "beaver_roman": "Insatimeun eodie isseoyo?",
+   "learner": "삼 층에 있어요. 제가 내일 같이 가 줄게요.",
+   "en": "On the third floor. I'll go with you tomorrow.",
+   "roman": "Sam cheunge isseoyo. Jega naeil gachi ga julgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "감사합니다. 처음이어서 좀 떨려요.",
+   "beaver_en": "Thank you. I'm a bit nervous since it's my first time.",
+   "beaver_roman": "Gamsahamnida. Cheoeumieoseo jom tteollyeoyo.",
+   "learner": "괜찮아요. 저도 처음에 일이 어려워서 힘들었어요.",
+   "en": "It's okay. The work was hard for me at first too.",
+   "roman": "Gwaenchanayo. Jeodo cheoeume iri eoryeowoseo himdeureosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "회사 생활은 어때요?",
+   "beaver_en": "How is life at the company?",
+   "beaver_roman": "Hoesa saenghwareun eottaeyo?",
+   "learner": "좋아요. 우리 회사는 사람들이 친절해서 좋아요.",
+   "en": "It's good. Our company is great because people are kind.",
+   "roman": "Joayo. Uri hoesaneun saramdeuri chinjeolhaeseo joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "다행이에요. 오늘 많이 배웠어요. 고마워요.",
+   "beaver_en": "What a relief. I learned a lot today. Thanks.",
+   "beaver_roman": "Dahaengieyo. Oneul mani baewosseoyo. Gomawoyo.",
+   "learner": "천만에요. 그럼 내일 아침에 사무실에서 만나요.",
+   "en": "You're welcome. See you in the office tomorrow morning.",
+   "roman": "Cheonmaneyo. Geureom naeil achime samusireseo mannayo."
+  }
+ ]
+}

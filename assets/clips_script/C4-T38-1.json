@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T38-1",
+ "no": 469,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "간밤 관찰 결과는 어땠어요?",
+   "beaver_en": "How did last night's observation go?",
+   "beaver_roman": "ganbam gwanchal gyeolgwaneun eottaesseoyo?",
+   "learner": "낙타 무리를 관찰했는데 개체가 모두 열두 마리였어요.",
+   "en": "I observed a camel herd. There were twelve individuals in all.",
+   "roman": "nakta murireul gwanchalhaenneunde gaechega modu yeoldu mariyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "암컷은 없었어요?",
+   "beaver_en": "Weren't there any females?",
+   "beaver_roman": "amkeoseun eopseosseoyo?",
+   "learner": "암컷이 여덟 마리였어요. 새끼 곁을 떠나지 않았어요.",
+   "en": "Eight were females. They never left their young.",
+   "roman": "amkeosi yeodeol mariyeosseoyo. saekki gyeoteul tteonaji anasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "역시 어미는 새끼를 지키는군요.",
+   "beaver_en": "As expected, mothers protect their young.",
+   "beaver_roman": "yeoksi eomineun saekkireul jikineungunyo.",
+   "learner": "네, 어미는 새끼를 지키는 법이에요.",
+   "en": "Yes, mothers always protect their young.",
+   "roman": "ne, eomineun saekkireul jikineun beobieyo."
+  },
+  {
+   "n": 4,
+   "beaver": "습성 조사는 어때요?",
+   "beaver_en": "How about the habit survey?",
+   "beaver_roman": "seupseong josaneun eottaeyo?",
+   "learner": "길들인 개체라 사람을 잘 따르는 습성이 있어요.",
+   "en": "They're tamed, so they tend to follow people well.",
+   "roman": "gildeurin gaechera sarameul jal ttareuneun seupseongi isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래도 처음 보는 사람은 경계하지 않았어요?",
+   "beaver_en": "But weren't they wary of strangers?",
+   "beaver_roman": "geuraedo cheoeum boneun sarameun gyeonggyehaji anasseoyo?",
+   "learner": "낯선 사람은 경계하는 법이죠. 눈을 흘기더라고요.",
+   "en": "They're naturally wary of strangers. They glared at me.",
+   "roman": "natseon sarameun gyeonggyehaneun beobijyo. nuneul heulgideoragoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "하하. 다른 동물은 못 봤어요?",
+   "beaver_en": "Haha. Didn't you see any other animals?",
+   "beaver_roman": "haha. dareun dongmureun mot bwasseoyo?",
+   "learner": "바위 밑에서 독사를 한 마리 봤어요. 조심했어요.",
+   "en": "I saw a venomous snake under a rock. I was careful.",
+   "roman": "bawi miteseo doksareul han mari bwasseoyo. josimhaesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "독사는 위험하죠. 하늘은 어땠어요?",
+   "beaver_en": "Venomous snakes are dangerous. What about the sky?",
+   "beaver_roman": "doksaneun wiheomhajyo. haneureun eottaesseoyo?",
+   "learner": "철새가 남쪽으로 날아가고 있었어요.",
+   "en": "Migratory birds were flying south.",
+   "roman": "cheolsaega namjjogeuro naragago isseosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "벌써요? 날씨가 추워졌나 봐요.",
+   "beaver_en": "Already? It must have gotten cold.",
+   "beaver_roman": "beolsseoyo? nalssiga chuwojyeonna bwayo.",
+   "learner": "추워지면 철새는 따뜻한 곳으로 가는 법이에요.",
+   "en": "When it gets cold, migratory birds go somewhere warm.",
+   "roman": "chuwojimyeon cheolsaeneun ttatteutan goseuro ganeun beobieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그 밖에 눈에 띈 건 없었어요?",
+   "beaver_en": "Was there anything else that stood out?",
+   "beaver_roman": "geu bakke nune ttuin geon eopseosseoyo?",
+   "learner": "축축한 나무에 곰팡이가 많이 피었어요.",
+   "en": "A lot of mold grew on the damp trees.",
+   "roman": "chukchukan namue gompangiga mani pieosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "비가 많이 와서 그런가 봐요. 결과를 정리해 주세요.",
+   "beaver_en": "Must be from all the rain. Please organize the results.",
+   "beaver_roman": "biga mani waseo geureonga bwayo. gyeolgwareul jeongnihae juseyo.",
+   "learner": "네, 최대한 빨리 보고서로 정리할게요.",
+   "en": "Sure, I'll put it into a report as soon as I can.",
+   "roman": "ne, choedaehan ppalli bogoseoro jeongnihalgeyo."
+  }
+ ]
+}

@@ -68,6 +68,7 @@ from core.audio import (
     pcm16_to_wav,
 )
 from core.config import Settings, settings as _settings
+from core.client_info import app_at_least as _app_at_least
 from core.languages import (
     DEFAULT_LANGUAGE,
     LanguageSpec,
@@ -141,6 +142,7 @@ from domains.learning.realtime.expression_practice import ExpressionPractice, re
 from domains.learning.realtime.perturn_session import PerTurnSession   # PM-DEC-864 턴마다 새 세션
 from domains.learning.realtime import clip_expr as _clip_expr
 from domains.learning.realtime import script_read as _script_read
+from domains.learning.realtime import reaction as _reaction
 from domains.learning.service import mastery_service
 from domains.learning.service import normalcall_service as svc
 from domains.learning.service import curriculum_service as cur_svc
@@ -411,6 +413,9 @@ UNPROMPTED_BG_MULT = 3.0
 #   holdgate6: 하위 20% 값으로는 못 가름(TV 도 말 사이가 비어 0.003 아래) — 배경 소리 비율(ambient_ema)로 가른다.
 #   holdgate5 실측 중앙: TV 0.63~0.87 · 작은 목소리 0.34~0.47 · 조용 0~0.28. 상한은 이 비율이 이보다 작을 때만.
 AGATE_QUIET_AMBIENT = float(os.environ.get("LIVE_NOISE_AGATE_QUIET_AMBIENT", "0.55") or 0)
+# PM-DEC-1019 후속(command center) — Live 표현학습 퀴즈 판정을 «학습자 전사 도착» 에 시작했다면 답을 얼마나 더 붙잡아야 했나 잰다.
+#   측정 로그만(동작 무변) · 기본 끔.
+JUDGE_TIMING_LOG = os.environ.get("LIVE_JUDGE_TIMING_LOG", "0") == "1"
 REPLY_HOLD_RESUME_S = 0.15      # 보류 시작 뒤 이만큼 지나 난 목소리부터 «이어 말함» 으로 본다(3.x 늦은 전사 조각 오판 방지)
 # 교육 대상 언어 기본 라벨(오버라이드/미지원 폴백 시). 언어 결정은 core.languages 레지스트리가
 # 소유 — 여기선 파생 라벨만. ko.label == "한국어" 라 기존 통화 프롬프트 바이트 불변.
@@ -846,6 +851,9 @@ class _CallState:
         "midcall_tts_count", "midcall_tts_skip",   # 통화 중 소리 0B 턴 → TTS 대체(call 2308)
         "hold_events", "hold_ws", "hold_t0", "hold_voice_ts", "hold_noise_floor",   # PM-DEC-993 답 보류
         "hold_resumed", "hold_drop_end", "hold_turn_live", "hold_turn_bytes", "hold_release_ts", "reply_mute_until", "hold_next",
+        "rx_gate", "rx_send",   # PM-DEC-1019 통화 반응
+        "new_app",              # PM-DEC-1035 — 앱이 APP_FEATURE_MIN_VERSION 이상(대본 읽기·반응 화면이 있음)
+        "jt_in_tr_ts", "jt_reply_ts",   # PM-DEC-1019 후속 — Live 판정 대기 측정
         "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
@@ -1057,6 +1065,11 @@ class _CallState:
         self.hold_turn_bytes = 0
         self.hold_release_ts = 0.0
         self.hold_next = None                     # 보류 중 걸어 둔 다음 Live 이벤트 대기(펌프 감싸개가 거둔다)
+        self.rx_gate = None                       # PM-DEC-1019 — 반응 빈도·겹침 판정기(LIVE_REACTION 일 때 처음 쓸 때 만든다)
+        self.rx_send = None                       # 반응 메시지를 앱 WS 로 보내는 함수(통화 시작 때 건다)
+        self.new_app = False                      # PM-DEC-1035 — 소켓 app_version 이 최소 버전 이상
+        self.jt_in_tr_ts: Optional[float] = None  # 측정 — 마지막 학습자 전사 도착 시각
+        self.jt_reply_ts: Optional[float] = None  # 측정 — 이번 비버 답 첫 소리가 Live 에서 도착한 시각(보류 전)
         self.beaver_end_ts: Optional[float] = None   # PM-DEC-998 — 마지막 비버 turn_end 시각(전사 없는 시간의 기준)
         self.noise_note_count = 0
         self.noise_note_ts = 0.0
@@ -2491,12 +2504,25 @@ def _spawn_quiz_verdict(
     if stats["quiz_calls"] >= EXPR_QUIZ_VERDICT_MAX_PER_CALL:
         return None
     stats["quiz_calls"] += 1
+    jt = (state.user_voice_ts, state.jt_in_tr_ts, state.jt_reply_ts) if JUDGE_TIMING_LOG else None
     task = asyncio.create_task(
-        _quiz_verdict_judge(state, state.expr_quiz_seq, list(span), nums, final=final), name="normalcall-expr-quiz-verdict",
+        _quiz_verdict_judge(state, state.expr_quiz_seq, list(span), nums, final=final, jt=jt), name="normalcall-expr-quiz-verdict",
     )
     state.expr_tasks.add(task)
     task.add_done_callback(state.expr_tasks.discard)
     return task
+
+
+def _jt_log(state: _CallState, seq: int, final: bool, jt: tuple, lat_ms: int, ok: bool) -> None:
+    """측정 한 줄 — 필요대기 = (전사 도착 + 판정 지연) − 답 도착. 0 이하면 판정이 답보다 먼저 났을 것."""
+    voice, tr, reply = jt
+
+    def d(a, b):
+        return int((a - b) * 1000) if (a is not None and b is not None) else None
+
+    need = d(tr + lat_ms / 1000.0, reply) if tr is not None and reply is not None else None
+    logger.info("normalcall 판정대기 측정: call_id=%s seq=%d final=%s ok=%s 말끝→답도착_ms=%s 전사→답도착_ms=%s 판정지연_ms=%d 필요대기_ms=%s",
+                _cid(state), seq, final, ok, d(reply, voice), d(reply, tr), lat_ms, need)
 
 
 def _last_beaver_seg(state: _CallState) -> int:
@@ -2605,7 +2631,7 @@ def _verify_llm_formality(state: _CallState, span: list[tuple[int, str, str]], n
 
 
 async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int, str, str]], nums: list[int], *, final: bool,
-                              grace: bool = False) -> dict:
+                              grace: bool = False, jt: Optional[tuple] = None) -> dict:
     """판정기 1콜 → 항목별 passed/failed/pending 을 서버가 적용(passed 단조 — failed 는 passed 를 못 지운다). 확정(passed·failed)은 같은 퀴즈(seq)
     안에서만 기록해 다음 퀴즈를 오염시키지 않는다. 실패·None: final 이면 남은 항목을 서버 문자열 판정으로(R5), 아니면 다음 턴 판정·닫힘을 기다린다."""
     ctx = state.expr_ctx or {}
@@ -2648,6 +2674,8 @@ async def _quiz_verdict_judge(state: _CallState, seq: int, span: list[tuple[int,
         result = None
     state.expr_judge_stats["lat_ms"].append(int((loop.time() - t0) * 1000))
     _judge_usage_done(state, u)
+    if jt is not None:
+        _jt_log(state, seq, final, jt, int((loop.time() - t0) * 1000), result is not None)
     same_quiz = seq == state.expr_quiz_seq
     if result is None:
         state.expr_judge_stats["quiz_fail"] += 1
@@ -4586,11 +4614,20 @@ async def run_call(
         #   «이 통화는 표현학습» 의 런타임 게이트다(별도 플래그 없음).
         state.expr_items = expr_items
         state.expr_practice = expr_practice
+        # PM-DEC-1035 — 대본 읽기·반응은 새 앱(소켓 app_version ≥ APP_FEATURE_MIN_VERSION)만. 값이 없거나 못 읽으면 끔.
+        state.new_app = _app_at_least((nationality_client or {}).get("app_version"),
+                                      str(getattr(settings, "APP_FEATURE_MIN_VERSION", "1.0.1") or "1.0.1"))
         # PM-DEC-872 — 시제품 스위치(CLIP_EXPR)가 켜진 표현학습만. 빈 값이면 None(종전).
         state.clip_lesson = getattr(getattr(cur_open, "lesson", None), "code", None) if cur_open is not None else None
         state.clip_expr = _clip_expr.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
         # PM-DEC-877 — 대본 읽기 태그(SCRIPT_READ)는 일반 통화를 모두 대본 읽기로 연다(코스 잠금과 무관 · 레벨테스트·숙제 제외).
-        state.script_read = _script_read.enabled(settings, call_type=call_type, voice=voice, locale=locale, lesson=state.clip_lesson)
+        # PM-DEC-1012 — 차시 비버 줄 녹음을 버킷에서 받는 판정이 들어 있어 작업 스레드에서(다른 통화의 이벤트 루프를 막지 않게)
+        state.script_read = (await asyncio.to_thread(_script_read.enabled, settings, call_type=call_type, voice=voice,
+                                                     locale=locale, lesson=state.clip_lesson)
+                             if state.new_app else None)
+        if getattr(settings, "SCRIPT_READ", "") and not state.new_app:
+            logger.info("normalcall 대본 읽기 건너뜀: call_id=%s 앱 버전 미달(%s)", _cid(state),
+                        (nationality_client or {}).get("app_version") or "없음")
         if state.script_read and not state.clip_lesson:
             state.clip_lesson = str(getattr(settings, "SCRIPT_READ_CHAT_LESSON", "") or "").strip() or None
         if state.script_read:
@@ -5786,6 +5823,8 @@ async def _run_one_generation(
                     settings.CONTEXT_SUMMARY_MODEL, settings.CONTEXT_SUMMARY_EVERY, settings.CONTEXT_RECENT_SEGMENTS)
     else:
         session_cm = live_session_factory(client, settings, **factory_kwargs)
+    if _reaction.REACTION_ON and state.new_app:   # PM-DEC-1035 — 옛 앱(71)은 반응 화면이 없어 4초 침묵만 생긴다
+        state.rx_send = _reaction.ws_sender(client_ws)   # PM-DEC-1019 — 꺼져 있으면 None 그대로(발동 자리가 전부 건너뛴다)
     async with session_cm as session:
         try:
             # 🧒 여기가 심장. TaskGroup 안에 여러 '일꾼'을 동시에 띄운다. 이 묶음은 하나라도
@@ -6674,7 +6713,10 @@ class _HoldWS:
 
 
 def _reply_muted(state: "_CallState") -> bool:
-    """PM-DEC-994 — 해제된 답의 추정 재생 끝 전이면 마이크를 Live 로 안 보낸다(소음이 들리는 답을 못 끊게)."""
+    """PM-DEC-994 — 해제된 답의 추정 재생 끝 전이면 마이크를 Live 로 안 보낸다(소음이 들리는 답을 못 끊게).
+    PM-DEC-1019 — 반응 재생 중에도 안 보낸다(효과음이 «이어 말함» 으로 잡혀 붙잡아 둔 답이 버려지지 않게)."""
+    if _reaction.active(state):
+        return True
     return REPLY_HOLD_S > 0 and state.reply_mute_until > 0 and asyncio.get_running_loop().time() < state.reply_mute_until
 
 
@@ -6756,6 +6798,15 @@ def _reply_hold_discard(state: "_CallState", why: str, now: float) -> None:
     state.hold_resumed = False
 
 
+def _jt_note(state: "_CallState", event) -> None:
+    """측정 — 학습자 전사 도착 · 새 비버 답 첫 소리 도착(보류·전달 전) 시각."""
+    now = asyncio.get_running_loop().time()
+    if event.kind == "in_tr" and (event.text or "").strip():
+        state.jt_in_tr_ts = now
+    elif event.kind in ("audio", "out_tr") and state.turn_id is None and state.hold_events is None:
+        state.jt_reply_ts = now
+
+
 def _mark_server_turn(state: "_CallState") -> None:
     state.server_turn_ts = asyncio.get_running_loop().time()
 
@@ -6776,6 +6827,8 @@ def _reply_hold_poll(state: "_CallState") -> list:
     held = state.hold_events
     if held is None:
         return []
+    if _reaction.active(state):
+        return []                           # PM-DEC-1019 — 반응이 끝날 때까지 답을 붙잡는다(절대 상한보다 먼저 본다)
     now = asyncio.get_running_loop().time()
     age = now - state.hold_t0
     ended = any(getattr(e, "kind", None) == "turn_end" for e in held)
@@ -6836,6 +6889,8 @@ async def _pump_gemini_to_client(client_ws, session: LiveSessionProtocol, state:
         if state.hold_next is not None:
             state.hold_next.cancel()
             state.hold_next = None
+        if state.rx_gate is not None:
+            logger.info("normalcall 반응 요약: call_id=%s %s", _cid(state), state.rx_gate.summary())
 
 
 async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, state: _CallState) -> None:
@@ -6877,6 +6932,8 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
                              stall, state.turn_id, _cid(state))
                 raise _LiveStalled(state.turn_id) from None
             event_count += 1
+            if JUDGE_TIMING_LOG:
+                _jt_note(state, event)
         else:
             # PM-DEC-993 — 답 보류가 켜진 통화. 보류 중엔 REPLY_HOLD_POLL_S 마다 깨어 해제를 판정한다.
             stall = LIVE_STALL_S if (LIVE_STALL_S > 0 and state.turn_id is not None) else None
@@ -6896,6 +6953,8 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
             except StopAsyncIteration:
                 break
             event_count += 1
+            if JUDGE_TIMING_LOG:
+                _jt_note(state, event)
             if _reply_hold_take(state, event):
                 if state.hold_events is not None:
                     replay.extend(_reply_hold_poll(state))   # 학습자가 이미 충분히 조용했으면 바로 해제(지연 0)
@@ -7031,7 +7090,10 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
                 and len(state.cur_beaver_pcm) == state.face_last_pcm
             )
             same_slot = same_slot_seen and bool(_settings.LIVE_FACE_SLOT_MERGE)
-            if emotion and not duplicate and not opening and not same_slot:
+            # PM-DEC-1019 — 반응 재생 중엔 표정 마커를 보내지 않는다.
+            #   ⛔ 모델 웃음(laugh)을 서버 반응으로 바꾸던 것은 뺐다(PM-DEC-1021 · 자유대화는 종전 표정 그대로).
+            rx_skip = bool(emotion) and _reaction.active(state)
+            if emotion and not duplicate and not opening and not same_slot and not rx_skip:
                 state.face_seq += 1
                 await _send_json(state.hold_ws if state.hold_events is not None else client_ws, ServerSentenceMarker(
                     turn_id=state.turn_id or "", seq=state.face_seq, emotion=emotion,
@@ -7049,6 +7111,7 @@ async def _pump_gemini_to_client_body(client_ws, session: LiveSessionProtocol, s
                 secs, state.face_calls,
                 "⛔폭주차단(연속%d회·SILENT)" % state.face_streak if runaway else
                 "⛔첫인사턴(버림)" if (emotion and opening) else
+                "반응(안 보냄)" if rx_skip else
                 "중복(안 보냄)" if duplicate else
                 "⛔같은자리(앞엣것 유지)" if (emotion and same_slot) else
                 "⚠같은자리(관문 꺼짐·그대로 보냄 seq=%d)" % state.face_seq

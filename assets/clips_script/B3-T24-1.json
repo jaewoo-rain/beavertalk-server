@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T24-1",
+ "no": 223,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어제 민호 씨랑 서연 씨가 크게 다퉜대요.",
+   "beaver_en": "I heard Minho and Seoyeon had a big fight yesterday.",
+   "beaver_roman": "eoje minho ssirang seoyeon ssiga keuge datwotdaeyo.",
+   "learner": "들었어요. 서연 씨가 항의하다가 말다툼이 됐죠?",
+   "en": "I heard. Seoyeon protested and it became an argument, right?",
+   "roman": "deureosseoyo. seoyeon ssiga hangihadaga maldatumi dwaetjyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "네, 서연 씨는 민호 씨한테 속았다고 화를 냈어요.",
+   "beaver_en": "Yes, Seoyeon got angry, saying Minho deceived her.",
+   "beaver_roman": "ne, seoyeon ssineun minho ssihante sogatdago hwareul naesseoyo.",
+   "learner": "정말 속였을까요? 오해가 있었던 것 같아요.",
+   "en": "Did he really deceive her? I think there was a misunderstanding.",
+   "roman": "jeongmal sogyeosseulkkayo? ohaega isseotdeon geot gatayo."
+  },
+  {
+   "n": 3,
+   "beaver": "오해가 있었나요? 저는 자세히 몰라요.",
+   "beaver_en": "Was there a misunderstanding? I don't know the details.",
+   "beaver_roman": "ohaega isseonnayo? jeoneun jasehi mollayo.",
+   "learner": "거짓이 아니라 실수였대요. 일정을 잘못 들었대요.",
+   "en": "It wasn't a lie, it was a mistake. He misheard the schedule.",
+   "roman": "geojisi anira silsuyeotdaeyo. iljeongeul jalmot deureotdaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런데 서연 씨는 그 말을 안 믿어요.",
+   "beaver_en": "But Seoyeon doesn't believe that.",
+   "beaver_roman": "geureonde seoyeon ssineun geu mareul an mideoyo.",
+   "learner": "변명이나 핑계로 들렸나 봐요. 불만이 쌓였겠네요.",
+   "en": "It must have sounded like an excuse. Her frustration must have built up.",
+   "roman": "byeonmyeongina pinggyero deullyeonna bwayo. bulmani ssayeotgenneyo."
+  },
+  {
+   "n": 5,
+   "beaver": "민호 씨는 서연 씨 잔소리가 심하대요.",
+   "beaver_en": "Minho says Seoyeon nags too much.",
+   "beaver_roman": "minho ssineun seoyeon ssi jansoriga simhadaeyo.",
+   "learner": "강요나 간섭처럼 느끼면 반발하기 쉬워요.",
+   "en": "If it feels like pressure or meddling, it's easy to push back.",
+   "roman": "gangyona ganseopcheoreom neukkimyeon banbalhagi swiwoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "심지어 욕까지 할 뻔해서 제가 말렸어요.",
+   "beaver_en": "They almost even swore, so I stopped them.",
+   "beaver_roman": "simjieo yokkkaji hal ppeonhaeseo jega mallyeosseoyo.",
+   "learner": "잘 말렸어요. 싸움은 일에도 방해가 돼요.",
+   "en": "Good that you stopped them. Fights get in the way of work too.",
+   "roman": "jal mallyeosseoyo. ssaumeun iredo banghaega dwaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "팀장님이 알면 둘 다 꾸중 들을 거예요. 어떻게 하죠?",
+   "beaver_en": "If the manager finds out, they'll both get scolded. What should we do?",
+   "beaver_roman": "timjangnimi almyeon dul da kkujung deureul geoyeyo. eotteoke hajyo?",
+   "learner": "서연 씨 화가 풀리거든 대화해 보라고 해요.",
+   "en": "Once Seoyeon calms down, tell her to try talking.",
+   "roman": "seoyeon ssi hwaga pulligeodeun daehwahae borago haeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "민호 씨는 화가 나서 복수하겠다고 해요.",
+   "beaver_en": "Minho is angry and says he'll get revenge.",
+   "beaver_roman": "minho ssineun hwaga naseo boksuhagetdago haeyo.",
+   "learner": "복수는 안 돼요. 서로 나무라면 갈등만 커져요.",
+   "en": "No revenge. If they blame each other, the conflict only grows.",
+   "roman": "boksuneun an dwaeyo. seoro namuramyeon galdeungman keojyeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 둘이 어떻게 화해할 수 있을까요?",
+   "beaver_en": "Then how can the two of them make up?",
+   "beaver_roman": "geureom duri eotteoke hwahaehal su isseulkkayo?",
+   "learner": "민호 씨가 미안하거든 먼저 사과하라고 하세요.",
+   "en": "If Minho feels sorry, tell him to apologize first.",
+   "roman": "minho ssiga mianhageodeun meonjeo sagwaharago haseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 오늘 점심때 둘을 같이 불러 볼게요.",
+   "beaver_en": "Okay. I'll invite them both to lunch today.",
+   "beaver_roman": "joayo. oneul jeomsimttae dureul gachi bulleo bolgeyo.",
+   "learner": "화해하면 좋겠네요. 저도 시간 되거든 갈게요.",
+   "en": "I hope they make up. I'll come too if I have time.",
+   "roman": "hwahaehamyeon jokenneyo. jeodo sigan doegeodeun galgeyo."
+  }
+ ]
+}

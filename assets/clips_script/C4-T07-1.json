@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T07-1",
+ "no": 445,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여보, 이번엔 변두리로 가는 게 어때?",
+   "beaver_en": "Honey, how about moving to the outskirts this time?",
+   "beaver_roman": "yeobo, ibeonen byeonduriro ganeun ge eottae?",
+   "learner": "변두리면 전셋값은 싸겠지만 생활권이 바뀌잖아.",
+   "en": "The jeonse price would be cheaper there, but our living area would change.",
+   "roman": "byeondurimyeon jeonsekkapseun ssagetjiman saenghwalkkwoni bakkwijana."
+  },
+  {
+   "n": 2,
+   "beaver": "지금 임대료가 너무 올라서 걱정이야.",
+   "beaver_en": "I'm worried because the rent has gone up so much.",
+   "beaver_roman": "jigeum imdaeryoga neomu ollaseo geokjeongiya.",
+   "learner": "맞아. 다달이 나가는 임대료가 너무 부담돼.",
+   "en": "Right. The monthly rent is such a burden.",
+   "roman": "maja. dadari naganeun imdaeryoga neomu budamdwae."
+  },
+  {
+   "n": 3,
+   "beaver": "옥상이 있는 집은 어때? 빨래 널기 좋잖아.",
+   "beaver_en": "What about a house with a rooftop? It's good for drying laundry.",
+   "beaver_roman": "oksangi inneun jibeun eottae? ppallae neolgi jochana.",
+   "learner": "옥상 좋지. 거기서 채소를 키우거나 하면 좋겠다.",
+   "en": "A rooftop's nice. We could grow vegetables or something there.",
+   "roman": "oksang jochi. geogiseo chaesoreul kiugeona hamyeon joketda."
+  },
+  {
+   "n": 4,
+   "beaver": "시골 초가집 같은 데는 어때? 아늑할 것 같은데.",
+   "beaver_en": "How about a thatched house in the countryside? It'd be cozy.",
+   "beaver_roman": "sigol chogajip gateun deneun eottae? aneukal kkeot gateunde.",
+   "learner": "초가집은 처마랑 담장 고치는 비용이 많이 들 거야.",
+   "en": "A thatched house would cost a lot to fix the eaves and walls.",
+   "roman": "chogajibeun cheomarang damjang gochineun biyongi mani deul kkeoya."
+  },
+  {
+   "n": 5,
+   "beaver": "그렇겠네. 그럼 비용을 어떻게 따져 볼까?",
+   "beaver_en": "I guess so. Then how should we work out the costs?",
+   "beaver_roman": "geureokenne. geureom biyongeul eotteoke ttajyeo bolkka?",
+   "learner": "부동산에 물어봐서 시세부터 알아보자.",
+   "en": "Let's ask a real estate office and check prices first.",
+   "roman": "budongsane mureobwaseo sisebuteo araboja."
+  },
+  {
+   "n": 6,
+   "beaver": "이사 업체 비용도 생각해야 해.",
+   "beaver_en": "We also need to think about the moving company cost.",
+   "beaver_roman": "isa eopche biyongdo saenggakaeya hae.",
+   "learner": "응, 업체 몇 곳에 전화하거나 해서 견적을 받아 보자.",
+   "en": "Yeah, let's call a few companies or so and get quotes.",
+   "roman": "eung, eopche myeot kkose jeonhwahageona haeseo gyeonjeogeul bada boja."
+  },
+  {
+   "n": 7,
+   "beaver": "집 고를 때 뭐가 제일 중요할까?",
+   "beaver_en": "What matters most when choosing a house?",
+   "beaver_roman": "jip goreul ttae mwoga jeil jungyohalkka?",
+   "learner": "집은 결국 우리 가족의 터전을 고르는 일이잖아.",
+   "en": "Choosing a house is really choosing our family's base.",
+   "roman": "jibeun gyeolguk uri gajogui teojeoneul goreuneun irijana."
+  },
+  {
+   "n": 8,
+   "beaver": "맞아. 싸다고 아무 집이나 고를 순 없지.",
+   "beaver_en": "True. We can't pick just any house because it's cheap.",
+   "beaver_roman": "maja. ssadago amu jibina goreul sun eopji.",
+   "learner": "그래. 아이들 학교가 가까운 생활권이면 좋겠어.",
+   "en": "Right. I'd like a living area near the kids' school.",
+   "roman": "geurae. aideul hakgyoga gakkaun saenghwalkkwonimyeon jokesseo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 전셋값이랑 거리를 같이 비교해 보자.",
+   "beaver_en": "Then let's compare the jeonse prices and distances together.",
+   "beaver_roman": "geureom jeonsekkapsirang georireul gachi bigyohae boja.",
+   "learner": "응, 표로 정리하면 차이가 한눈에 보일 거야.",
+   "en": "Yeah, in a table we'll see the differences at a glance.",
+   "roman": "eung, pyoro jeongnihamyeon chaiga hannune boil kkeoya."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 이번 주말에 같이 집 보러 가자.",
+   "beaver_en": "Good. Let's go see houses together this weekend.",
+   "beaver_roman": "joa. ibeon jumare gachi jip boreo gaja.",
+   "learner": "그래, 새집이 마음에 들었으면 좋겠다.",
+   "en": "Okay, I hope we like our new home.",
+   "roman": "geurae, saejibi maeume deureosseumyeon joketda."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T64-1",
+ "no": 160,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 제주도 여행 어땠어요?",
+   "beaver_en": "Minsu, how was your trip to Jeju?",
+   "beaver_roman": "Minsu ssi, Jejudo yeohaeng eottaesseoyo?",
+   "learner": "정말 좋았어요. 풍경이 아주 아름다웠어요.",
+   "en": "It was great. The scenery was really beautiful.",
+   "roman": "Jeongmal joasseoyo. Punggyeongi aju areumdawosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "뭐가 제일 좋았어요?",
+   "beaver_en": "What did you like most?",
+   "beaver_roman": "Mwoga jeil joasseoyo?",
+   "learner": "폭포가 제일 좋았어요. 물소리가 정말 컸어요.",
+   "en": "The waterfall was the best. The sound of water was so loud.",
+   "roman": "Pokpoga jeil joasseoyo. Mulssoriga jeongmal keosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "물은 맑았어요?",
+   "beaver_en": "Was the water clear?",
+   "beaver_roman": "Mureun malgasseoyo?",
+   "learner": "네, 강물도 바닷물도 아주 맑았어요.",
+   "en": "Yes, both the river and the sea were very clear.",
+   "roman": "Ne, gangmuldo badanmuldo aju malgasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "바다에서는 뭐 했어요?",
+   "beaver_en": "What did you do at the sea?",
+   "beaver_roman": "Badaeseoneun mwo haesseoyo?",
+   "learner": "바닷가에서 모래 위를 걸었어요.",
+   "en": "I walked on the sand at the beach.",
+   "roman": "Badakkaeseo morae wireul georeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "바다 색깔은 어땠어요?",
+   "beaver_en": "What color was the sea?",
+   "beaver_roman": "Bada saekkkareun eottaesseoyo?",
+   "learner": "바다가 파랗고 반짝반짝 빛났어요.",
+   "en": "The sea was blue and sparkling.",
+   "roman": "Badaga parako banjjakppanjjak binnasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "산에도 올라갔어요?",
+   "beaver_en": "Did you climb a mountain too?",
+   "beaver_roman": "Sanedo ollagasseoyo?",
+   "learner": "네, 산꼭대기에 올라가니 공기가 맑았어요.",
+   "en": "Yes, the air was fresh at the mountaintop.",
+   "roman": "Ne, sankkokttaegie ollagani gonggiga malgasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "밤하늘도 봤어요?",
+   "beaver_en": "Did you see the night sky?",
+   "beaver_roman": "Bamhaneuldo bwasseoyo?",
+   "learner": "언덕에서 별하고 보름달을 봤어요.",
+   "en": "I saw stars and a full moon from a hill.",
+   "roman": "Eondeogeseo byeorago boreumdareul bwasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저는 지난주에 반달을 봤어요.",
+   "beaver_en": "I saw a half moon last week.",
+   "beaver_roman": "Jeoneun jinanjue bandareul bwasseoyo.",
+   "learner": "반달도 예쁘죠. 바다 위의 달도 멋있었어요.",
+   "en": "Half moons are pretty too. The moon over the sea was great.",
+   "roman": "Bandaldo yeppeujyo. Bada wiui daldo meosisseosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "또 뭐 신기한 거 봤어요?",
+   "beaver_en": "Did you see anything else amazing?",
+   "beaver_roman": "Tto mwo singihan geo bwasseoyo?",
+   "learner": "땅속에 큰 동굴도 있었어요. 정말 신기했어요.",
+   "en": "There was a big cave underground. It was amazing.",
+   "roman": "Ttangsoge keun dongguldo isseosseoyo. Jeongmal singihaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "이야기를 들으니 저도 가고 싶어요.",
+   "beaver_en": "Hearing this makes me want to go too.",
+   "beaver_roman": "Iyagireul deureuni jeodo gago sipeoyo.",
+   "learner": "제주도 자연에 대한 책을 빌려 줄게요.",
+   "en": "I'll lend you a book about Jeju's nature.",
+   "roman": "Jejudo jayeone daehan chaegeul billyeo julkkeyo."
+  }
+ ]
+}

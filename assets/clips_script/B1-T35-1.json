@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T35-1",
+ "no": 146,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민지 씨는 어떤 스포츠를 좋아해요?",
+   "beaver_en": "Minji, what sports do you like?",
+   "beaver_roman": "minji ssineun eotteon seupocheureul joahaeyo?",
+   "learner": "저는 배드민턴을 제일 좋아해요.",
+   "en": "I like badminton the most.",
+   "roman": "jeoneun baedeuminteoneul jeil joahaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "오, 배드민턴이요? 자주 쳐요?",
+   "beaver_en": "Oh, badminton? Do you play often?",
+   "beaver_roman": "o, baedeuminteoniyo? jaju cheoyo?",
+   "learner": "네, 주말마다 코트에 가서 쳐요.",
+   "en": "Yes, I go to the court every weekend.",
+   "roman": "ne, jumalmada koteue gaseo cheoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "대회에도 나가 봤어요?",
+   "beaver_en": "Have you ever entered a tournament?",
+   "beaver_roman": "daehoeedo naga bwasseoyo?",
+   "learner": "작년에 나갔는데 결국 졌어요.",
+   "en": "I entered last year, but I lost in the end.",
+   "roman": "jangnyeone naganneunde gyeolguk jeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "아쉬웠겠네요. 올림픽도 봐요?",
+   "beaver_en": "That must have been disappointing. Do you watch the Olympics too?",
+   "beaver_roman": "aswiwotgenneyo. ollimpikdo bwayo?",
+   "learner": "네, 올림픽 때는 스케이트를 꼭 봐요.",
+   "en": "Yes, I always watch skating during the Olympics.",
+   "roman": "ne, ollimpik ttaeneun seukeiteureul kkok bwayo."
+  },
+  {
+   "n": 5,
+   "beaver": "저도 스케이트 좋아해요. 직접 타 봤어요?",
+   "beaver_en": "I like skating too. Have you tried it yourself?",
+   "beaver_roman": "jeodo seukeiteu joahaeyo. jikjeop ta bwasseoyo?",
+   "learner": "한 번 타 봤는데 너무 어려웠어요.",
+   "en": "I tried it once, but it was really hard.",
+   "roman": "han beon ta bwanneunde neomu eoryeowosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "하하, 처음엔 다 그래요. 볼링은요?",
+   "beaver_en": "Haha, everyone's like that at first. What about bowling?",
+   "beaver_roman": "haha, cheoeumen da geuraeyo. bollingeunyo?",
+   "learner": "회사 볼링 대회에서 1등 했어요.",
+   "en": "I won first place at the company bowling contest.",
+   "roman": "hoesa bolling daehoeeseo ildeung haesseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 대단해요! 비결이 뭐예요?",
+   "beaver_en": "Wow, amazing! What's your secret?",
+   "beaver_roman": "wa, daedanhaeyo! bigyeori mwoyeyo?",
+   "learner": "매주 연습했어요. 정말 재미있어요.",
+   "en": "I practiced every week. It's really fun.",
+   "roman": "maeju yeonseuphaesseoyo. jeongmal jaemiisseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "배드민턴 얘기 더 해 볼까요?",
+   "beaver_en": "Shall we talk more about badminton?",
+   "beaver_roman": "baedeuminteon yaegi deo hae bolkkayo?",
+   "learner": "좋아요. 배드민턴 잘 치는 법이 궁금해요.",
+   "en": "Sure. I'm curious how to play badminton well.",
+   "roman": "joayo. baedeuminteon jal chineun beobi gunggeumhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "제가 알려 줄게요. 주말에 같이 칠까요?",
+   "beaver_en": "I'll teach you. Shall we play together this weekend?",
+   "beaver_roman": "jega allyeo julgeyo. jumare gachi chilkkayo?",
+   "learner": "좋아요! 이번에는 안 질 거예요.",
+   "en": "Great! This time I won't lose.",
+   "roman": "joayo! ibeoneneun an jil geoyeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "하하, 기대할게요. 토요일 오전 어때요?",
+   "beaver_en": "Haha, I'm looking forward to it. How about Saturday morning?",
+   "beaver_roman": "haha, gidaehalgeyo. toyoil ojeon eottaeyo?",
+   "learner": "네, 토요일에 코트에서 만나요!",
+   "en": "Okay, see you at the court on Saturday!",
+   "roman": "ne, toyoire koteueseo mannayo!"
+  }
+ ]
+}

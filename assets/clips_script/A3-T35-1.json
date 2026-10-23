@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T35-1",
+ "no": 73,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 이번 주말에 같이 운동할래요?",
+   "beaver_en": "Minsu, want to work out together this weekend?",
+   "beaver_roman": "Minsu ssi, ibeon jumare gachi undonghallaeyo?",
+   "learner": "좋아요. 저는 운동하는 것을 좋아해요.",
+   "en": "Sure. I like working out.",
+   "roman": "Joayo. Jeoneun undonghaneun geoseul joahaeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 축구할 줄 알아요?",
+   "beaver_en": "Then do you know how to play soccer?",
+   "beaver_roman": "Geureom chukguhal jul arayo?",
+   "learner": "네, 할 줄 알아요. 공 차는 것을 잘해요.",
+   "en": "Yes, I do. I'm good at kicking the ball.",
+   "roman": "Ne, hal jul arayo. Gong chaneun geoseul jalhaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "와, 축구공도 있어요?",
+   "beaver_en": "Wow, do you have a soccer ball too?",
+   "beaver_roman": "Wa, chukgugongdo isseoyo?",
+   "learner": "네, 지난주에 산 축구공이 있어요.",
+   "en": "Yes, I have a soccer ball I bought last week.",
+   "roman": "Ne, jinanjue san chukgugongi isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "테니스는요?",
+   "beaver_en": "What about tennis?",
+   "beaver_roman": "Teniseuneunyo?",
+   "learner": "테니스는 칠 줄 몰라요. 한 번도 안 쳐 봤어요.",
+   "en": "I don't know how to play tennis. I've never tried it once.",
+   "roman": "Teniseuneun chil jul mollayo. Han beondo an chyeo bwasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "괜찮아요. 테니스장에서 제가 가르쳐 줄게요.",
+   "beaver_en": "That's okay. I'll teach you at the tennis court.",
+   "beaver_roman": "Gwaenchanayo. Teniseujangeseo jega gareuchyeo julgeyo.",
+   "learner": "고마워요. 테니스장은 멀리 있어요?",
+   "en": "Thanks. Is the tennis court far away?",
+   "roman": "Gomawoyo. Teniseujangeun meolli isseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "가까워요. 그런데 어제 축구 경기 봤어요?",
+   "beaver_en": "It's close. By the way, did you watch the soccer game yesterday?",
+   "beaver_roman": "Gakkawoyo. Geureonde eoje chukgu gyeonggi bwasseoyo?",
+   "learner": "정말 재미있었어요. 우리 팀이 이겼어요.",
+   "en": "It was really fun. Our team won.",
+   "roman": "Jeongmal jaemiisseosseoyo. Uri timi igyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그 팀에 좋아하는 선수가 있어요?",
+   "beaver_en": "Is there a player you like on that team?",
+   "beaver_roman": "Geu time joahaneun seonsuga isseoyo?",
+   "learner": "네, 어제 골을 넣은 선수를 좋아해요.",
+   "en": "Yes, I like the player who scored yesterday.",
+   "roman": "Ne, eoje goreul neoeun seonsureul joahaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "저는 다음 달에 수영 대회에 나가요.",
+   "beaver_en": "I'm entering a swimming competition next month.",
+   "beaver_roman": "Jeoneun daeum dare suyeong daehoee nagayo.",
+   "learner": "와, 멋있어요! 저는 수영할 줄 몰라요.",
+   "en": "Wow, that's cool! I don't know how to swim.",
+   "roman": "Wa, meosisseoyo! Jeoneun suyeonghal jul mollayo."
+  },
+  {
+   "n": 9,
+   "beaver": "그럼 스키는 탈 줄 알아요?",
+   "beaver_en": "Then do you know how to ski?",
+   "beaver_roman": "Geureom seukineun tal jul arayo?",
+   "learner": "네, 작년에 간 스키장에서 배웠어요.",
+   "en": "Yes, I learned at the ski resort I went to last year.",
+   "roman": "Ne, jangnyeone gan seukijangeseo baewosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 토요일에 테니스장에서 만나요!",
+   "beaver_en": "Great. Let's meet at the tennis court on Saturday!",
+   "beaver_roman": "Joayo. Toyoire teniseujangeseo mannayo!",
+   "learner": "네, 토요일에 만나요. 라켓은 없어요!",
+   "en": "Okay, see you Saturday. I don't have a racket, though!",
+   "roman": "Ne, toyoire mannayo. Raketeun eopseoyo!"
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T13-1",
+ "no": 30,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘은 밤을 넣은 김밥을 만들어 보자.",
+   "beaver_en": "Today let's make gimbap with chestnuts.",
+   "beaver_roman": "oneureun bameul neoeun gimbabeul mandeureo boja.",
+   "learner": "좋아요. 먼저 뭘 해야 돼요?",
+   "en": "Okay. What do I have to do first?",
+   "roman": "joayo. meonjeo mwol haeya dwaeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "먼저 밥을 해야지. 밤은 깨끗이 씻었니?",
+   "beaver_en": "First we cook rice. Did you wash the chestnuts?",
+   "beaver_roman": "meonjeo babeul haeyaji. bameun kkaekkeusi ssisseonni?",
+   "learner": "네, 씻어 놨어요. 이제 밤을 넣어야 돼요?",
+   "en": "Yes, I washed them. Do I have to add them now?",
+   "roman": "ne, ssiseo nwasseoyo. ije bameul neoeoya dwaeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "응, 이제 밤을 넣을 차례야. 쌀 위에 올려.",
+   "beaver_en": "Yes, now it's time for the chestnuts. Put them on the rice.",
+   "beaver_roman": "eung, ije bameul neoeul charyeya. ssal wie ollyeo.",
+   "learner": "다 올렸어요. 물은 얼마나 넣어야 돼요?",
+   "en": "Done. How much water do I have to add?",
+   "roman": "da ollyeosseoyo. mureun eolmana neoeoya dwaeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "평소처럼 넣으면 돼. 밥이 되면 간을 하자.",
+   "beaver_en": "As usual. When the rice is done, let's season it.",
+   "beaver_roman": "pyeongsocheoreom neoeumyeon dwae. babi doemyeon ganeul haja.",
+   "learner": "식초에 설탕하고 소금을 타야 되죠?",
+   "en": "I have to mix sugar and salt into vinegar, right?",
+   "roman": "sikchoe seoltanghago sogeumeul taya doejyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "맞아. 잘 타서 밥에 섞어.",
+   "beaver_en": "Right. Mix it well and stir it into the rice.",
+   "beaver_roman": "maja. jal taseo babe seokkeo.",
+   "learner": "좀 싱거워요. 소금을 더 쳐야 돼요?",
+   "en": "It's a bit bland. Do I have to sprinkle more salt?",
+   "roman": "jom singgeowoyo. sogeumeul deo chyeoya dwaeyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "조금만 더 쳐. 이제 김 위에 밥을 펴.",
+   "beaver_en": "Just a little more. Now spread rice on the seaweed.",
+   "beaver_roman": "jogeumman deo chyeo. ije gim wie babeul pyeo.",
+   "learner": "밥을 얇게 펴야 돼요?",
+   "en": "Do I have to spread the rice thin?",
+   "roman": "babeul yalkke pyeoya dwaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "응, 얇게. 그리고 재료를 올리고 꼭 말아.",
+   "beaver_en": "Yes, thin. Then add the fillings and roll it tight.",
+   "beaver_roman": "eung, yalkke. geurigo jaeryoreul olligo kkok mara.",
+   "learner": "이렇게 꼭 말아야 돼요? 좀 어려워요.",
+   "en": "Do I have to roll it tight like this? It's hard.",
+   "roman": "ireoke kkok maraya dwaeyo? jom eoryeowoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "잘하네. 다음에 혼자 하면 뭘 조심해야 돼?",
+   "beaver_en": "You're good. Next time alone, what must you be careful of?",
+   "beaver_roman": "jalhane. daeume honja hamyeon mwol josimhaeya dwae?",
+   "learner": "소금을 조금씩 쳐야 돼요.",
+   "en": "I have to sprinkle salt little by little.",
+   "roman": "sogeumeul jogeumssik chyeoya dwaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그렇지. 썰 때는 칼에 물을 묻혀.",
+   "beaver_en": "That's right. When slicing, wet the knife.",
+   "beaver_roman": "geureochi. sseol ttaeneun kare mureul muchyeo.",
+   "learner": "네, 칼에 물을 묻혀서 썰게요.",
+   "en": "Okay, I'll wet the knife and slice it.",
+   "roman": "ne, kare mureul muchyeoseo sseolgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "잘했다. 이제 같이 먹어 보자.",
+   "beaver_en": "Well done. Now let's eat together.",
+   "beaver_roman": "jalhaetda. ije gachi meogeo boja.",
+   "learner": "네! 제 첫 김밥 요리, 정말 맛있겠네요.",
+   "en": "Yes! My first gimbap looks really tasty.",
+   "roman": "ne! je cheot gimbap yori, jeongmal masitgenneyo."
+  }
+ ]
+}

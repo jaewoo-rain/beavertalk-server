@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T22-1",
+ "no": 456,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 요즘 얼굴이 좋아 보이네. 무슨 일 있어?",
+   "beaver_en": "Minsu, you look great lately. What's up?",
+   "beaver_roman": "Minsuya, yojeum eolguri joa boine. Museun il isseo?",
+   "learner": "응, 일자리 구하던 차에 좋은 소식이 생겼어.",
+   "en": "Yeah, just as I was job hunting, I got good news.",
+   "roman": "Eung, iljari guhadeon chae joeun sosigi saenggyeosseo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말? 무슨 소식인데?",
+   "beaver_en": "Really? What news?",
+   "beaver_roman": "Jeongmal? Museun sosiginde?",
+   "learner": "네가 소개해 준 분 덕분에 면접을 봤어.",
+   "en": "I got an interview thanks to the person you introduced.",
+   "roman": "Nega sogaehae jun bun deokbune myeonjeobeul bwasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 박 선배 말이야? 별거 아니었어.",
+   "beaver_en": "Oh, Mr. Park? It was nothing.",
+   "beaver_roman": "A, bak seonbae mariya? Byeolgeo anieosseo.",
+   "learner": "그분이 정말 친절하게 대해 주셨어.",
+   "en": "He treated me really kindly.",
+   "roman": "Geubuni jeongmal chinjeolhage daehae jusyeosseo."
+  },
+  {
+   "n": 4,
+   "beaver": "다행이다. 선배도 너를 좋게 봤대.",
+   "beaver_en": "Good. He said he liked you too.",
+   "beaver_roman": "Dahaengida. Seonbaedo neoreul joke bwatdae.",
+   "learner": "합격할 것 같아. 다 네 덕분이야.",
+   "en": "I think I'll pass. It's all thanks to you.",
+   "roman": "Hapgyeokal geot gata. Da ne deokbuniya."
+  },
+  {
+   "n": 5,
+   "beaver": "그런 말 마. 우리 사이에 뭘.",
+   "beaver_en": "Don't say that. Between us, it's nothing.",
+   "beaver_roman": "Geureon mal ma. Uri saie mwol.",
+   "learner": "아무리 친해도 꼭 보답하고 싶어.",
+   "en": "No matter how close we are, I want to repay you.",
+   "roman": "Amuri chinhaedo kkok bodapago sipeo."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 맛있는 밥 한번 사 줘.",
+   "beaver_en": "Then buy me a nice meal sometime.",
+   "beaver_roman": "Geureom masinneun bap hanbeon sa jwo.",
+   "learner": "좋아. 넌 힘들 때 늘 힘을 북돋아 줬잖아.",
+   "en": "Sure. You always lifted me up when things were hard.",
+   "roman": "Joa. Neon himdeul ttae neul himeul bukdoda jwotjana."
+  },
+  {
+   "n": 7,
+   "beaver": "나도 작년에 떨어져 봐서 마음 알지.",
+   "beaver_en": "I failed last year too, so I know how it feels.",
+   "beaver_roman": "Nado jangnyeone tteoreojyeo bwaseo maeum alji.",
+   "learner": "맞아, 동병상련이라 더 큰 위안이 됐어.",
+   "en": "Right, we'd been through the same, so it was a big comfort.",
+   "roman": "Maja, dongbyeongsangnyeonira deo keun wiani dwaesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "넌 진짜 우정이 뭐라고 생각해?",
+   "beaver_en": "What do you think true friendship is?",
+   "beaver_roman": "Neon jinjja ujeongi mworago saenggakae?",
+   "learner": "말 안 해도 아는 이심전심이 우정 같아.",
+   "en": "I think friendship is understanding without words.",
+   "roman": "Mal an haedo aneun isimjeonsimi ujeong gata."
+  },
+  {
+   "n": 9,
+   "beaver": "멋진 말이네. 그리고 또?",
+   "beaver_en": "Nice words. Anything else?",
+   "beaver_roman": "Meotjin marine. Geurigo tto?",
+   "learner": "도움받은 걸 잊지 않는 의리도 중요해.",
+   "en": "Loyalty, never forgetting help you got, matters too.",
+   "roman": "Doumbadeun geol itji anneun uirido jungyohae."
+  },
+  {
+   "n": 10,
+   "beaver": "우리 고향 친구들도 보고 싶다.",
+   "beaver_en": "I miss our hometown friends too.",
+   "beaver_roman": "Uri gohyang chingudeuldo bogo sipda.",
+   "learner": "다음 달에 다 같이 만나자. 내가 살게!",
+   "en": "Let's all meet up next month. My treat!",
+   "roman": "Daeum dare da gachi mannaja. Naega salge!"
+  }
+ ]
+}

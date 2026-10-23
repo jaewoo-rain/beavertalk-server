@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T43-1",
+ "no": 238,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "와, 절이 정말 크네요. 저건 뭐예요?",
+   "beaver_en": "Wow, the temple is really big. What's that?",
+   "beaver_roman": "wa, jeori jeongmal keuneyo. jeogeon mwoyeyo?",
+   "learner": "저건 탑이에요. 불교 건축물이에요.",
+   "en": "That's a pagoda. It's a Buddhist structure.",
+   "roman": "jeogeon tabieyo. bulgyo geonchungmurieyo."
+  },
+  {
+   "n": 2,
+   "beaver": "탑이 아주 오래돼 보여요.",
+   "beaver_en": "The pagoda looks very old.",
+   "beaver_roman": "tabi aju oraedwae boyeoyo.",
+   "learner": "네, 천 년이 넘은 탑이에요. 멋지죠?",
+   "en": "Yes, it's over a thousand years old. Amazing, right?",
+   "roman": "ne, cheon nyeoni neomeun tabieyo. meotjijyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "스님도 계세요?",
+   "beaver_en": "Are there monks here too?",
+   "beaver_roman": "seunimdo gyeseyo?",
+   "learner": "네, 저기 스님들이 의식을 하고 계세요.",
+   "en": "Yes, the monks over there are holding a ceremony.",
+   "roman": "ne, jeogi seunimdeuri uisigeul hago gyeseyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다른 종교도 있어요?",
+   "beaver_en": "Are there other religions too?",
+   "beaver_roman": "dareun jonggyodo isseoyo?",
+   "learner": "기독교든 천주교든 한국엔 다 있어요.",
+   "en": "Whether Christianity or Catholicism, Korea has them all.",
+   "roman": "gidokgyodeun cheonjugyodeun hangugen da isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "천주교는 가톨릭이죠?",
+   "beaver_en": "Cheonjugyo means Catholicism, right?",
+   "beaver_roman": "cheonjugyoneun gatolligijyo?",
+   "learner": "맞아요. 가톨릭을 천주교라고도 해요.",
+   "en": "Right. Catholicism is also called Cheonjugyo.",
+   "roman": "majayo. gatolligeul cheonjugyoragodo haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그림에 무서운 모습이 있어요.",
+   "beaver_en": "There's something scary in the painting.",
+   "beaver_roman": "geurime museoun moseubi isseoyo.",
+   "learner": "지옥 그림이에요. 저쪽은 천국 같은 곳이에요.",
+   "en": "It's a picture of hell. That side is like heaven.",
+   "roman": "jiok geurimieyo. jeojjogeun cheonguk gateun gosieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "불교 말고 전통 사상도 있어요?",
+   "beaver_en": "Besides Buddhism, are there traditional beliefs?",
+   "beaver_roman": "bulgyo malgo jeontong sasangdo isseoyo?",
+   "learner": "유교도 있어요. 옛날 풍속에 많이 남아 있어요.",
+   "en": "There's Confucianism. It remains in many old customs.",
+   "roman": "yugyodo isseoyo. yennal pungsoge mani nama isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "문화와 전통에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Want to talk more about culture and tradition?",
+   "beaver_roman": "munhwawa jeontonge daehae deo iyagihae bollaeyo?",
+   "learner": "좋아요. 신화든 대중문화든 다 재미있어요.",
+   "en": "Sure. Myths or pop culture, it's all interesting.",
+   "roman": "joayo. sinhwadeun daejungmunhwadeun da jaemiisseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "대중문화에도 전통이 나와요?",
+   "beaver_en": "Does tradition show up in pop culture too?",
+   "beaver_roman": "daejungmunhwaedo jeontongi nawayo?",
+   "learner": "네, 드라마나 영화에 전통 풍속이 자주 나와요.",
+   "en": "Yes, traditional customs often appear in dramas and movies.",
+   "roman": "ne, deuramana yeonghwae jeontong pungsogi jaju nawayo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 정말 많이 배웠어요. 고마워요.",
+   "beaver_en": "I learned a lot today. Thank you.",
+   "beaver_roman": "oneul jeongmal mani baewosseoyo. gomawoyo.",
+   "learner": "저도 즐거웠어요. 다음에 또 같이 가요.",
+   "en": "I had fun too. Let's go together again next time.",
+   "roman": "jeodo jeulgeowosseoyo. daeume tto gachi gayo."
+  }
+ ]
+}

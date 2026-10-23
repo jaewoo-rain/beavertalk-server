@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T55-1",
+ "no": 388,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "국세청 상담센터입니다. 무엇을 도와드릴까요?",
+   "beaver_en": "National Tax Service help center. How can I help you?",
+   "beaver_roman": "guksecheong sangdamsenteoimnida. mueoseul dowadeurilkkayo?",
+   "learner": "세금 부과에 대해 문의하려고 전화했습니다.",
+   "en": "I'm calling to ask about a tax imposition.",
+   "roman": "segeum bugwae daehae munuiharyeogo jeonhwahaetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 어떤 세금이 부과되었습니까?",
+   "beaver_en": "Yes, what tax was imposed?",
+   "beaver_roman": "ne, eotteon segeumi bugwadoeeotseumnikka?",
+   "learner": "프리랜서 소득세가 너무 많이 나왔습니다.",
+   "en": "My freelancer income tax came out too high.",
+   "roman": "peuriraenseo sodeuksega neomu mani nawatseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "작년 소득은 얼마였습니까?",
+   "beaver_en": "How much was your income last year?",
+   "beaver_roman": "jangnyeon sodeugeun eolmayeotseumnikka?",
+   "learner": "작년 소득은 천만 원밖에 안 됐습니다.",
+   "en": "Last year's income was only ten million won.",
+   "roman": "jangnyeon sodeugeun cheonman wonbakke an dwaetseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "그 정도 소득이면 감면 대상일 수 있습니다.",
+   "beaver_en": "With that income, you may qualify for a reduction.",
+   "beaver_roman": "geu jeongdo sodeugimyeon gammyeon daesangil su itseumnida.",
+   "learner": "세금 면제도 받을 수 있습니까?",
+   "en": "Can I also get a tax exemption?",
+   "roman": "segeum myeonjedo badeul su itseumnikka?"
+  },
+  {
+   "n": 5,
+   "beaver": "조건이 맞으면 가능합니다. 다른 소득은 없으십니까?",
+   "beaver_en": "It's possible if you qualify. Any other income?",
+   "beaver_roman": "jogeoni majeumyeon ganeunghamnida. dareun sodeugeun eopseusimnikka?",
+   "learner": "교육부 행사에서 받은 강사료가 조금 있습니다.",
+   "en": "I have a small lecture fee from a Ministry of Education event.",
+   "roman": "gyoyukbu haengsaeseo badeun gangsaryoga jogeum itseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "강사료도 신고하셔야 합니다. 서류를 내시면 검토합니다.",
+   "beaver_en": "You must report that too. We'll review your documents.",
+   "beaver_roman": "gangsaryodo singohasyeoya hamnida. seoryureul naesimyeon geomtohamnida.",
+   "learner": "법무부에서 받은 통역비도 신고해야 합니까?",
+   "en": "Do I also report interpreting fees from the Ministry of Justice?",
+   "roman": "beommubueseo badeun tongyeokbido singohaeya hamnikka?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 모든 기관의 수입을 함께 신고하셔야 합니다.",
+   "beaver_en": "Yes, you must report income from all agencies together.",
+   "beaver_roman": "ne, modeun gigwanui suibeul hamkke singohasyeoya hamnida.",
+   "learner": "네, 정확히 알고 싶어서 여쭤봤습니다.",
+   "en": "Yes, I asked because I wanted to know exactly.",
+   "roman": "ne, jeonghwaki algo sipeoseo yeojjwobwatseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "잘 물어보셨습니다. 감면은 공식적으로 신청해 주십시오.",
+   "beaver_en": "Good that you asked. Please apply for the reduction officially.",
+   "beaver_roman": "jal mureobosyeotseumnida. gammyeoneun gongsikjeogeuro sincheonghae jusipsio.",
+   "learner": "공식적인 신청은 어디에서 할 수 있습니까?",
+   "en": "Where can I make an official application?",
+   "roman": "gongsikjeogin sincheongeun eodieseo hal su itseumnikka?"
+  },
+  {
+   "n": 9,
+   "beaver": "국세청 홈택스에서 하시면 됩니다.",
+   "beaver_en": "You can do it on the National Tax Service Hometax site.",
+   "beaver_roman": "guksecheong homtaekseueseo hasimyeon doemnida.",
+   "learner": "알겠습니다. 오늘 바로 신청하겠습니다.",
+   "en": "I see. I'll apply right away today.",
+   "roman": "algetseumnida. oneul baro sincheonghagetseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "더 궁금하신 점은 없으십니까?",
+   "beaver_en": "Do you have any other questions?",
+   "beaver_roman": "deo gunggeumhasin jeomeun eopseusimnikka?",
+   "learner": "없습니다. 친절하게 설명해 주셔서 감사합니다.",
+   "en": "No. Thank you for explaining so kindly.",
+   "roman": "eopseumnida. chinjeolhage seolmyeonghae jusyeoseo gamsahamnida."
+  }
+ ]
+}

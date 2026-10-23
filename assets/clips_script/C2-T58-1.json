@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T58-1",
+ "no": 391,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어서 오세요. 오늘은 어떤 이야기를 하고 싶으세요?",
+   "beaver_en": "Welcome. What would you like to talk about today?",
+   "beaver_roman": "eoseo oseyo. oneureun eotteon iyagireul hago sipeuseyo?",
+   "learner": "솔직히 제 집착이 문제라는 걸 알아요.",
+   "en": "Honestly, I know my obsession is the problem.",
+   "roman": "soljiki je jipchagi munjeraneun geol arayo."
+  },
+  {
+   "n": 2,
+   "beaver": "무엇에 대한 집착인지, 언제부터였나요?",
+   "beaver_en": "What is the obsession about, and since when?",
+   "beaver_roman": "mueose daehan jipchaginji, eonjebuteoyeonnayo?",
+   "learner": "대학 때 좌절한 뒤로 성적에 집착했어요.",
+   "en": "After a setback in college, I got obsessed with grades.",
+   "roman": "daehak ttae jwajeolhan dwiro seongjeoge jipchakaesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "지금은 어떠십니까?",
+   "beaver_en": "How are you now?",
+   "beaver_roman": "jigeumeun eotteosimnikka?",
+   "learner": "남과 비교하는 생각 때문에 늘 애가 타요.",
+   "en": "I'm always anxious because I compare myself to others.",
+   "roman": "namgwa bigyohaneun saenggak ttaemune neul aega tayo."
+  },
+  {
+   "n": 4,
+   "beaver": "속마음에 대해 좀 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me a bit more about your inner feelings?",
+   "beaver_roman": "songmaeume daehae jom deo malsseumhae jusigesseoyo?",
+   "learner": "마음속에 열등감과 비관적인 생각이 있어요.",
+   "en": "Inside, I have feelings of inferiority and pessimistic thoughts.",
+   "roman": "maeumsoge yeoldeunggamgwa bigwanjeogin saenggagi isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런 마음이 생활에도 영향을 줍니까?",
+   "beaver_en": "Does that affect your daily life too?",
+   "beaver_roman": "geureon maeumi saenghwaredo yeonghyangeul jumnikka?",
+   "learner": "네, 자주 멍하고 건망증도 심해졌어요.",
+   "en": "Yes, I often feel dazed, and I've become forgetful.",
+   "roman": "ne, jaju meonghago geonmangjeungdo simhaejyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다른 사람에 대한 감정은 어떻습니까?",
+   "beaver_en": "How do you feel about other people?",
+   "beaver_roman": "dareun sarame daehan gamjeongeun eotteosseumnikka?",
+   "learner": "친구를 원망했어요. 증오한 적도 있어요.",
+   "en": "I resented my friend. I even hated him once.",
+   "roman": "chingureul wonmanghaesseoyo. jeungohan jeokdo isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그때를 회상하면 지금 어떤 마음이 듭니까?",
+   "beaver_en": "Looking back on that time, how do you feel now?",
+   "beaver_roman": "geuttaereul hoesanghamyeon jigeum eotteon maeumi deumnikka?",
+   "learner": "극단적이었던 제 행동을 뉘우치고 있어요.",
+   "en": "I regret my extreme behavior.",
+   "roman": "geukdanjeogieotdeon je haengdongeul nwiuchigo isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "요즘은 감정이 올라올 때 어떻게 하십니까?",
+   "beaver_en": "These days, what do you do when emotions rise?",
+   "beaver_roman": "yojeumeun gamjeongi ollaol ttae eotteoke hasimnikka?",
+   "learner": "충동이 생기면 일기를 쓰며 마음을 들여다봐요.",
+   "en": "When an impulse comes, I write in a diary and look into my heart.",
+   "roman": "chungdongi saenggimyeon ilgireul sseumyeo maeumeul deuryeodabwayo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋습니다. 향후 계획도 있습니까?",
+   "beaver_en": "Good. Do you have plans for the future?",
+   "beaver_roman": "jotseumnida. hyanghu gyehoekdo itseumnikka?",
+   "learner": "계획을 세워 노력하다 보면 방황도 끝나겠죠.",
+   "en": "If I make a plan and keep trying, my wandering will end.",
+   "roman": "gyehoegeul sewo noryeokada bomyeon banghwangdo kkeunnagetjyo."
+  },
+  {
+   "n": 10,
+   "beaver": "잘하셨습니다. 다음 주에 또 뵙겠습니다.",
+   "beaver_en": "You did well. See you again next week.",
+   "beaver_roman": "jalhasyeotseumnida. daeum jue tto boepgetseumnida.",
+   "learner": "걱정거리가 줄고 기가 좀 살아났어요. 감사해요.",
+   "en": "My worries eased and my spirit lifted. Thank you.",
+   "roman": "geokjeonggeoriga julgo giga jom saranasseoyo. gamsahaeyo."
+  }
+ ]
+}

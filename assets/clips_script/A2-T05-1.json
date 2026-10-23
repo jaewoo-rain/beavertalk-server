@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T05-1",
+ "no": 22,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "아, 왔어요? 오늘 좀 피곤하네요.",
+   "beaver_en": "Oh, you're here? I'm a bit tired today.",
+   "beaver_roman": "a, wasseoyo? oneul jom pigonhaneyo.",
+   "learner": "선배, 오늘 기분이 안 좋으세요?",
+   "en": "Are you in a bad mood today?",
+   "roman": "seonbae, oneul gibuni an joeuseyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "내 기분이 안 좋은 걸 어떻게 알았어요?",
+   "beaver_en": "How did you know I'm in a bad mood?",
+   "beaver_roman": "nae gibuni an joeun geol eotteoke arasseoyo?",
+   "learner": "오늘 별로 안 웃으셔서 알았어요.",
+   "en": "I knew because you're not smiling much today.",
+   "roman": "oneul byeollo an useusyeoseo arasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "사실 오늘 아침에 좀 슬픈 일이 있었어요.",
+   "beaver_en": "Actually, something sad happened this morning.",
+   "beaver_roman": "sasil oneul achime jom seulpeun iri isseosseoyo.",
+   "learner": "아, 그러세요? 무슨 일이 있으셨어요?",
+   "en": "Oh, really? What happened?",
+   "roman": "a, geureoseyo? museun iri isseusyeosseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "우리 집 강아지가 아파서 병원에 갔어요.",
+   "beaver_en": "My dog was sick, so we went to the vet.",
+   "beaver_roman": "uri jip gangajiga apaseo byeongwone gasseoyo.",
+   "learner": "정말요? 강아지는 괜찮아요?",
+   "en": "Really? Is your dog okay?",
+   "roman": "jeongmallyo? gangajineun gwaenchanayo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네, 지금은 괜찮아요. 나는 조금 울었어요.",
+   "beaver_en": "Yes, she's okay now. I cried a little, though.",
+   "beaver_roman": "ne, jigeumeun gwaenchanayo. naneun jogeum ureosseoyo.",
+   "learner": "의사 선생님이 뭐라고 하셨어요?",
+   "en": "What did the doctor say?",
+   "roman": "uisa seonsaengnimi mworago hasyeosseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "며칠 쉬면 괜찮대요. 그래도 걱정돼요.",
+   "beaver_en": "He said she'll be fine after a few days' rest. Still, I'm worried.",
+   "beaver_roman": "myeochil swimyeon gwaenchandaeyo. geuraedo geokjeongdwaeyo.",
+   "learner": "다행이에요. 강아지를 정말 좋아하시네요.",
+   "en": "That's a relief. You really love your dog.",
+   "roman": "dahaengieyo. gangajireul jeongmal joahasineyo."
+  },
+  {
+   "n": 7,
+   "beaver": "네. 그리고 아침에 지하철에서 누가 밀었어요.",
+   "beaver_en": "Yes. And someone pushed me on the subway this morning.",
+   "beaver_roman": "ne. geurigo achime jihacheoreseo nuga mireosseoyo.",
+   "learner": "아, 화나셨겠어요. 저도 그런 사람 싫어요.",
+   "en": "Oh, you must have been upset. I don't like people like that either.",
+   "roman": "a, hwanasyeotgesseoyo. jeodo geureon saram sireoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "슬플 때는 보통 어떻게 기분을 풀어요?",
+   "beaver_en": "When you're sad, how do you usually cheer up?",
+   "beaver_roman": "seulpeul ttaeneun botong eotteoke gibuneul pureoyo?",
+   "learner": "저는 좋아하는 음식을 먹어요.",
+   "en": "I eat food I like.",
+   "roman": "jeoneun joahaneun eumsigeul meogeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋네요. 나는 매운 음식을 좋아해요.",
+   "beaver_en": "Nice. I like spicy food.",
+   "beaver_roman": "jonneyo. naneun maeun eumsigeul joahaeyo.",
+   "learner": "그럼 같이 떡볶이 드시러 가실래요?",
+   "en": "Then would you like to go eat tteokbokki together?",
+   "roman": "geureom gachi tteokbokki deusireo gasillaeyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요, 고마워요. 이제 좀 웃을 수 있겠어요.",
+   "beaver_en": "Sounds good, thanks. Now I think I can smile a bit.",
+   "beaver_roman": "joayo, gomawoyo. ije jom useul su itgesseoyo.",
+   "learner": "선배가 웃으시니까 저도 기뻐요. 가요!",
+   "en": "I'm glad to see you smile. Let's go!",
+   "roman": "seonbaega useusinikka jeodo gippeoyo. gayo!"
+  }
+ ]
+}

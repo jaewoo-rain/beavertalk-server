@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T28-1",
+ "no": 316,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "수진 씨, 저한테 물어볼 게 있다고 했죠?",
+   "beaver_en": "Sujin, you said you had something to ask me?",
+   "beaver_roman": "sujin ssi, jeohante mureobol ge itdago haetjyo?",
+   "learner": "네, 행사 공고문을 쓰고자 하는데 절차를 몰라서요.",
+   "en": "Yes, I want to write an event notice, but I don't know the steps.",
+   "roman": "ne, haengsa gonggomuneul sseugoja haneunde jeolchareul mollaseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "먼저 정해진 양식에 내용을 써야 해요.",
+   "beaver_en": "First, you need to write it on the set form.",
+   "beaver_roman": "meonjeo jeonghaejin yangsige naeyongeul sseoya haeyo.",
+   "learner": "양식은 일반 용지에 쓰면 되나요?",
+   "en": "Can I use regular paper for the form?",
+   "roman": "yangsigeun ilban yongjie sseumyeon doenayo?"
+  },
+  {
+   "n": 3,
+   "beaver": "아니요, 회사 로고가 있는 용지를 써야 해요.",
+   "beaver_en": "No, you have to use paper with the company logo.",
+   "beaver_roman": "aniyo, hoesa rogoga inneun yongjireul sseoya haeyo.",
+   "learner": "알겠어요. 다 쓰면 바로 공고하면 되나요?",
+   "en": "Got it. Can I post the notice right after writing it?",
+   "roman": "algesseoyo. da sseumyeon baro gonggohamyeon doenayo?"
+  },
+  {
+   "n": 4,
+   "beaver": "아니요, 먼저 팀장님 결재를 받아야 해요.",
+   "beaver_en": "No, you need to get the manager's approval first.",
+   "beaver_roman": "aniyo, meonjeo timjangnim gyeoljaereul badaya haeyo.",
+   "learner": "그렇군요. 오늘 결재를 올릴게요.",
+   "en": "I see. I'll submit it for approval today.",
+   "roman": "geureokunyo. oneul gyeoljaereul ollilgeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "좋아요. 다른 부서에도 알릴 거예요?",
+   "beaver_en": "Good. Will you let other departments know too?",
+   "beaver_roman": "joayo. dareun buseoedo allil geoyeyo?",
+   "learner": "네, 서면으로 공문을 보내고자 해요.",
+   "en": "Yes, I plan to send an official document in writing.",
+   "roman": "ne, seomyeoneuro gongmuneul bonaegoja haeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "좋아요. 급하면 팩스로 보내도 돼요.",
+   "beaver_en": "Good. If it's urgent, you can fax it too.",
+   "beaver_roman": "joayo. geupamyeon paekseuro bonaedo dwaeyo.",
+   "learner": "팩스로 보낼 때 원본은 어떻게 해요?",
+   "en": "When I fax it, what do I do with the original?",
+   "roman": "paekseuro bonael ttae wonboneun eotteoke haeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "원본은 문서실에 꼭 보관해야 해요.",
+   "beaver_en": "You must keep the original in the document room.",
+   "beaver_roman": "wonboneun munseosire kkok bogwanhaeya haeyo.",
+   "learner": "네, 원본은 잃어버리지 않게 잘 둘게요.",
+   "en": "Okay, I'll keep the original safe so it doesn't get lost.",
+   "roman": "ne, wonboneun ireobeoriji anke jal dulgeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "배포는 어떻게 할 거예요?",
+   "beaver_en": "How will you distribute it?",
+   "beaver_roman": "baeponeun eotteoke hal geoyeyo?",
+   "learner": "행사 책자에도 공고 내용을 넣고자 해요.",
+   "en": "I'd like to put the notice in the event booklet too.",
+   "roman": "haengsa chaekjaedo gonggo naeyongeul neokoja haeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋은 생각이에요. 책자는 다음 주에 나와요.",
+   "beaver_en": "Good idea. The booklet comes out next week.",
+   "beaver_roman": "joeun saenggagieyo. chaekjaneun daeum jue nawayo.",
+   "learner": "그럼 그 전에 공고문을 끝내야겠네요.",
+   "en": "Then I should finish the notice before that.",
+   "roman": "geureom geu jeone gonggomuneul kkeunnaeyagenneyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 모르는 게 있으면 언제든 물어보세요.",
+   "beaver_en": "Yes, ask me anytime if you're unsure.",
+   "beaver_roman": "ne, moreuneun ge isseumyeon eonjedeun mureoboseyo.",
+   "learner": "고마워요. 덕분에 이제 척척 할 수 있겠어요.",
+   "en": "Thanks. Thanks to you, I can handle it smoothly now.",
+   "roman": "gomawoyo. deokbune ije cheokcheok hal su itgesseoyo."
+  }
+ ]
+}

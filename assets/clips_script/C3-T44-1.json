@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T44-1",
+ "no": 425,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "선생님, 태종이 셋째에게 왕위를 준 건 어때요?",
+   "beaver_en": "Teacher, what about King Taejong giving the throne to his third son?",
+   "beaver_roman": "seonsaengnim, taejongi setjjaeege wangwireul jun geon eottaeyo?",
+   "learner": "장자 계승 원칙을 깬 선택이라 평가가 갈려요.",
+   "en": "It broke the rule of eldest-son succession, so opinions are divided.",
+   "roman": "jangja gyeseung wonchigeul kkaen seontaegira pyeonggaga gallyeoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "신하들은 반대했습니까?",
+   "beaver_en": "Did the subjects oppose it?",
+   "beaver_roman": "sinhadeureun bandaehaetseumnikka?",
+   "learner": "네, 신하들은 장남이 왕위를 이어야 한다고 했어요.",
+   "en": "Yes, the subjects said the eldest son should take the throne.",
+   "roman": "ne, sinhadeureun jangnami wangwireul ieoya handago haesseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 왜 셋째를 골랐어요?",
+   "beaver_en": "Then why did he choose the third son?",
+   "beaver_roman": "geureom wae setjjaereul gollasseoyo?",
+   "learner": "셋째는 책을 사랑하는 선비 같은 사람이었거든요.",
+   "en": "The third son was like a scholar who loved books.",
+   "roman": "setjjaeneun chaegeul saranghaneun seonbi gateun saramieotgeodeunyo."
+  },
+  {
+   "n": 4,
+   "beaver": "결과는 어땠습니까?",
+   "beaver_en": "How did it turn out?",
+   "beaver_roman": "gyeolgwaneun eottaetseumnikka?",
+   "learner": "한글을 만든 위인이 되었으니 좋은 선택이었죠.",
+   "en": "He became the great man who made Hangeul, so it was a good choice.",
+   "roman": "hangeureul mandeun wiini doeeosseuni joeun seontaegieotjyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그런데 태종은 피를 흘리며 왕이 됐잖아요?",
+   "beaver_en": "But Taejong became king through bloodshed, right?",
+   "beaver_roman": "geureonde taejongeun pireul heullimyeo wangi dwaetjanayo?",
+   "learner": "네, 형제끼리 싸운 왕자의 난이 있었죠.",
+   "en": "Yes, there were the Strife of the Princes, when brothers fought.",
+   "roman": "ne, hyeongjekkiri ssaun wangjae nani isseotjyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그런 아버지 밑에서 세종은 어떻게 자랐어요?",
+   "beaver_en": "How did Sejong grow up under such a father?",
+   "beaver_roman": "geureon abeoji miteseo sejongeun eotteoke jarasseoyo?",
+   "learner": "책을 많이 읽고 아랫사람 말도 귀담아들었대요.",
+   "en": "They say he read a lot and listened carefully to those below him.",
+   "roman": "chaegeul mani ilkko araetsaram maldo gwidamadeureotdaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "이 일에서 무엇을 배울 수 있을까요?",
+   "beaver_en": "What can we learn from this?",
+   "beaver_roman": "i ireseo mueoseul baeul su isseulkkayo?",
+   "learner": "역사의 흐름을 보면 알 수 있는 게 있어요.",
+   "en": "There's something you can see when you look at the flow of history.",
+   "roman": "yeoksae heureumeul bomyeon al su inneun ge isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "무엇을 알 수 있어요?",
+   "beaver_en": "What can we learn?",
+   "beaver_roman": "mueoseul al ssu isseoyo?",
+   "learner": "좋은 지도자가 선조들의 삶을 바꿨다는 거예요.",
+   "en": "That good leaders changed our ancestors' lives.",
+   "roman": "joeun jidojaga seonjodeure salmeul bakkwotdaneun geoyeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "식민지 시절에도 그런 사람이 있었어요?",
+   "beaver_en": "Were there such people in colonial times too?",
+   "beaver_roman": "singminji sijeoredo geureon sarami isseosseoyo?",
+   "learner": "네, 편한 삶보다 독립운동을 택한 분들이 있었죠.",
+   "en": "Yes, some people chose the independence movement over an easy life.",
+   "roman": "ne, pyeonhan salmboda dongnibundongeul taekan bundeuri isseotjyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 수업 정말 재미있었어요. 감사합니다!",
+   "beaver_en": "Today's class was really fun. Thank you!",
+   "beaver_roman": "oneul sueop jeongmal jaemiisseosseoyo. gamsahamnida!",
+   "learner": "짧은 시간이나마 도움이 됐다니 기뻐요. 잘 가요.",
+   "en": "I'm glad it helped, even if only for a short time. Take care.",
+   "roman": "jjalbeun siganinama doumi dwaetdani gippeoyo. jal gayo."
+  }
+ ]
+}

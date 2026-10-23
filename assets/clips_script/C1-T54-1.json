@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T54-1",
+ "no": 335,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 여기 법률 상담 받으러 오셨어요?",
+   "beaver_en": "Hello. Are you here for a legal consultation?",
+   "beaver_roman": "annyeonghaseyo. yeogi beomnyul sangdam badeureo osyeosseoyo?",
+   "learner": "네, 소송 절차를 상담받으려고 왔어요.",
+   "en": "Yes, I came to ask about the lawsuit process.",
+   "roman": "ne, sosong jeolchareul sangdambadeuryeogo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "저도요. 어떤 일인지 여쭤봐도 될까요?",
+   "beaver_en": "Me too. May I ask what it's about?",
+   "beaver_roman": "jeodoyo. eotteon irinji yeojjwobwado doelkkayo?",
+   "learner": "집주인이 계약을 위반해서 고소할지 고민이에요.",
+   "en": "My landlord broke the contract, so I'm thinking of filing a complaint.",
+   "roman": "jipjuini gyeyageul wibanhaeseo gosohalji gominieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아, 그런 것도 처벌받을 수 있어요?",
+   "beaver_en": "Oh, can you get punished for that too?",
+   "beaver_roman": "a, geureon geotdo cheobeolbadeul su isseoyo?",
+   "learner": "위법인지 아닌지부터 확인해야 한대요.",
+   "en": "They say I first need to check if it's illegal.",
+   "roman": "wibeobinji aninjibuteo hwaginhaeya handaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "계약서는 아직 유효한 거죠?",
+   "beaver_en": "The contract is still valid, right?",
+   "beaver_roman": "gyeyakseoneun ajik yuhyohan geojyo?",
+   "learner": "계약이 정말 무효인지 변호사님께 물어볼 거예요.",
+   "en": "I'll ask the lawyer whether the contract is really void.",
+   "roman": "gyeyagi jeongmal muhyoinji byeonhosanimkke mureobol geoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "소송하면 오래 걸려요?",
+   "beaver_en": "Does it take long if you sue?",
+   "beaver_roman": "sosonghamyeon orae geollyeoyo?",
+   "learner": "재판까지 가면 몇 달은 걸릴 거래요.",
+   "en": "If it goes to trial, it'll take a few months, they say.",
+   "roman": "jaepankkaji gamyeon myeot dareun geollil georaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "혹시 증거나 목격자는 있으세요?",
+   "beaver_en": "Do you have any evidence or witnesses?",
+   "beaver_roman": "hoksi jeunggeona mokgyeokjaneun isseuseyo?",
+   "learner": "네, 옆집 분이 봤어요. 증거가 될까요?",
+   "en": "Yes, my neighbor saw it. Would that count as evidence?",
+   "roman": "ne, yeopjip buni bwasseoyo. jeunggeoga doelkkayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "아마 될 거예요. 저는 새 법이 걱정이에요.",
+   "beaver_en": "It probably is. I'm worried about a new law.",
+   "beaver_roman": "ama doel geoyeyo. jeoneun sae beobi geokjeongieyo.",
+   "learner": "무슨 법인데요? 벌써 발효됐어요?",
+   "en": "What law is it? Has it already taken effect?",
+   "roman": "museun beobindeyo? beolsseo balhyodwaesseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 지난달부터요. 가게 앞 주차를 금지한대요.",
+   "beaver_en": "Yes, since last month. It bans parking in front of shops.",
+   "beaver_roman": "ne, jinandalbuteoyo. gage ap juchareul geumjihandaeyo.",
+   "learner": "설마 위반하면 교도소에 가요?",
+   "en": "Surely you don't go to prison if you violate it?",
+   "roman": "seolma wibanhamyeon gyodosoe gayo?"
+  },
+  {
+   "n": 9,
+   "beaver": "아니요, 벌금이에요. 금액은 경우마다 다르대요.",
+   "beaver_en": "No, it's a fine. The amount depends on the case, they say.",
+   "beaver_roman": "aniyo, beolgeumieyo. geumaegeun gyeongumada dareudaeyo.",
+   "learner": "다행이네요. 처벌이 어느 정도인지 궁금했어요.",
+   "en": "That's a relief. I was curious how heavy the punishment is.",
+   "roman": "dahaengineyo. cheoberi eoneu jeongdoinji gunggeumhaesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "어, 제 차례네요. 상담 잘 받으세요.",
+   "beaver_en": "Oh, it's my turn. Good luck with your consultation.",
+   "beaver_roman": "eo, je charyeneyo. sangdam jal badeuseyo.",
+   "learner": "감사합니다. 좋은 결과 있으시길 바라요.",
+   "en": "Thank you. I hope it goes well for you.",
+   "roman": "gamsahamnida. joeun gyeolgwa isseusigil barayo."
+  }
+ ]
+}

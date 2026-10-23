@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T08-1",
+ "no": 299,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 집 점검하러 온 기사입니다.",
+   "beaver_en": "Hello. I'm the technician here to inspect the house.",
+   "beaver_roman": "annyeonghaseyo. jip jeomgeomhareo on gisaimnida.",
+   "learner": "네, 들어오세요. 청소는 하는 둥 마는 둥 했어요.",
+   "en": "Yes, come in. I cleaned only half-heartedly.",
+   "roman": "ne, deureooseyo. cheongsoneun haneun dung maneun dung haesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "괜찮습니다. 형광등이 다 됐습니다.",
+   "beaver_en": "That's fine. The fluorescent lamp is worn out.",
+   "beaver_roman": "gwaenchanseumnida. hyeonggwangdeungi da dwaetseumnida.",
+   "learner": "어쩐지 거실이 좀 어둡더라고요.",
+   "en": "No wonder the living room seemed a bit dark.",
+   "roman": "eojjeonji geosiri jom eodupdeoragoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "부엌 전구도 바꾸시는 게 좋겠어요.",
+   "beaver_en": "You should change the kitchen light bulb, too.",
+   "beaver_roman": "bueok jeongudo bakkusineun ge jokesseoyo.",
+   "learner": "전구가 없어서 양초를 켜고 지냈어요.",
+   "en": "I had no bulb, so I got by with candles.",
+   "roman": "jeonguga eopseoseo yangchoreul kyeogo jinaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "보일러도 오래됐습니다.",
+   "beaver_en": "The boiler is old, too.",
+   "beaver_roman": "boilleodo oraedwaetseumnida.",
+   "learner": "겨울에 보일러를 때는 둥 마는 둥 했어요.",
+   "en": "In winter, I barely ran the boiler.",
+   "roman": "gyeoure boilleoreul ttaeneun dung maneun dung haesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "환기는 자주 하십니까?",
+   "beaver_en": "Do you air out the house often?",
+   "beaver_roman": "hwangineun jaju hasimnikka?",
+   "learner": "창문도 여는 둥 마는 둥 했어요.",
+   "en": "I barely bothered opening the windows, too.",
+   "roman": "changmundo yeoneun dung maneun dung haesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "이 선반은 고리가 빠져 있네요.",
+   "beaver_en": "This shelf has a ring that's come out.",
+   "beaver_roman": "i seonbaneun goriga ppajyeo inneyo.",
+   "learner": "고리가 빠져서 선반이 흔들려요.",
+   "en": "The ring came out, so the shelf wobbles.",
+   "roman": "goriga ppajyeoseo seonbani heundeullyeoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "바닥 청소는 무엇으로 하십니까?",
+   "beaver_en": "What do you clean the floor with?",
+   "beaver_roman": "badak cheongsoneun mueoseuro hasimnikka?",
+   "learner": "진공청소기로 대충 밀었어요.",
+   "en": "I just ran the vacuum cleaner roughly.",
+   "roman": "jingongcheongsogiro daechung mireosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "욕실 물건은 어디에 두세요?",
+   "beaver_en": "Where do you keep your bathroom things?",
+   "beaver_roman": "yoksil mulgeoneun eodie duseyo?",
+   "learner": "욕실 세면도구랑 솜은 선반에 둬요.",
+   "en": "I keep bathroom toiletries and cotton on the shelf.",
+   "roman": "yoksil semyeondogurang someun seonbane dwoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "창고에 도끼가 있네요. 위험합니다.",
+   "beaver_en": "There's an axe in the storeroom. It's dangerous.",
+   "beaver_roman": "changgoe dokkiga inneyo. wiheomhamnida.",
+   "learner": "장작을 패려고 샀는데 안 써요.",
+   "en": "I bought it to chop firewood, but I don't use it.",
+   "roman": "jangjageul paeryeogo sanneunde an sseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "오늘 점검은 끝났습니다. 수고하셨습니다.",
+   "beaver_en": "Today's inspection is done. Thank you for your time.",
+   "beaver_roman": "oneul jeomgeomeun kkeunnatseumnida. sugohasyeosseumnida.",
+   "learner": "감사합니다. 앞으로 잘 정리할게요.",
+   "en": "Thank you. I'll keep things tidy from now on.",
+   "roman": "gamsahamnida. apeuro jal jeongnihalgeyo."
+  }
+ ]
+}

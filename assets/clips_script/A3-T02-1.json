@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T02-1",
+ "no": 47,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여보세요, 지수야. 모임 날짜 정했니?",
+   "beaver_en": "Hello, Jisu. Did you pick a date for the gathering?",
+   "beaver_roman": "yeoboseyo, jisuya. moim naljja jeonghaenni?",
+   "learner": "네, 삼촌. 5월 10일 토요일 어때요?",
+   "en": "Yes, Uncle. How about Saturday, May 10th?",
+   "roman": "ne, samchon. owol sibil toyoil eottaeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "그날 좋아. 식구가 몇 명이나 와?",
+   "beaver_en": "That day works. How many of your family are coming?",
+   "beaver_roman": "geunal joa. sikguga myeot myeongina wa?",
+   "learner": "저희 부부랑 아이 둘, 네 명이에요.",
+   "en": "My husband and I and two kids, four people.",
+   "roman": "jeohui buburang ai dul, ne myeongieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "아이들 많이 컸지? 보고 싶네.",
+   "beaver_en": "The kids must have grown a lot. I miss them.",
+   "beaver_roman": "aideul mani keotji? bogo simne.",
+   "learner": "네, 아이들이 많이 컸어요.",
+   "en": "Yes, the kids have grown a lot.",
+   "roman": "ne, aideuri mani keosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그래? 형님 뵌 지 오래됐네.",
+   "beaver_en": "Really? It's been ages since I saw my big brother.",
+   "beaver_roman": "geurae? hyeongnim boen ji oraedwaenne.",
+   "learner": "아버지가 손녀를 많이 보고 싶어 하세요.",
+   "en": "Dad really wants to see his granddaughter.",
+   "roman": "abeojiga sonnyeoreul mani bogo sipeo haseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "몇 시에 모여? 너희 엄마도 오시지?",
+   "beaver_en": "What time do we meet? Your mom is coming, right?",
+   "beaver_roman": "myeot sie moyeo? neohui eommado osiji?",
+   "learner": "12시요. 엄마랑 남동생도 와요.",
+   "en": "At 12. Mom and my younger brother are coming too.",
+   "roman": "yeoldusiyo. eommarang namdongsaengdo wayo."
+  },
+  {
+   "n": 6,
+   "beaver": "남동생 부인도 같이 와?",
+   "beaver_en": "Is your brother's wife coming too?",
+   "beaver_roman": "namdongsaeng buindo gachi wa?",
+   "learner": "네, 올케랑 조카도 같이 와요.",
+   "en": "Yes, his wife and my nephew are coming too.",
+   "roman": "ne, olkerang jokado gachi wayo."
+  },
+  {
+   "n": 7,
+   "beaver": "그럼 토요일로 정하는 거지?",
+   "beaver_en": "So we're going with Saturday, right?",
+   "beaver_roman": "geureom toyoillo jeonghaneun geoji?",
+   "learner": "네, 일요일엔 이모네가 바빠요.",
+   "en": "Yes, Auntie's family is busy on Sunday.",
+   "roman": "ne, iryoillen imonega bappayo."
+  },
+  {
+   "n": 8,
+   "beaver": "큰아버지네는 괜찮대?",
+   "beaver_en": "Is it okay for Big Uncle's family?",
+   "beaver_roman": "keunabeojineneun gwaenchantae?",
+   "learner": "네, 큰아버지네도 토요일 좋대요.",
+   "en": "Yes, they said Saturday is good for them too.",
+   "roman": "ne, keunabeojinedo toyoil jotaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "친척들이 다 모이겠네. 장소는?",
+   "beaver_en": "All the relatives will gather. Where is it?",
+   "beaver_roman": "chincheokdeuri da moigenne. jangsoneun?",
+   "learner": "할머니 댁이요. 사촌들도 다 와요.",
+   "en": "At Grandma's house. All the cousins are coming too.",
+   "roman": "halmeoni daegiyo. sachondeuldo da wayo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 5월 10일 토요일, 꼭 갈게.",
+   "beaver_en": "Great. Saturday, May 10th, I'll be there for sure.",
+   "beaver_roman": "joa. owol sibil toyoil, kkok galge.",
+   "learner": "네, 삼촌. 토요일에 만나요!",
+   "en": "Okay, Uncle. See you on Saturday!",
+   "roman": "ne, samchon. toyoire mannayo!"
+  }
+ ]
+}

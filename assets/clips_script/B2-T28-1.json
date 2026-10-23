@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T28-1",
+ "no": 182,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 어떤 일로 오셨어요?",
+   "beaver_en": "Hello. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. eotteon illo osyeosseoyo?",
+   "learner": "서류 요건을 확인하러 창구에 왔어요.",
+   "en": "I came to the counter to check document requirements.",
+   "roman": "seoryu yogeoneul hwaginhareo changgue wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 어떤 서류를 내실 거예요?",
+   "beaver_en": "Okay, what document will you submit?",
+   "beaver_roman": "ne, eotteon seoryureul naesil geoyeyo?",
+   "learner": "독일어 졸업 증명서 번역본이에요.",
+   "en": "It's a translation of my German diploma certificate.",
+   "roman": "dogireo joreop jeungmyeongseo beonyeokbonieyo."
+  },
+  {
+   "n": 3,
+   "beaver": "번역본은 공증받은 것이어야 해요.",
+   "beaver_en": "The translation has to be notarized.",
+   "beaver_roman": "beonyeokboneun gongjeungbadeun geosieoya haeyo.",
+   "learner": "원본이어야 하나요? 복사본도 돼요?",
+   "en": "Does it have to be the original? Is a copy okay?",
+   "roman": "wonbonieoya hanayo? boksabondo dwaeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "원본이어야 해요. 신청서는 쓰셨어요?",
+   "beaver_en": "It has to be the original. Did you fill out the application?",
+   "beaver_roman": "wonbonieoya haeyo. sincheongseoneun sseusyeosseoyo?",
+   "learner": "아니요, 아직이요. 양식은 어디 있어요?",
+   "en": "No, not yet. Where is the form?",
+   "roman": "anio, ajigiyo. yangsigeun eodi isseoyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "저기 게시판 옆에 있어요.",
+   "beaver_en": "It's over there next to the notice board.",
+   "beaver_roman": "jeogi gesipan yeope isseoyo.",
+   "learner": "안내문만 봐서는 잘 모르겠더라고요.",
+   "en": "Just looking at the notice, I couldn't really tell.",
+   "roman": "annaemunman bwaseoneun jal moreugetdeoragoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "괜찮아요. 신청서는 볼펜으로 쓰세요.",
+   "beaver_en": "That's fine. Please fill it out in pen.",
+   "beaver_roman": "gwaenchanayo. sincheongseoneun bolpeneuro sseuseyo.",
+   "learner": "집에서 인쇄한 양식에 작성해도 돼요?",
+   "en": "Can I fill out a form I printed at home?",
+   "roman": "jibeseo inswaehan yangsige jakseonghaedo dwaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 돼요. 마지막에 사인해 주세요.",
+   "beaver_en": "Yes, you can. Please sign at the end.",
+   "beaver_roman": "ne, dwaeyo. majimage sainhae juseyo.",
+   "learner": "사인만 하면 돼요? 도장도 필요해요?",
+   "en": "Is a signature enough? Do I need a stamp too?",
+   "roman": "sainman hamyeon dwaeyo? dojangdo piryohaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 도장도 필요해요.",
+   "beaver_en": "Yes, you need a stamp too.",
+   "beaver_roman": "ne, dojangdo piryohaeyo.",
+   "learner": "도장은 꼭 본인 것이어야 하죠?",
+   "en": "The stamp has to be my own, right?",
+   "roman": "dojangeun kkok bonin geosieoya hajyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네, 맞아요. 서류는 바로 검토할게요.",
+   "beaver_en": "Yes, that's right. I'll review the documents right away.",
+   "beaver_roman": "ne, majayo. seoryuneun baro geomtohalgeyo.",
+   "learner": "검토는 언제 끝나요? 회사에 보고해야 해서요.",
+   "en": "When will the review be done? I have to report to my company.",
+   "roman": "geomtoneun eonje kkeunnayo? hoesae bogohaeya haeseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "낼모레 끝나요. 결과는 문자로 알려 드려요.",
+   "beaver_en": "It'll be done in two days. We'll text you the result.",
+   "beaver_roman": "naelmore kkeunnayo. gyeolgwaneun munjaro allyeo deuryeoyo.",
+   "learner": "따로 다시 안 와도 되죠? 감사합니다.",
+   "en": "I don't have to come back again, right? Thank you.",
+   "roman": "ttaro dasi an wado doejyo? gamsahamnida."
+  }
+ ]
+}

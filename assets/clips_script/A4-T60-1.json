@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T60-1",
+ "no": 113,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수야, 다음 주 시험 준비는 어떻게 해?",
+   "beaver_en": "Minsu, how are you preparing for next week's test?",
+   "beaver_roman": "Minsuya, daeum ju siheom junbineun eotteoke hae?",
+   "learner": "시험 보기 전에 단어를 다 외울 거야.",
+   "en": "I'll memorize all the words before the test.",
+   "roman": "Siheom bogi jeone daneoreul da oeul kkeoya."
+  },
+  {
+   "n": 2,
+   "beaver": "단어가 많은데 어떻게 외워?",
+   "beaver_en": "There are so many words. How do you memorize them?",
+   "beaver_roman": "Daneoga maneunde eotteoke oewo?",
+   "learner": "매일 스무 개씩 외우고 받아써.",
+   "en": "I memorize twenty a day and write them down by dictation.",
+   "roman": "Maeil seumu gaessik oeugo badasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "받아쓰기는 누가 검사해 줘?",
+   "beaver_en": "Who checks your dictation?",
+   "beaver_roman": "Badasseugineun nuga geomsahae jwo?",
+   "learner": "학원 선생님이 검사해 주셔.",
+   "en": "My academy teacher checks it for me.",
+   "roman": "Hagwon seonsaengnimi geomsahae jusyeo."
+  },
+  {
+   "n": 4,
+   "beaver": "아, 학원도 다녀?",
+   "beaver_en": "Oh, you go to an academy too?",
+   "beaver_roman": "A, hagwondo danyeo?",
+   "learner": "응, 일주일에 세 번 학원에 다녀.",
+   "en": "Yeah, I go to the academy three times a week.",
+   "roman": "Eung, iljuire se beon hagwone danyeo."
+  },
+  {
+   "n": 5,
+   "beaver": "학원 가기 전에는 뭐 해?",
+   "beaver_en": "What do you do before going to the academy?",
+   "beaver_roman": "Hagwon gagi jeoneneun mwo hae?",
+   "learner": "가기 전에 꼭 예습을 해.",
+   "en": "I always preview the lesson before I go.",
+   "roman": "Gagi jeone kkok yeseubeul hae."
+  },
+  {
+   "n": 6,
+   "beaver": "그럼 학원 끝나고 나서는?",
+   "beaver_en": "Then what about after the academy?",
+   "beaver_roman": "Geureom hagwon kkeunnago naseoneun?",
+   "learner": "집에 와서 그날 배운 걸 복습해.",
+   "en": "I come home and review what I learned that day.",
+   "roman": "Jibe waseo geunal baeun geol bokseupae."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 정말 열심히 하네.",
+   "beaver_en": "Wow, you really work hard.",
+   "beaver_roman": "Wa, jeongmal yeolsimhi hane.",
+   "learner": "지난번 성적이 안 좋았거든.",
+   "en": "My grades weren't good last time.",
+   "roman": "Jinanbeon seongjeogi an joatgeodeun."
+  },
+  {
+   "n": 8,
+   "beaver": "이번에는 성적이 꼭 오를 거야.",
+   "beaver_en": "Your grades will definitely go up this time.",
+   "beaver_roman": "Ibeoneneun seongjeogi kkok oreul kkeoya.",
+   "learner": "고마워. 자기 전에도 단어를 봐.",
+   "en": "Thanks. I look at words before bed, too.",
+   "roman": "Gomawo. Jagi jeonedo daneoreul bwa."
+  },
+  {
+   "n": 9,
+   "beaver": "나도 같이 공부해도 돼?",
+   "beaver_en": "Can I study with you?",
+   "beaver_roman": "Nado gachi gongbuhaedo dwae?",
+   "learner": "좋아! 내일 도서관에서 같이 하자.",
+   "en": "Sure! Let's study together at the library tomorrow.",
+   "roman": "Joa! Naeil doseogwaneseo gachi haja."
+  },
+  {
+   "n": 10,
+   "beaver": "그래, 서로 받아쓰기 검사해 주자.",
+   "beaver_en": "Okay, let's check each other's dictation.",
+   "beaver_roman": "Geurae, seoro badasseugi geomsahae juja.",
+   "learner": "좋아. 내일 두 시에 만나!",
+   "en": "Great. See you tomorrow at two!",
+   "roman": "Joa. Naeil du sie manna!"
+  }
+ ]
+}

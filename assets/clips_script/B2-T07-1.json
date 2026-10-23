@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T07-1",
+ "no": 167,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 저 드디어 새집을 구했어요!",
+   "beaver_en": "Minsu, I finally found a new place!",
+   "beaver_roman": "minsu ssi, jeo deudieo saejibeul guhaesseoyo!",
+   "learner": "정말요? 하숙집에서 이사한다고요? 축하해요!",
+   "en": "Really? You're moving out of the boarding house? Congrats!",
+   "roman": "jeongmallyo? hasukjibeseo isahandagoyo? chukahaeyo!"
+  },
+  {
+   "n": 2,
+   "beaver": "네, 도심에 있는 오피스텔이에요.",
+   "beaver_en": "Yes, it's an officetel in the city center.",
+   "beaver_roman": "ne, dosime inneun opiseuterieyo.",
+   "learner": "도심 오피스텔에서 산다고요? 집세는요?",
+   "en": "You'll live in a city-center officetel? What about rent?",
+   "roman": "dosim opiseutereseo sandagoyo? jipseneunyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "전세라서 매달 내는 집세는 없어요.",
+   "beaver_en": "It's jeonse, so there's no monthly rent.",
+   "beaver_roman": "jeonseraseo maedal naeneun jipseneun eopseoyo.",
+   "learner": "전세라서 집세를 안 낸다고요? 정말 좋네요.",
+   "en": "You don't pay rent because it's jeonse? That's great.",
+   "roman": "jeonseraseo jipsereul an naendagoyo? jeongmal jonneyo."
+  },
+  {
+   "n": 4,
+   "beaver": "단지 입구에 경비실도 있어서 안전해요.",
+   "beaver_en": "There's a security office at the complex entrance, so it's safe.",
+   "beaver_roman": "danji ipgue gyeongbisildo isseoseo anjeonhaeyo.",
+   "learner": "단지 입구에 경비실도 있다고요?",
+   "en": "There's a security office at the complex entrance too?",
+   "roman": "danji ipgue gyeongbisildo itdagoyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "네. 창가에서 강이 보여서 전망은 좋대요.",
+   "beaver_en": "Yes. They say the view is good—you can see the river.",
+   "beaver_roman": "ne. changgaeseo gangi boyeoseo jeonmangeun jotaeyo.",
+   "learner": "창가에서 강이 보인다고요? 멋있겠네요.",
+   "en": "You can see the river from the window? Sounds lovely.",
+   "roman": "changgaeseo gangi boindagoyo? meositgenneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "네, 베란다도 넓어요. 화분을 키울 거예요.",
+   "beaver_en": "Yes, the balcony is big too. I'll grow plants.",
+   "beaver_roman": "ne, berandado neolbeoyo. hwabuneul kiul geoyeyo.",
+   "learner": "베란다에서 화분을 키운다고요? 안방은요?",
+   "en": "You'll grow plants on the balcony? And the master bedroom?",
+   "roman": "berandaeseo hwabuneul kiundagoyo? anbangeunyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "안방은 작지만 욕실이 두 개 있어요.",
+   "beaver_en": "The master bedroom is small, but there are two bathrooms.",
+   "beaver_roman": "anbangeun jakjiman yoksiri du gae isseoyo.",
+   "learner": "욕실이 두 개 있다고요? 벽지는 어때요?",
+   "en": "Two bathrooms? How's the wallpaper?",
+   "roman": "yoksiri du gae itdagoyo? byeokjineun eottaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "주인이 연두색 벽지로 바꿔 준대요.",
+   "beaver_en": "The owner says he'll change it to light green wallpaper.",
+   "beaver_roman": "juini yeondusaek byeokjiro bakkwo jundaeyo.",
+   "learner": "와, 벽지도 새로 바꿔 준다고요? 부러워요.",
+   "en": "Wow, he'll even put up new wallpaper? I'm jealous.",
+   "roman": "wa, byeokjido saero bakkwo jundagoyo? bureowoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "지하철역까지 에스컬레이터로 바로 가요.",
+   "beaver_en": "You can go straight to the subway station by escalator.",
+   "beaver_roman": "jihacheollyeokkkaji eseukeolleiteoro baro gayo.",
+   "learner": "에스컬레이터로 바로 간다고요? 역시 대도시네요.",
+   "en": "Straight there by escalator? That's a big city for you.",
+   "roman": "eseukeolleiteoro baro gandagoyo? yeoksi daedosineyo."
+  },
+  {
+   "n": 10,
+   "beaver": "이웃집에 일본 사람이 산대요. 집들이 올래요?",
+   "beaver_en": "I hear a Japanese person lives next door. Come to my housewarming?",
+   "beaver_roman": "iutjibe ilbon sarami sandaeyo. jipdeuri ollaeyo?",
+   "learner": "이웃집에 일본 사람이 산다고요? 꼭 갈게요!",
+   "en": "A Japanese person lives next door? I'll definitely come!",
+   "roman": "iutjibe ilbon sarami sandagoyo? kkok galgeyo!"
+  }
+ ]
+}

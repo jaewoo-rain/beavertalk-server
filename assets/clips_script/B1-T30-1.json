@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T30-1",
+ "no": 143,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "문병 왔어요. 몸은 좀 괜찮아요?",
+   "beaver_en": "I came to visit you. Are you feeling okay?",
+   "beaver_roman": "munbyeong wasseoyo. momeun jom gwaenchanayo?",
+   "learner": "와 줘서 고마워요. 병실에 혼자 있어서 심심했어요.",
+   "en": "Thanks for coming. I was bored alone in the hospital room.",
+   "roman": "wa jwoseo gomawoyo. byeongsire honja isseoseo simsimhaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "처음에 어디가 아팠어요?",
+   "beaver_en": "Where did it hurt at first?",
+   "beaver_roman": "cheoeume eodiga apasseoyo?",
+   "learner": "길에서 넘어졌을 때 머리를 다쳤어요.",
+   "en": "I hurt my head when I fell on the street.",
+   "roman": "gireseo neomeojeosseul ttae meorireul dachyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "정말요? 그래서 응급실에 갔어요?",
+   "beaver_en": "Really? So did you go to the ER?",
+   "beaver_roman": "jeongmallyo? geuraeseo eunggeupsire gasseoyo?",
+   "learner": "네, 응급실에 갔을 때 피가 많이 났어요.",
+   "en": "Yes, I was bleeding a lot when I got to the ER.",
+   "roman": "ne, eunggeupsire gasseul ttae piga mani nasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "많이 놀랐겠어요. 진찰은 받았어요?",
+   "beaver_en": "You must have been scared. Did you see a doctor?",
+   "beaver_roman": "mani nollatgesseoyo. jinchareun badasseoyo?",
+   "learner": "네, 진찰을 받고 소독약을 발랐어요.",
+   "en": "Yes, I got examined and they put on disinfectant.",
+   "roman": "ne, jinchareul batgo sodogyageul ballasseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "상처는 어떻게 했어요? 반창고 붙였어요?",
+   "beaver_en": "What about the wound? Did you get a bandage?",
+   "beaver_roman": "sangcheoneun eotteoke haesseoyo? banchanggo buchyeosseoyo?",
+   "learner": "네, 반창고를 붙였어요. 상처는 크지 않아요.",
+   "en": "Yes, I put on a bandage. The wound isn't big.",
+   "roman": "ne, banchanggoreul buchyeosseoyo. sangcheoneun keuji anayo."
+  },
+  {
+   "n": 6,
+   "beaver": "다행이네요. 약은 뭐 받았어요?",
+   "beaver_en": "That's a relief. What medicine did you get?",
+   "beaver_roman": "dahaengineyo. yageun mwo badasseoyo?",
+   "learner": "두통약하고 진통제를 처방받았어요.",
+   "en": "I was prescribed headache medicine and painkillers.",
+   "roman": "dutongyakago jintongjereul cheobangbadasseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "밤에는 잘 자요? 아프면 잠이 안 오잖아요.",
+   "beaver_en": "Do you sleep well? It's hard to sleep when you hurt.",
+   "beaver_roman": "bameneun jal jayo? apeumyeon jami an ojanayo.",
+   "learner": "잠이 안 왔을 때 수면제도 먹었어요.",
+   "en": "When I couldn't sleep, I took a sleeping pill.",
+   "roman": "jami an wasseul ttae sumyeonjedo meogeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "약 말고 다른 치료법도 있어요?",
+   "beaver_en": "Is there any other treatment besides medicine?",
+   "beaver_roman": "yak malgo dareun chiryobeopdo isseoyo?",
+   "learner": "네, 얼음찜질도 해요. 정말 시원해요.",
+   "en": "Yes, I also use an ice pack. It feels really cool.",
+   "roman": "ne, eoreumjjimjildo haeyo. jeongmal siwonhaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "어렸을 때도 병원에 자주 갔어요?",
+   "beaver_en": "Did you go to the hospital often as a kid too?",
+   "beaver_roman": "eoryeosseul ttaedo byeongwone jaju gasseoyo?",
+   "learner": "어렸을 때 소아과에서 물약을 받았어요.",
+   "en": "When I was little, I got liquid medicine at pediatrics.",
+   "roman": "eoryeosseul ttae soagwaeseo mullyageul badasseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "하하, 그랬군요. 푹 쉬고 빨리 나아요!",
+   "beaver_en": "Haha, I see. Rest well and get better soon!",
+   "beaver_roman": "haha, geuraetgunnyo. puk swigo ppalli naayo!",
+   "learner": "고마워요. 퇴원하면 처방전 들고 약국 갈게요.",
+   "en": "Thanks. When I'm discharged, I'll take my prescription to the pharmacy.",
+   "roman": "gomawoyo. toewonhamyeon cheobangjeon deulgo yakguk galgeyo."
+  }
+ ]
+}

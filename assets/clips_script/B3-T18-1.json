@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T18-1",
+ "no": 220,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 여름에 어디로 갈지 정했어?",
+   "beaver_en": "Have you decided where to go this summer?",
+   "beaver_roman": "ibeon yeoreume eodiro galji jeonghaesseo?",
+   "learner": "북미가 좋은지 동남아가 좋은지 모르겠어.",
+   "en": "I don't know if North America or Southeast Asia is better.",
+   "roman": "bungmiga joeunji dongnamaga joeunji moreugesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "비용은? 그게 제일 중요하잖아.",
+   "beaver_en": "What about the cost? That's the most important.",
+   "beaver_roman": "biyongeun? geuge jeil jungyohajana.",
+   "learner": "그래서 여행사에 어디가 더 싼지 물어봤어.",
+   "en": "So I asked a travel agency which one is cheaper.",
+   "roman": "geuraeseo yeohaengsae eodiga deo ssanji mureobwasseo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래? 뭐라고 했어?",
+   "beaver_en": "Really? What did they say?",
+   "beaver_roman": "geurae? mworago haesseo?",
+   "learner": "북미는 하도 비싸서 동남아가 낫대.",
+   "en": "North America is so expensive that Southeast Asia is better.",
+   "roman": "bungmineun hado bissaseo dongnamaga natdae."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 동남아로 하자. 뭘 하고 싶어?",
+   "beaver_en": "Then let's go to Southeast Asia. What do you want to do?",
+   "beaver_roman": "geureom dongnamaro haja. mwol hago sipeo?",
+   "learner": "난 모험을 하고 싶어. 정글에 가 보자!",
+   "en": "I want an adventure. Let's go to the jungle!",
+   "roman": "nan moheomeul hago sipeo. jeonggeure ga boja!"
+  },
+  {
+   "n": 5,
+   "beaver": "좋아! 근데 한낮에는 엄청 덥대.",
+   "beaver_en": "Great! But they say it's really hot at midday.",
+   "beaver_roman": "joa! geunde hannajeneun eomcheong deopdae.",
+   "learner": "다른 여행객들은 언제 다니는지 찾아볼게.",
+   "en": "I'll look up when other tourists get around.",
+   "roman": "dareun yeohaenggaekdeureun eonje danineunji chajabolge."
+  },
+  {
+   "n": 6,
+   "beaver": "그래. 짐은 많이 챙길 거야?",
+   "beaver_en": "Okay. Are you going to pack a lot?",
+   "beaver_roman": "geurae. jimeun mani chaenggil geoya?",
+   "learner": "아니, 꼭 필요한 것만 가볍게 챙길 거야.",
+   "en": "No, I'll pack light, just what I really need.",
+   "roman": "ani, kkok piryohan geonman gabyeopge chaenggil geoya."
+  },
+  {
+   "n": 7,
+   "beaver": "여권은 꼭 챙겨. 옷은 어떻게 해?",
+   "beaver_en": "Make sure to bring your passport. What about clothes?",
+   "beaver_roman": "yeogwoneun kkok chaenggyeo. oseun eotteoke hae?",
+   "learner": "얇은 옷에 겉옷 하나만 걸치면 돼.",
+   "en": "Thin clothes and one jacket over them is enough.",
+   "roman": "yalbeun ose geodot hanaman geolchimyeon dwae."
+  },
+  {
+   "n": 8,
+   "beaver": "숙소는 어떻게 고를까?",
+   "beaver_en": "How should we choose a place to stay?",
+   "beaver_roman": "suksoneun eotteoke goreulkka?",
+   "learner": "방이 깨끗한지 조용한지 먼저 보자.",
+   "en": "Let's first check if the room is clean and quiet.",
+   "roman": "bangi kkaekkeutanji joyonghanji meonjeo boja."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아. 이번엔 관광 말고 진짜 여행하자.",
+   "beaver_en": "Good. This time, let's really travel, not just sightsee.",
+   "beaver_roman": "joa. ibeonen gwangwang malgo jinjja yeohaenghaja.",
+   "learner": "응, 여행가처럼 모험을 즐기고 싶어.",
+   "en": "Yeah, I want to enjoy adventure like a traveler.",
+   "roman": "eung, yeohaenggacheoreom moheomeul jeulgigo sipeo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 동남아로 결정! 비행기표 찾아볼게.",
+   "beaver_en": "Then Southeast Asia it is! I'll look for plane tickets.",
+   "beaver_roman": "geureom dongnamaro gyeoljeong! bihaenggipyo chajabolge.",
+   "learner": "좋아! 초반 일정은 내가 짤게.",
+   "en": "Great! I'll plan the first part of the trip.",
+   "roman": "joa! choban iljeongeun naega jjalge."
+  }
+ ]
+}

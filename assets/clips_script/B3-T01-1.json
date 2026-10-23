@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T01-1",
+ "no": 206,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어, 민수야! 이게 얼마 만이야? 진짜 반갑다.",
+   "beaver_en": "Hey, Minsu! How long has it been? So good to see you.",
+   "beaver_roman": "eo, minsuya! ige eolma maniya? jinjja bangapda.",
+   "learner": "너 요즘 회사에서 유명하다면서?",
+   "en": "I hear you're famous at work these days?",
+   "roman": "neo yojeum hoesaeseo yumyeonghadamyeonseo?"
+  },
+  {
+   "n": 2,
+   "beaver": "에이, 아니야. 그냥 열심히 일할 뿐이야.",
+   "beaver_en": "Nah, not really. I just work hard.",
+   "beaver_roman": "ei, aniya. geunyang yeolsimhi ilhal ppuniya.",
+   "learner": "아내가 외국 사람이라면서? 어느 나라 사람이야?",
+   "en": "I hear your wife is a foreigner? Where is she from?",
+   "roman": "anaega oeguk saramiramyeonseo? eoneu nara saramiya?"
+  },
+  {
+   "n": 3,
+   "beaver": "응, 캐나다 사람이야. 한국어도 아주 잘해.",
+   "beaver_en": "Yeah, she's Canadian. She speaks Korean really well, too.",
+   "beaver_roman": "eung, kaenada saramiya. hangugeodo aju jalhae.",
+   "learner": "작년에 아기 태어났다면서? 정말 축하해!",
+   "en": "I hear you had a baby last year? Congratulations!",
+   "roman": "jangnyeone agi taeeonatdamyeonseo? jeongmal chukahae!"
+  },
+  {
+   "n": 4,
+   "beaver": "고마워. 벌써 돌이 지났어. 2024년생이야.",
+   "beaver_en": "Thanks. He's already past his first birthday. Born in 2024.",
+   "beaver_roman": "gomawo. beolsseo dori jinasseo. icheonisipsanyeonsaengiya.",
+   "learner": "와, 벌써 돌이구나. 아들이지?",
+   "en": "Wow, already one year old. It's a boy, right?",
+   "roman": "wa, beolsseo doriguna. adeuriji?"
+  },
+  {
+   "n": 5,
+   "beaver": "맞아. 얼굴은 동양인 같기도 하고 서양인 같기도 해.",
+   "beaver_en": "Right. His face looks both Asian and Western.",
+   "beaver_roman": "maja. eolgureun dongyangin gatgido hago seoyangin gatgido hae.",
+   "learner": "사진 보여 줘! 여동생은 이제 다 컸다면서?",
+   "en": "Show me a photo! I hear your sister is all grown up now?",
+   "roman": "sajin boyeo jwo! yeodongsaengeun ije da keotdamyeonseo?"
+  },
+  {
+   "n": 6,
+   "beaver": "응, 벌써 대학생이야. 남동생은 지금 사춘기고.",
+   "beaver_en": "Yeah, she's in college already. My brother's in puberty now.",
+   "beaver_roman": "eung, beolsseo daehaksaengiya. namdongsaengeun jigeum sachungigo.",
+   "learner": "아, 그 남동생이 중학생이라면서? 사춘기라 힘들겠다.",
+   "en": "Oh, your brother's in middle school, right? Puberty must be tough.",
+   "roman": "a, geu namdongsaengi junghaksaengiramyeonseo? sachungira himdeulgetda."
+  },
+  {
+   "n": 7,
+   "beaver": "말도 마. 요즘 한마디만 해도 화를 내.",
+   "beaver_en": "Don't even ask. He gets mad at a single word these days.",
+   "beaver_roman": "maldo ma. yojeum hanmadiman haedo hwareul nae.",
+   "learner": "다 그럴 때지. 우리도 그 나이 때 그랬잖아.",
+   "en": "That's just the age. We were the same back then.",
+   "roman": "da geureol ttaeji. urido geu nai ttae geuraetjana."
+  },
+  {
+   "n": 8,
+   "beaver": "하하, 맞아. 너희 집 어르신들도 잘 계시지?",
+   "beaver_en": "Haha, true. Are your elders doing well too?",
+   "beaver_roman": "haha, maja. neohui jip eoreusindeuldo jal gyesiji?",
+   "learner": "응, 부모님 다 잘 계셔. 고마워.",
+   "en": "Yeah, my parents are both doing well. Thanks.",
+   "roman": "eung, bumonim da jal gyesyeo. gomawo."
+  },
+  {
+   "n": 9,
+   "beaver": "벌써 시간이 이렇게 됐네. 이제 가 봐야겠다.",
+   "beaver_en": "Look at the time already. I should get going.",
+   "beaver_roman": "beolsseo sigani ireoke dwaenne. ije ga bwayagetda.",
+   "learner": "그래. 바빠도 조만간 또 보자.",
+   "en": "Okay. Even if we're busy, let's meet again soon.",
+   "roman": "geurae. bappado jomangan tto boja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 다음엔 우리 아들도 데리고 올게.",
+   "beaver_en": "Sure. Next time I'll bring my son too.",
+   "beaver_roman": "joa. daeumen uri adeuldo derigo olge.",
+   "learner": "응, 그 귀여운 녀석 꼭 보고 싶다. 잘 가!",
+   "en": "Yes, I really want to meet the cute little guy. Bye!",
+   "roman": "eung, geu gwiyeoun nyeoseok kkok bogo sipda. jal ga!"
+  }
+ ]
+}

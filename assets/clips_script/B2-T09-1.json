@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T09-1",
+ "no": 169,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 행사 어땠어? 표정이 좀 안 좋네.",
+   "beaver_en": "How was the event today? You don't look happy.",
+   "beaver_roman": "oneul haengsa eottaesseo? pyojeongi jom an jonne.",
+   "learner": "응, 오늘 옷차림이 너무 아쉬워.",
+   "en": "Yeah, I really regret my outfit today.",
+   "roman": "eung, oneul otcharimi neomu aswiwo."
+  },
+  {
+   "n": 2,
+   "beaver": "왜? 그 드레스 예쁘던데.",
+   "beaver_en": "Why? That dress looked pretty.",
+   "beaver_roman": "wae? geu deureseu yeppeudeonde.",
+   "learner": "드레스가 좀 촌스러웠어. 다른 걸 입었어야 했는데.",
+   "en": "The dress was a bit tacky. I should have worn another one.",
+   "roman": "deureseuga jom chonseureowosseo. dareun geol ibeosseoya haenneunde."
+  },
+  {
+   "n": 3,
+   "beaver": "구두는 괜찮았잖아.",
+   "beaver_en": "Your shoes were fine, though.",
+   "beaver_roman": "guduneun gwaenchanatjana.",
+   "learner": "굽이 너무 높았어. 낮은 걸 신었어야 했는데.",
+   "en": "The heels were too high. I should have worn low ones.",
+   "roman": "gubi neomu nopasseo. najeun geol sineosseoya haenneunde."
+  },
+  {
+   "n": 4,
+   "beaver": "가방은? 그 핸드백 새로 산 거지?",
+   "beaver_en": "What about your bag? That handbag is new, right?",
+   "beaver_roman": "gabangeun? geu haendeubaek saero san geoji?",
+   "learner": "응, 가죽 핸드백인데 지퍼가 고장 났어.",
+   "en": "Yes, it's a leather handbag, but the zipper broke.",
+   "roman": "eung, gajuk haendeubaeginde jipeoga gojang nasseo."
+  },
+  {
+   "n": 5,
+   "beaver": "저런, 미리 확인하지 그랬어.",
+   "beaver_en": "Oh no, you should have checked it first.",
+   "beaver_roman": "jeoreon, miri hwaginhaji geuraesseo.",
+   "learner": "맞아. 어제 수선을 맡겼어야 했는데.",
+   "en": "Right. I should have taken it for repair yesterday.",
+   "roman": "maja. eoje suseoneul matgyeosseoya haenneunde."
+  },
+  {
+   "n": 6,
+   "beaver": "그래도 목걸이는 예뻤어.",
+   "beaver_en": "Still, your necklace was pretty.",
+   "beaver_roman": "geuraedo mokgeorineun yeppeosseo.",
+   "learner": "고마워. 그 목걸이 엄마 거야.",
+   "en": "Thanks. That necklace is my mom's.",
+   "roman": "gomawo. geu mokgeori eomma geoya."
+  },
+  {
+   "n": 7,
+   "beaver": "벨트도 잘 어울리던데.",
+   "beaver_en": "The belt suited you well too.",
+   "beaver_roman": "belteudo jal eoullideonde.",
+   "learner": "벨트가 꽉 껴서 좀 불편했어.",
+   "en": "The belt was so tight it was uncomfortable.",
+   "roman": "belteuga kkwak kkyeoseo jom bulpyeonhaesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "밖에 나갈 때 춥지 않았어?",
+   "beaver_en": "Weren't you cold when you went outside?",
+   "beaver_roman": "bakke nagal ttae chupji anasseo?",
+   "learner": "너무 추웠어. 외투를 입고 갔어야 했는데.",
+   "en": "It was freezing. I should have worn a coat.",
+   "roman": "neomu chuwosseo. oetureul ipgo gasseoya haenneunde."
+  },
+  {
+   "n": 9,
+   "beaver": "근데 실내에서 선글라스는 왜 썼어?",
+   "beaver_en": "But why did you wear sunglasses indoors?",
+   "beaver_roman": "geunde sillaeeseo seongeullaseuneun wae sseosseo?",
+   "learner": "너무 떨려서 썼어. 벗었어야 했는데.",
+   "en": "I was so nervous, so I wore them. I should have taken them off.",
+   "roman": "neomu tteollyeoseo sseosseo. beoseosseoya haenneunde."
+  },
+  {
+   "n": 10,
+   "beaver": "괜찮아. 다음엔 같이 옷 고르자.",
+   "beaver_en": "It's okay. Let's pick clothes together next time.",
+   "beaver_roman": "gwaenchana. daeumen gachi ot goreuja.",
+   "learner": "좋아. 다음엔 패션에 더 신경 쓸게. 고마워!",
+   "en": "Okay. I'll pay more attention to fashion. Thanks!",
+   "roman": "joa. daeumen paesyeone deo singyeong sseulge. gomawo!"
+  }
+ ]
+}

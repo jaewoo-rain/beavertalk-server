@@ -1,0 +1,96 @@
+{
+ "lesson": "B3-T27-1",
+ "no": 226,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 출근길에 표정이 안 좋던데요?",
+   "beaver_en": "Minsu, you looked down on your way to work.",
+   "beaver_roman": "minsu ssi, chulgeunkkire pyojeongi an joteondeyo?",
+   "learner": "실장님, 지난번 기획 결정이 계속 생각나요.",
+   "en": "Manager, I keep thinking about our last planning decision.",
+   "roman": "siljangnim, jinanbeon gihoek gyeoljeongi gyesok saenggangnayo."
+  },
+  {
+   "n": 2,
+   "beaver": "해외 진출 안 하기로 한 거요?",
+   "beaver_en": "The decision not to expand overseas?",
+   "beaver_roman": "haeoe jinchul an hagiro han geoyo?",
+   "learner": "네, 그때 진출했더라면 성과가 좋았을 거예요.",
+   "en": "Yes. If only we had expanded then, results would be better.",
+   "roman": "ne, geuttae jinchulhaetdeoramyeon seonggwaga joasseul geoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "성과는 어때요? 요즘 숫자가 좀 아쉽죠.",
+   "beaver_en": "How are the results? The numbers are a bit disappointing.",
+   "beaver_roman": "seonggwaneun eottaeyo? yojeum sutjaga jom aswipjyo.",
+   "learner": "목표의 절반 정도예요. 거래처도 줄었어요.",
+   "en": "About half the target. We've lost clients too.",
+   "roman": "mokpyoui jeolban jeongdoyeyo. georaecheodo jureosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그래도 너무 낙담하지 마세요.",
+   "beaver_en": "Still, don't be too discouraged.",
+   "beaver_roman": "geuraedo neomu nakdamhaji maseyo.",
+   "learner": "제가 관계자를 더 만났더라면 달랐을 거예요.",
+   "en": "If only I had met more officials, it'd be different.",
+   "roman": "jega gwangyejareul deo mannatdeoramyeon dallasseul geoyeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "지난 일은 이제 후회해도 소용없어요.",
+   "beaver_en": "There's no use regretting the past now.",
+   "beaver_roman": "jinan ireun ije huhoehaedo soyongeopseoyo.",
+   "learner": "알아요. 그래도 작업 흐름을 바꿨더라면 좋았겠어요.",
+   "en": "I know. Still, I wish we had changed the workflow.",
+   "roman": "arayo. geuraedo jageop heureumeul bakkwotdeoramyeon joatgesseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "연봉 협상은요? 걱정되는 거 있어요?",
+   "beaver_en": "And the salary negotiation? Anything worrying you?",
+   "beaver_roman": "yeonbong hyeopsangeunyo? geokjeongdoeneun geo isseoyo?",
+   "learner": "성과가 낮아서 연봉이 걱정돼요.",
+   "en": "Results are low, so I'm worried about my salary.",
+   "roman": "seonggwaga najaseo yeonbongi geokjeongdwaeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "팀 운영은 제 책임이기도 해요.",
+   "beaver_en": "Running the team is my responsibility too.",
+   "beaver_roman": "tim unyeongeun je chaegimigido haeyo.",
+   "learner": "퇴직한 선배 조언을 들었더라면 좋았을 텐데요.",
+   "en": "If only I had listened to my retired senior's advice.",
+   "roman": "toejikan seonbae jooneul deureotdeoramyeon joasseul tendeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "직장 생활에 대해 더 이야기해 볼래요?",
+   "beaver_en": "Want to talk more about work life?",
+   "beaver_roman": "jikjang saenghware daehae deo iyagihae bollaeyo?",
+   "learner": "직장 생활이 쉽지 않네요. 실수도 많았고요.",
+   "en": "Work life isn't easy. I made a lot of mistakes, too.",
+   "roman": "jikjang saenghwari swipji anneyo. silsudo manatgoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "다음 분기 대책을 같이 세워 봅시다.",
+   "beaver_en": "Let's make a plan for next quarter together.",
+   "beaver_roman": "daeum bungi daechaegeul gachi sewo bopsida.",
+   "learner": "네, 팀원들 의견부터 들어 볼게요.",
+   "en": "Okay, I'll start by hearing from the team members.",
+   "roman": "ne, timwondeul uigyeonbuteo deureo bolgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 이번 주에 회의 잡을게요.",
+   "beaver_en": "Good. I'll set up a meeting this week.",
+   "beaver_roman": "joayo. ibeon jue hoeui jabeulgeyo.",
+   "learner": "감사합니다, 실장님. 힘이 나네요.",
+   "en": "Thank you, Manager. I feel encouraged.",
+   "roman": "gamsahamnida, siljangnim. himi naneyo."
+  }
+ ]
+}

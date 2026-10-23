@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T61-1",
+ "no": 342,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "민수 씨, 논문 정리는 잘 되고 있어요?",
+   "beaver_en": "Minsu, how's your paper coming along?",
+   "beaver_roman": "Minsu ssi, nonmun jeongnineun jal doego isseoyo?",
+   "learner": "네, 교수님. 연구실에서 매일 쓰고 있습니다.",
+   "en": "Yes, professor. I'm writing in the lab every day.",
+   "roman": "Ne, gyosunim. Yeongusireseo maeil sseugo itseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "자료는 충분해요?",
+   "beaver_en": "Do you have enough data?",
+   "beaver_roman": "Jaryoneun chungbunhaeyo?",
+   "learner": "네, 경제학 자료를 단기간에 많이 모았습니다.",
+   "en": "Yes, I gathered a lot of economics data in a short time.",
+   "roman": "Ne, gyeongjehak jaryoreul dangigane mani moatseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "좋아요. 그럼 연구 성과를 한마디로 말해 볼래요?",
+   "beaver_en": "Good. Then can you sum up your results in a word?",
+   "beaver_roman": "Joayo. Geureom yeongu seonggwareul hanmadiro malhae bollaeyo?",
+   "learner": "한마디로 기존 이론을 뒤집는 결과입니다.",
+   "en": "In a word, it's a result that overturns the existing theory.",
+   "roman": "Hanmadiro gijon ironeul dwijimneun gyeolgwaimnida."
+  },
+  {
+   "n": 4,
+   "beaver": "와, 대단하네요. 어떤 이론이에요?",
+   "beaver_en": "Wow, that's impressive. Which theory?",
+   "beaver_roman": "Wa, daedanhaneyo. Eotteon ironieyo?",
+   "learner": "노동 능률에 대한 경제학 이론입니다.",
+   "en": "It's an economic theory about labor efficiency.",
+   "roman": "Nodong neungnyure daehan gyeongjehak ironimnida."
+  },
+  {
+   "n": 5,
+   "beaver": "다른 연구자들도 그 결과를 알고 있어요?",
+   "beaver_en": "Do other researchers know about the results?",
+   "beaver_roman": "Dareun yeongujadeuldo geu gyeolgwareul algo isseoyo?",
+   "learner": "아직 모릅니다. 먼저 발표하고 싶습니다.",
+   "en": "They don't know yet. I want to present it first.",
+   "roman": "Ajik moreumnida. Meonjeo balpyohago sipseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "발표는 언제 해요?",
+   "beaver_en": "When will you present?",
+   "beaver_roman": "Balpyoneun eonje haeyo?",
+   "learner": "다음 달 학회에서 발표할 예정입니다.",
+   "en": "I plan to present at a conference next month.",
+   "roman": "Daeum dal hakoeeseo balpyohal yejeongimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "좋아요. 학위 논문에도 그 내용을 넣을 거예요?",
+   "beaver_en": "Good. Will you put it in your thesis too?",
+   "beaver_roman": "Joayo. Hagwi nonmunedo geu naeyongeul neoeul kkeoyeyo?",
+   "learner": "네, 학위 논문의 중심으로 삼고 싶습니다.",
+   "en": "Yes, I want to make it the core of my thesis.",
+   "roman": "Ne, hagwi nonmunui jungsimeuro samkko sipseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "연구자로서 학문을 어떻게 생각해요?",
+   "beaver_en": "As a researcher, what do you think of scholarship?",
+   "beaver_roman": "Yeongujaroseo hangmuneul eotteoke saenggakaeyo?",
+   "learner": "지식인은 자신의 무지를 아는 사람입니다.",
+   "en": "An intellectual is someone who knows their own ignorance.",
+   "roman": "Jisigineun jasinui mujireul aneun saramimnida."
+  },
+  {
+   "n": 9,
+   "beaver": "좋은 생각이에요. 연구자에게 가장 중요한 건요?",
+   "beaver_en": "Nice thought. What matters most for a researcher?",
+   "beaver_roman": "Joeun saenggagieyo. Yeongujaege gajang jungyohan geonyo?",
+   "learner": "백과사전에 없는 새 지식을 만드는 겁니다.",
+   "en": "Creating new knowledge that isn't in encyclopedias.",
+   "roman": "Baekkwasajeone eomneun sae jisigeul mandeuneun geomnida."
+  },
+  {
+   "n": 10,
+   "beaver": "훌륭해요. 그럼 다음 주에 초고를 가져와요.",
+   "beaver_en": "Excellent. Then bring me a draft next week.",
+   "beaver_roman": "Hullyunghaeyo. Geureom daeum jue chogoreul gajyeowayo.",
+   "learner": "네, 교수님. 감사합니다. 열심히 준비하겠습니다.",
+   "en": "Yes, professor. Thank you. I'll prepare hard.",
+   "roman": "Ne, gyosunim. Gamsahamnida. Yeolsimhi junbihagetseumnida."
+  }
+ ]
+}

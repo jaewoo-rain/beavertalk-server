@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T55-1",
+ "no": 43,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 시청 안내예요. 뭘 도와 드릴까요?",
+   "beaver_en": "Hello. This is the city hall information desk. How can I help you?",
+   "beaver_roman": "annyeonghaseyo. sicheong annaeyeyo. mwol dowa deurilkkayo?",
+   "learner": "시청은 몇 시에 문을 열어요?",
+   "en": "What time does city hall open?",
+   "roman": "sicheongeun myeot sie muneul yeoreoyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "아침 아홉 시에 열어요.",
+   "beaver_en": "It opens at nine in the morning.",
+   "beaver_roman": "achim ahop sie yeoreoyo.",
+   "learner": "그럼 몇 시까지 해요?",
+   "en": "Then until what time is it open?",
+   "roman": "geureom myeot sikkaji haeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "여섯 시까지예요. 무슨 일로 오셨어요?",
+   "beaver_en": "Until six. What brings you here?",
+   "beaver_roman": "yeoseot sikkajiyeyo. museun illo osyeosseoyo?",
+   "learner": "세금을 내러 왔어요. 지금 낼 수 있어요?",
+   "en": "I came to pay taxes. Can I pay now?",
+   "roman": "segeumeul naereo wasseoyo. jigeum nael ssu isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "여기서는 안 돼요. 구청으로 가세요.",
+   "beaver_en": "You can't do that here. Please go to the district office.",
+   "beaver_roman": "yeogiseoneun an dwaeyo. gucheongeuro gaseyo.",
+   "learner": "구청은 몇 시까지 해요?",
+   "en": "Until what time is the district office open?",
+   "roman": "gucheongeun myeot sikkaji haeyo?"
+  },
+  {
+   "n": 5,
+   "beaver": "구청도 여섯 시까지예요. 지금은 네 시 반이에요.",
+   "beaver_en": "The district office is also open until six. It's four thirty now.",
+   "beaver_roman": "gucheongdo yeoseot sikkajieyo. jigeumeun ne si banieyo.",
+   "learner": "그럼 구청은 어디에 있어요?",
+   "en": "Then where is the district office?",
+   "roman": "geureom gucheongeun eodie isseoyo?"
+  },
+  {
+   "n": 6,
+   "beaver": "걸어서 십 분이에요. 잠시만요, 지도 드릴게요.",
+   "beaver_en": "It's a ten-minute walk. One moment, I'll give you a map.",
+   "beaver_roman": "georeoseo sip ppunieyo. jamsimanyo, jido deurilkkeyo.",
+   "learner": "감사합니다. 오늘 시청에 사람이 많아요?",
+   "en": "Thank you. Are there a lot of people at city hall today?",
+   "roman": "gamsahamnida. oneul sicheonge sarami manayo?"
+  },
+  {
+   "n": 7,
+   "beaver": "네, 오늘 오전에 행사가 있었어요.",
+   "beaver_en": "Yes, there was an event this morning.",
+   "beaver_roman": "ne, oneul ojeone haengsaga isseosseoyo.",
+   "learner": "그럼 시장님도 오셨어요?",
+   "en": "Then did the mayor come too?",
+   "roman": "geureom sijangnimdo osyeosseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 시장님이 열 시에 오셨어요.",
+   "beaver_en": "Yes, the mayor came at ten.",
+   "beaver_roman": "ne, sijangnimi yeol sie osyeosseoyo.",
+   "learner": "시청은 내일도 아홉 시에 열어요?",
+   "en": "Does city hall open at nine tomorrow too?",
+   "roman": "sicheongeun naeildo ahop sie yeoreoyo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네, 내일도 아홉 시에 열어요.",
+   "beaver_en": "Yes, it opens at nine tomorrow too.",
+   "beaver_roman": "ne, naeildo ahop sie yeoreoyo.",
+   "learner": "알겠어요. 시청은 토요일에도 열어요?",
+   "en": "I see. Is city hall open on Saturdays too?",
+   "roman": "algesseoyo. sicheongeun toyoiredo yeoreoyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "아니요, 토요일하고 일요일은 쉬어요.",
+   "beaver_en": "No, it's closed on Saturdays and Sundays.",
+   "beaver_roman": "aniyo, toyoilhago iryoireun swieoyo.",
+   "learner": "네, 감사합니다. 지금 구청에 바로 갈게요.",
+   "en": "Okay, thank you. I'll go to the district office right now.",
+   "roman": "ne, gamsahamnida. jigeum gucheonge baro galkkeyo."
+  }
+ ]
+}

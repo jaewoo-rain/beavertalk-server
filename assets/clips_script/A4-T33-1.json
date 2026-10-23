@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T33-1",
+ "no": 107,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "이번 주말에 뭐 할래요? 같이 놀러 가요.",
+   "beaver_en": "What shall we do this weekend? Let's go out together.",
+   "beaver_roman": "Ibeon jumare mwo hallaeyo? Gachi nolleo gayo.",
+   "learner": "좋아요! 우리 낚시하러 갈래요?",
+   "en": "Sounds good! Shall we go fishing?",
+   "roman": "Joayo! Uri naksihareo gallaeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "낚시요? 저는 낚시를 한 번도 안 해 봤어요.",
+   "beaver_en": "Fishing? I've never been fishing before.",
+   "beaver_roman": "Naksiyo? Jeoneun naksireul han beondo an hae bwasseoyo.",
+   "learner": "괜찮아요. 낚시는 정말 재미가 있어요.",
+   "en": "That's okay. Fishing is really fun.",
+   "roman": "Gwaenchanayo. Naksineun jeongmal jaemiga isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래요? 다른 취미도 생각해 봐요.",
+   "beaver_en": "Really? Let's think of other hobbies too.",
+   "beaver_roman": "Geuraeyo? Dareun chwimido saenggakae bwayo.",
+   "learner": "그럼 장난감 만들기는 어때요?",
+   "en": "Then how about making toys?",
+   "roman": "Geureom jangnangam mandeulgineun eottaeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "장난감 만들기는 좀 어려울 것 같아요.",
+   "beaver_en": "I think making toys would be a bit hard.",
+   "beaver_roman": "Jangnangam mandeulgineun jom eoryeoul geot gatayo.",
+   "learner": "그럼 만화 카페에 갈래요? 만화가 가득 있어요.",
+   "en": "Then shall we go to a comic café? It's full of comics.",
+   "roman": "Geureom manhwa kapee gallaeyo? Manhwaga gadeuk isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "만화 카페 좋아요! 거기서 뭘 읽을 거예요?",
+   "beaver_en": "A comic café sounds great! What will you read there?",
+   "beaver_roman": "Manhwa kape joayo! Geogiseo mwol ilgeul geoyeyo?",
+   "learner": "저는 만화 중에서 전기 만화를 좋아해요.",
+   "en": "Among comics, I like biography comics.",
+   "roman": "Jeoneun manhwa jungeseo jeongi manhwareul joahaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "전기 만화요? 누구 이야기예요?",
+   "beaver_en": "Biography comics? Whose story?",
+   "beaver_roman": "Jeongi manhwayo? Nugu iyagiyeyo?",
+   "learner": "세종대왕 전기예요. 정말 재미있어요.",
+   "en": "It's King Sejong's biography. It's really fun.",
+   "roman": "Sejongdaewang jeongiyeyo. Jeongmal jaemiisseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "와, 재미있겠네요. 낚시는 안 할 거예요?",
+   "beaver_en": "Wow, sounds fun. Aren't we going fishing?",
+   "beaver_roman": "Wa, jaemiitgenneyo. Naksineun an hal geoyeyo?",
+   "learner": "오전에 낚시하고 나서 만화 카페에 갈래요?",
+   "en": "Shall we go to the comic café after fishing in the morning?",
+   "roman": "Ojeone naksihago naseo manhwa kapee gallaeyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요! 둘 다 즐길 수 있겠네요.",
+   "beaver_en": "Great! We can enjoy both.",
+   "beaver_roman": "Joayo! Dul da jeulgil su itgenneyo.",
+   "learner": "네, 주말 재미있게 보내요. 정말 기대돼요!",
+   "en": "Yes, let's have a fun weekend. I can't wait!",
+   "roman": "Ne, jumal jaemiitge bonaeyo. Jeongmal gidaedwaeyo!"
+  },
+  {
+   "n": 9,
+   "beaver": "낚싯대는 있어요? 저는 없어요.",
+   "beaver_en": "Do you have a fishing rod? I don't.",
+   "beaver_roman": "Naksitdaeneun isseoyo? Jeoneun eopseoyo.",
+   "learner": "저는 낚싯대가 두 개 있어요. 하나 빌려줄게요.",
+   "en": "I have two fishing rods. I'll lend you one.",
+   "roman": "Jeoneun naksitdaega du gae isseoyo. Hana billyeojulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "고마워요. 그럼 토요일 아침에 만나요!",
+   "beaver_en": "Thanks. Then see you Saturday morning!",
+   "beaver_roman": "Gomawoyo. Geureom toyoil achime mannayo!",
+   "learner": "좋아요. 점심 먹고 나서 만화 보러 가요!",
+   "en": "Okay. After lunch, let's go read comics!",
+   "roman": "Joayo. Jeomsim meokgo naseo manhwa boreo gayo!"
+  }
+ ]
+}

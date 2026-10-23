@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T04-1",
+ "no": 295,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "첫 번째 지원자 김민준 씨, 어땠어요?",
+   "beaver_en": "How was the first candidate, Kim Minjun?",
+   "beaver_roman": "cheot beonjjae jiwonja gimminjun ssi, eottaesseoyo?",
+   "learner": "차분하고 자상하다는 인상을 줬어요.",
+   "en": "He gave the impression of being calm and caring.",
+   "roman": "chabunhago jasanghadaneun insangeul jwosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 조금 둔해 보이지 않았어요?",
+   "beaver_en": "Really? Didn't he seem a bit slow?",
+   "beaver_roman": "geuraeyo? jogeum dunhae boiji anasseoyo?",
+   "learner": "아니요, 둔한 게 아니라 슬기로워 보였어요.",
+   "en": "No, he didn't seem slow. He seemed wise.",
+   "roman": "aniyo, dunhan ge anira seulgirowo boyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "봉사 활동 이야기도 인상적이었죠.",
+   "beaver_en": "His volunteer story was impressive too.",
+   "beaver_roman": "bongsa hwaldong iyagido insangjeogieotjyo.",
+   "learner": "네, 선행을 많이 한 순수한 사람 같았어요.",
+   "en": "Yes, he seemed like a pure person who did many good deeds.",
+   "roman": "ne, seonhaengeul mani han sunsuhan saram gatasseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "다른 지원자는 어때요?",
+   "beaver_en": "What about the other candidate?",
+   "beaver_roman": "dareun jiwonjaneun eottaeyo?",
+   "learner": "박서연 씨는 쾌활하고 상냥했어요.",
+   "en": "Park Seoyeon was cheerful and friendly.",
+   "roman": "bakseoyeon ssineun kwaehwalhago sangnyanghaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "말을 아주 빨리 하던데요?",
+   "beaver_en": "She talked really fast, though.",
+   "beaver_roman": "mareul aju ppalli hadeondeyo?",
+   "learner": "좀 성급해 보였지만 야무졌어요.",
+   "en": "She seemed a bit hasty, but she was capable.",
+   "roman": "jom seonggeupae boyeotjiman yamujyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "성격과 기질에 대해 더 말해 줄래요?",
+   "beaver_en": "Can you tell me more about her personality?",
+   "beaver_roman": "seonggyeokgwa gijire daehae deo malhae jullaeyo?",
+   "learner": "주관이 뚜렷하고 남에게 관대해 보였어요.",
+   "en": "She had clear views and seemed generous to others.",
+   "roman": "jugwani tturyeotago namege gwandaehae boyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "세 번째 지원자는 좀 걱정됐어요.",
+   "beaver_en": "I was a bit worried about the third candidate.",
+   "beaver_roman": "se beonjjae jiwonjaneun jom geokjeongdwaesseoyo.",
+   "learner": "맞아요. 말투가 사납고 폭력적인 성향이 보였어요.",
+   "en": "Right. His tone was harsh, and he seemed violent.",
+   "roman": "majayo. maltuga sanapgo pongnyeokjeogin seonghyangi boyeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "질문에 너무 민감하게 반응했죠.",
+   "beaver_en": "He reacted too sensitively to the questions.",
+   "beaver_roman": "jilmune neomu mingamhage baneunghaetjyo.",
+   "learner": "네, 대답도 경솔하다는 인상을 줬어요.",
+   "en": "Yes, his answers also seemed careless.",
+   "roman": "ne, daedapdo gyeongsolhadaneun insangeul jwosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "작은 실수에도 엄살이 심했어요.",
+   "beaver_en": "He made a big fuss even over small mistakes.",
+   "beaver_roman": "jageun silsuedo eomsari simhaesseoyo.",
+   "learner": "네, 좀 침착하지 못하다는 인상을 줬어요.",
+   "en": "Yes, he gave the impression of not being very composed.",
+   "roman": "ne, jom chimchakaji motadaneun insangeul jwosseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 첫 번째와 두 번째로 추천할까요?",
+   "beaver_en": "Then shall we recommend the first and second?",
+   "beaver_roman": "geureom cheot beonjjaewa du beonjjaero chucheonhalkkayo?",
+   "learner": "좋아요. 두 사람 다 좋은 인상을 줬으니까요.",
+   "en": "Sounds good. They both made a good impression.",
+   "roman": "joayo. du saram da joeun insangeul jwosseunikkayo."
+  }
+ ]
+}

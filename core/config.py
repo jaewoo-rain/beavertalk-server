@@ -324,7 +324,7 @@ class Settings(BaseSettings):
     # PM-DEC-872 — 표현학습 클립 주도 시제품(exp/clip-expr-872 전용). 켤 캐릭터 이름(쉼표 · 예: "Baba"). 빈 값 = 종전.
     CLIP_EXPR: str = ""
     CLIP_EXPR_JUDGE_MODEL: str = "gemini-2.5-flash"   # 규칙이 못 정한 판정·예외 응답 텍스트(thinking 0) · 2.5-flash-lite 는 404
-    CLIP_EXPR_END_SILENCE_S: float = 0.8     # 말 끝으로 보는 무음 길이
+    CLIP_EXPR_END_SILENCE_S: float = 1.5     # 말 끝으로 보는 무음 길이 · PM-DEC-1040 · 0.8→1.5(문장 중간 쉼에서 다음 클립이 나가던 것 · fifthc 끊김 53%→10%)
     CLIP_EXPR_DUNNO_S: float = 8.0           # 앱 재생이 끝난 뒤 이만큼 말이 없으면 «모름»(call flow 제안 8초)
     # PM-DEC-877 — 회화학습 대본 읽기 시제품(28차시 · Live 없음 · 규칙 대조). 켤 캐릭터 이름. 빈 값 = 종전.
     SCRIPT_READ: str = ""
@@ -335,6 +335,13 @@ class Settings(BaseSettings):
     CLIP_USD_TEXT_OUT_PER_M: float = 2.50     # gemini-2.5-flash 출력 100만 토큰
     CLIP_USD_STT_PER_MIN: float = 0.024       # Google STT v1 표준 1분
     CLIP_USD_TTS_PER_M_CHARS: float = 30.0    # Cloud TTS Chirp3-HD 100만 글자
+    # PM-DEC-1024 — 같은 줄에서 학습자가 말이 없으면: 이만큼(초) 뒤 비버 줄 녹음을 한 번 다시 들려주고,
+    #   그 뒤로 SKIP 초 더 무음이면 다음 줄로 건너뛴다. 0 = 끔.
+    # PM-DEC-1035 — 대본 읽기·통화 반응은 이 앱 버전 이상(소켓 app_version)일 때만 연다. 스토어 71(1.0.0)은 그 화면이 없다.
+    #   클립 표현학습(CLIP_EXPR)은 71 에서도 동작해 게이트하지 않는다.
+    APP_FEATURE_MIN_VERSION: str = "1.0.1"
+    SCRIPT_READ_SILENT_REPLAY_S: float = 15.0
+    SCRIPT_READ_SILENT_SKIP_S: float = 30.0
     SCRIPT_READ_END_SILENCE_S: float = 1.2   # 대본 읽기 말 끝 무음(두 문장 줄 사이 쉼을 끝으로 보지 않게)
     SCRIPT_READ_STT_PROBE: bool = False   # PM-DEC-898 — 긴 줄 지연 조사(영어 대체 없는 받아쓰기 시간만 기록 · 시험 태그 전용)
     # ⭐ 커리큘럼 2단계(2026-09-12, docs/plans/2026-09-12-cur-2단계-통화경로-이전.md) — 표현학습·프리토킹이 cur_* 체계로 재료를 뽑고

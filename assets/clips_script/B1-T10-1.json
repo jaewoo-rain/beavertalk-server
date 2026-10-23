@@ -1,0 +1,96 @@
+{
+ "lesson": "B1-T10-1",
+ "no": 124,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "왔어? 아까 가게에서 뭐 들었어?",
+   "beaver_en": "You're here? What did you hear at the store?",
+   "beaver_roman": "wasseo? akka gageeseo mwo deureosseo?",
+   "learner": "응, 점원이 오늘 세일한다고 했어.",
+   "en": "Yeah, the clerk said there's a sale today.",
+   "roman": "eung, jeomwoni oneul seilhandago haesseo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말? 뭐가 싸?",
+   "beaver_en": "Really? What's cheap?",
+   "beaver_roman": "jeongmal? mwoga ssa?",
+   "learner": "과일이 아주 싸다고 해.",
+   "en": "They say fruit is really cheap.",
+   "roman": "gwairi aju ssadago hae."
+  },
+  {
+   "n": 3,
+   "beaver": "좋다! 봉투는 공짜야?",
+   "beaver_en": "Great! Are bags free?",
+   "beaver_roman": "jota! bongtuneun gongjjaya?",
+   "learner": "아니, 봉투는 돈을 받는다고 해.",
+   "en": "No, they say they charge for bags.",
+   "roman": "ani, bongtuneun doneul banneundago hae."
+  },
+  {
+   "n": 4,
+   "beaver": "그렇구나. 문구점은?",
+   "beaver_en": "I see. What about the stationery store?",
+   "beaver_roman": "geureokuna. mungujeomeun?",
+   "learner": "문구점은 간판을 바꾼다고 했어.",
+   "en": "They said the stationery store is changing its sign.",
+   "roman": "mungujeomeun ganpaneul bakkundago haesseo."
+  },
+  {
+   "n": 5,
+   "beaver": "아, 그래서 그 앞이 복잡했구나.",
+   "beaver_en": "Oh, that's why it was busy out front.",
+   "beaver_roman": "a, geuraeseo geu api bokjapaetguna.",
+   "learner": "응, 상점 사람들이 짐을 나른다고 해.",
+   "en": "Yeah, they say the shop staff are moving things.",
+   "roman": "eung, sangjeom saramdeuri jimeul nareundago hae."
+  },
+  {
+   "n": 6,
+   "beaver": "너 매점에서 물건 잃어버렸다면서?",
+   "beaver_en": "I heard you lost something at the kiosk?",
+   "beaver_roman": "neo maejeomeseo mulgeon ireobeoryeotdamyeonseo?",
+   "learner": "응, 분실물은 매점 점원이 맡아 준다고 해.",
+   "en": "Yeah, they say the kiosk clerk keeps lost items.",
+   "roman": "eung, bunsilmureun maejeom jeomwoni mata jundago hae."
+  },
+  {
+   "n": 7,
+   "beaver": "다행이다. 거스름돈은 제대로 받았어?",
+   "beaver_en": "Phew. Did you get the right change?",
+   "beaver_roman": "dahaengida. geoseureumdoneun jedaero badasseo?",
+   "learner": "아니, 점원이 거스름돈을 다시 준다고 했어.",
+   "en": "No, the clerk said she'd give me the change again.",
+   "roman": "ani, jeomwoni geoseureumdoneul dasi jundago haesseo."
+  },
+  {
+   "n": 8,
+   "beaver": "그 우산은 왜 다시 들고 왔어?",
+   "beaver_en": "Why did you bring that umbrella back?",
+   "beaver_roman": "geu usaneun wae dasi deulgo wasseo?",
+   "learner": "작아서 바꿀 거야. 점원이 괜찮대.",
+   "en": "It's small, so I'll exchange it. The clerk said it's fine.",
+   "roman": "jagaseo bakkul geoya. jeomwoni gwaenchantae."
+  },
+  {
+   "n": 9,
+   "beaver": "근데 어느 가게가 더 싸?",
+   "beaver_en": "By the way, which store is cheaper?",
+   "beaver_roman": "geunde eoneu gagega deo ssa?",
+   "learner": "저 가게는 비싸다고 하고 여기는 싸다고 해.",
+   "en": "They say that store is pricey and this one is cheap.",
+   "roman": "jeo gageneun bissadago hago yeogineun ssadago hae."
+  },
+  {
+   "n": 10,
+   "beaver": "그럼 여기서 사자. 얼른 가자!",
+   "beaver_en": "Then let's buy here. Let's hurry!",
+   "beaver_roman": "geureom yeogiseo saja. eolleun gaja!",
+   "learner": "좋아! 세일이 오늘 끝난다고 하니까 빨리 가자.",
+   "en": "Okay! They say the sale ends today, so let's go.",
+   "roman": "joa! seiri oneul kkeunnandago hanikka ppalli gaja."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A4-T13-1",
+ "no": 95,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 돼지고기 볶음 만들자. 고추장 넣을까?",
+   "beaver_en": "Let's make stir-fried pork today. Should we add red pepper paste?",
+   "beaver_roman": "oneul dwaejigogi bokkeum mandeulja. gochujang neoeulkka?",
+   "learner": "응, 그런데 돼지고기 대신 닭고기를 넣자.",
+   "en": "Yeah, but let's use chicken instead of pork.",
+   "roman": "eung, geureonde dwaejigogi daesin dakgogireul neoja."
+  },
+  {
+   "n": 2,
+   "beaver": "좋아. 닭고기는 볶을까, 튀길까?",
+   "beaver_en": "Okay. Should we stir-fry the chicken or deep-fry it?",
+   "beaver_roman": "joa. dakgogineun bokkeulkka, twigilkka?",
+   "learner": "튀기지 말고 구워 보자. 더 쉬워.",
+   "en": "Let's not deep-fry it. Let's grill it. It's easier.",
+   "roman": "twigiji malgo guwo boja. deo swiwo."
+  },
+  {
+   "n": 3,
+   "beaver": "그래. 소고기도 있는데, 소고기는?",
+   "beaver_en": "Sure. We have beef too. What about the beef?",
+   "beaver_roman": "geurae. sogogido inneunde, sogogineun?",
+   "learner": "소고기는 내일 상추에 싸 먹자.",
+   "en": "Let's wrap the beef in lettuce tomorrow.",
+   "roman": "sogogineun naeil sangchue ssa meokja."
+  },
+  {
+   "n": 4,
+   "beaver": "좋다! 소스는 어떻게 할까?",
+   "beaver_en": "Great! What should we do for the sauce?",
+   "beaver_roman": "jota! soseuneun eotteoke halkka?",
+   "learner": "고추장 대신 간장을 조금 넣어 보자.",
+   "en": "Let's add a little soy sauce instead of red pepper paste.",
+   "roman": "gochujang daesin ganjangeul jogeum neoeo boja."
+  },
+  {
+   "n": 5,
+   "beaver": "식초도 넣을까? 새콤하게.",
+   "beaver_en": "Should we add vinegar too? To make it tangy.",
+   "beaver_roman": "sikchodo neoeulkka? saekomhage.",
+   "learner": "식초 대신 레몬을 넣으면 어때?",
+   "en": "How about lemon instead of vinegar?",
+   "roman": "sikcho daesin remoneul neoeumyeon eottae?"
+  },
+  {
+   "n": 6,
+   "beaver": "그런데 이 냄비는 너무 작아.",
+   "beaver_en": "But this pot is too small.",
+   "beaver_roman": "geureonde i naembineun neomu jaga.",
+   "learner": "그럼 더 큰 팬으로 바꾸자.",
+   "en": "Then let's switch to a bigger pan.",
+   "roman": "geureom deo keun paeneuro bakkuja."
+  },
+  {
+   "n": 7,
+   "beaver": "그동안 나는 뭐 할까?",
+   "beaver_en": "What should I do in the meantime?",
+   "beaver_roman": "geudongan naneun mwo halkka?",
+   "learner": "감자를 썰어서 부쳐 줘.",
+   "en": "Please slice the potatoes and pan-fry them.",
+   "roman": "gamjareul sseoreoseo buchyeo jwo."
+  },
+  {
+   "n": 8,
+   "beaver": "알았어. 감자전 맛있겠다!",
+   "beaver_en": "Got it. Potato pancakes will be tasty!",
+   "beaver_roman": "arasseo. gamjajeon masitgetda!",
+   "learner": "닭고기 다 구웠어. 좀 식으면 먹자.",
+   "en": "The chicken is done. Let's eat when it cools a bit.",
+   "roman": "dakgogi da guwosseo. jom sigeumyeon meokja."
+  },
+  {
+   "n": 9,
+   "beaver": "맛 좀 볼게. 음, 정말 맛있어!",
+   "beaver_en": "Let me taste it. Mm, it's really good!",
+   "beaver_roman": "mat jom bolge. eum, jeongmal masisseo!",
+   "learner": "다른 재료도 바꿔서 또 해 보자.",
+   "en": "Let's try again with other ingredients swapped in.",
+   "roman": "dareun jaeryodo bakkwoseo tto hae boja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아. 내일은 소고기랑 상추로 하자!",
+   "beaver_en": "Okay. Tomorrow let's do beef and lettuce!",
+   "beaver_roman": "joa. naeireun sogogirang sangchuro haja!",
+   "learner": "응, 그럼 내일 또 같이 만들자!",
+   "en": "Yeah, let's cook together again tomorrow!",
+   "roman": "eung, geureom naeil tto gachi mandeulja!"
+  }
+ ]
+}

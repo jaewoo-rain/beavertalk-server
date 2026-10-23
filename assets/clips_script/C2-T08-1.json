@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T08-1",
+ "no": 354,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "여보, 집 고친다고 했지? 무엇부터 할까?",
+   "beaver_en": "Honey, you said we'd fix the house, right? Where do we start?",
+   "beaver_roman": "yeobo, jip gochindago haetji? mueotbuteo halkka?",
+   "learner": "보일러부터 고치자. 온수가 잘 안 나오잖아.",
+   "en": "Let's fix the boiler first. The hot water barely comes out.",
+   "roman": "boilleobuteo gochija. onsuga jal an naojana."
+  },
+  {
+   "n": 2,
+   "beaver": "맞아, 샤워할 때 너무 추웠어.",
+   "beaver_en": "Right, I was so cold when I showered.",
+   "beaver_roman": "maja, syawohal ttae neomu chuwosseo.",
+   "learner": "집이 많이 낡았잖아. 배관도 바꾸자.",
+   "en": "The house is really old. Let's change the pipes too.",
+   "roman": "jibi mani nalgatjana. baegwando bakkuja."
+  },
+  {
+   "n": 3,
+   "beaver": "공사하면 짐은 어떻게 해?",
+   "beaver_en": "What do we do with our stuff during the work?",
+   "beaver_roman": "gongsahamyeon jimeun eotteoke hae?",
+   "learner": "작은 물건은 보자기에 싸서 창고에 두자.",
+   "en": "Let's wrap small things in cloth and keep them in storage.",
+   "roman": "jageun mulgeoneun bojagie ssaseo changgoe duja."
+  },
+  {
+   "n": 4,
+   "beaver": "애들이 또 어지르면 어떡하지?",
+   "beaver_en": "What if the kids make a mess again?",
+   "beaver_roman": "aedeuri tto eojireumyeon eotteokaji?",
+   "learner": "그러게. 애들한테 미리 말해 둘게.",
+   "en": "I know. I'll tell the kids ahead of time.",
+   "roman": "geureoge. aedeulhante miri malhae dulge."
+  },
+  {
+   "n": 5,
+   "beaver": "거실은 어떻게 바꿀 거야?",
+   "beaver_en": "How will you change the living room?",
+   "beaver_roman": "geosireun eotteoke bakkul geoya?",
+   "learner": "콘센트를 늘려서 플러그를 많이 꽂을 수 있게 하자.",
+   "en": "Let's add outlets so we can plug in lots of plugs.",
+   "roman": "konsenteureul neullyeoseo peulleogeureul mani kkojeul su itge haja."
+  },
+  {
+   "n": 6,
+   "beaver": "좋다. 책상 옆은 좀 어둡던데.",
+   "beaver_en": "Good. It's a bit dark next to the desk.",
+   "beaver_roman": "jota. chaeksang yeopeun jom eodupdeonde.",
+   "learner": "거기에 새 스탠드를 놓자. 밝을 거야.",
+   "en": "Let's put a new desk lamp there. It'll be bright.",
+   "roman": "geogie sae seutaendeureul nocha. balgeul geoya."
+  },
+  {
+   "n": 7,
+   "beaver": "부엌은 또 뭘 바꿀까?",
+   "beaver_en": "What else should we change in the kitchen?",
+   "beaver_roman": "bueogeun tto mwol bakkulkka?",
+   "learner": "부엌에 선반을 달아서 그릇을 올려 두자.",
+   "en": "Let's put up shelves in the kitchen for the dishes.",
+   "roman": "bueoge seonbaneul daraseo geureuseul ollyeo duja."
+  },
+  {
+   "n": 8,
+   "beaver": "서랍에 있는 성냥은 어떻게 할까?",
+   "beaver_en": "What should we do with the matches in the drawer?",
+   "beaver_roman": "seorabe inneun seongnyangeun eotteoke halkka?",
+   "learner": "성냥은 위험하니까 높은 곳에 두자.",
+   "en": "Matches are dangerous, so let's keep them up high.",
+   "roman": "seongnyangeun wiheomhanikka nopeun gose duja."
+  },
+  {
+   "n": 9,
+   "beaver": "공사하는 동안 우리는 어디서 자?",
+   "beaver_en": "Where do we sleep during the work?",
+   "beaver_roman": "gongsahaneun dongan urineun eodiseo ja?",
+   "learner": "거실에 잠자리를 펴고 며칠만 자자.",
+   "en": "Let's lay out bedding in the living room for a few days.",
+   "roman": "geosire jamjjarireul pyeogo myeochilman jaja."
+  },
+  {
+   "n": 10,
+   "beaver": "다 고치면 집이 훨씬 훈훈하겠다.",
+   "beaver_en": "Once it's all fixed, the house will feel much cozier.",
+   "beaver_roman": "da gochimyeon jibi hwolssin hunhunhagetda.",
+   "learner": "응, 내일 아침부터 같이 시작하자.",
+   "en": "Yeah, let's start together tomorrow morning.",
+   "roman": "eung, naeil achimbuteo gachi sijakaja."
+  }
+ ]
+}

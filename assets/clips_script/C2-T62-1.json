@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T62-1",
+ "no": 394,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "요즘 사람들 소비는 어떻습니까? 궁금하네요.",
+   "beaver_en": "How is people's spending these days? I'm curious.",
+   "beaver_roman": "yojeum saramdeul sobineun eotteosseumnikka? gunggeumhaneyo.",
+   "learner": "요즘은 근검절약을 소비 특징으로 꼽을 수 있어요.",
+   "en": "These days, thrift stands out as the key spending trait.",
+   "roman": "yojeumeun geungeomjeoryageul sobi teukjingeuro kkobeul su isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그래요? 사치하는 사람도 많지 않나요?",
+   "beaver_en": "Really? Aren't there many people living in luxury?",
+   "beaver_roman": "geuraeyo? sachihaneun saramdo manchi annayo?",
+   "learner": "거액을 쓰는 사치는 부유한 사람들 이야기예요.",
+   "en": "Spending huge sums on luxury is for wealthy people.",
+   "roman": "geogaegeul sseuneun sachineun buyuhan saramdeul iyagiyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "그럼 다들 어떻게 아끼나요?",
+   "beaver_en": "Then how does everyone save?",
+   "beaver_roman": "geureom dadeul eotteoke akkinayo?",
+   "learner": "매일 잔고를 확인하고 통신비부터 줄인대요.",
+   "en": "They check their balance daily and cut phone bills first.",
+   "roman": "maeil jangoreul hwaginhago tongsinbibuteo jurindaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "목돈 마련은 어떻습니까?",
+   "beaver_en": "How about saving up a lump sum?",
+   "beaver_roman": "mokdon mallyeoneun eotteosseumnikka?",
+   "learner": "적금을 목돈 마련 방법 1위로 꼽더라고요.",
+   "en": "People pick installment savings as the top way.",
+   "roman": "jeokgeumeul mokdon mallyeon bangbeop irwiro kkopdeoragoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "복권을 사는 사람은 줄었나요?",
+   "beaver_en": "Have fewer people been buying lottery tickets?",
+   "beaver_roman": "bokgwoneul saneun sarameun jureonnayo?",
+   "learner": "아니요, 잔돈으로 복권을 사는 사람은 늘었대요.",
+   "en": "No, more people buy lottery tickets with small change.",
+   "roman": "aniyo, jandoneuro bokgwoneul saneun sarameun neureotdaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "왜 그럴까요? 신기하네요.",
+   "beaver_en": "Why is that? Interesting.",
+   "beaver_roman": "wae geureolkkayo? singihaneyo.",
+   "learner": "큰돈 없이도 부자를 꿈꿀 수 있으니까요.",
+   "en": "Because you can dream of being rich without big money.",
+   "roman": "keundon eopsido bujareul kkumkkul su isseunikkayo."
+  },
+  {
+   "n": 7,
+   "beaver": "돈 관리와 금융에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about money management?",
+   "beaver_roman": "don gwalliwa geumyunge daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "출금 알림을 켜서 돈 낭비를 막는 사람이 많아요.",
+   "en": "Many turn on withdrawal alerts to stop wasting money.",
+   "roman": "chulgeum allimeul kyeoseo don nangbireul mangneun sarami manayo."
+  },
+  {
+   "n": 8,
+   "beaver": "카드 청구서도 꼼꼼히 보겠네요.",
+   "beaver_en": "They must check card bills carefully too.",
+   "beaver_roman": "kadeu cheongguseodo kkomkkomhi bogenneyo.",
+   "learner": "네, 청구 내역 확인을 습관처럼 한대요.",
+   "en": "Yes, they say checking bills has become a habit.",
+   "roman": "ne, cheonggu naeyeok hwagineul seupgwancheoreom handaeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "그게 그렇게 중요한가요?",
+   "beaver_en": "Is that really so important?",
+   "beaver_roman": "geuge geureoke jungyohangayo?",
+   "learner": "네, 카드를 쓴다면 꼭 필요한 습관이죠.",
+   "en": "Yes, it's a must-have habit if you use cards.",
+   "roman": "ne, kadeureul sseundamyeon kkok piryohan seupgwanijyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋은 말씀 감사합니다. 저도 적금부터 들게요.",
+   "beaver_en": "Thanks for the advice. I'll start a savings plan too.",
+   "beaver_roman": "joeun malsseum gamsahamnida. jeodo jeokgeumbuteo deulgeyo.",
+   "learner": "네, 저도 오늘 하나 들 거예요. 또 뵐게요.",
+   "en": "Sure, I'll open one today too. See you again.",
+   "roman": "ne, jeodo oneul hana deul geoyeyo. tto boelgeyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T10-1",
+ "no": 54,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 한마음마트입니다. 무엇을 도와드릴까요?",
+   "beaver_en": "Hello, this is Hanmaeum Mart. How can I help you?",
+   "beaver_roman": "annyeonghaseyo, hanmaeummateuimnida. mueoseul dowadeurilkkayo?",
+   "learner": "이 우유가 할인 상품이라서 샀어요.",
+   "en": "I bought this milk because it was on sale.",
+   "roman": "i uyuga harin sangpumiraseo sasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "네, 어제까지 할인했어요. 무슨 문제가 있으세요?",
+   "beaver_en": "Yes, it was discounted until yesterday. Is there a problem?",
+   "beaver_roman": "ne, eojekkaji harinhaesseoyo. museun munjega isseuseyo?",
+   "learner": "날짜가 좀 지난 것 같아요. 교환은 어떻게 해요?",
+   "en": "It seems a bit past the date. How do I exchange it?",
+   "roman": "naljjaga jom jinan geot gatayo. gyohwaneun eotteoke haeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "죄송합니다. 영수증과 우유를 가져오시면 돼요.",
+   "beaver_en": "I'm sorry. Just bring the receipt and the milk.",
+   "beaver_roman": "joesonghamnida. yeongsujeunggwa uyureul gajyeoosimyeon dwaeyo.",
+   "learner": "영수증은 여기 있어요. 교환은 무료예요?",
+   "en": "Here's the receipt. Is the exchange free?",
+   "roman": "yeongsujeungeun yeogi isseoyo. gyohwaneun muryoyeyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 무료예요. 같은 우유로 바꿔 드릴게요.",
+   "beaver_en": "Yes, it's free. I'll swap it for the same milk.",
+   "beaver_roman": "ne, muryoyeyo. gateun uyuro bakkwo deurilgeyo.",
+   "learner": "감사해요. 우유가 거의 다 팔린 것 같아요.",
+   "en": "Thanks. It looks like the milk is almost sold out.",
+   "roman": "gamsahaeyo. uyuga geoui da pallin geot gatayo."
+  },
+  {
+   "n": 5,
+   "beaver": "네, 할인이라서 많이 팔렸어요. 다른 건 필요하세요?",
+   "beaver_en": "Yes, it sold a lot because of the sale. Need anything else?",
+   "beaver_roman": "ne, hariniraseo mani pallyeosseoyo. dareun geon piryohaseyo?",
+   "learner": "마트 안에 자판기도 있어요? 물을 사고 싶어요.",
+   "en": "Is there a vending machine in the store? I want water.",
+   "roman": "mateu ane japangido isseoyo? mureul sago sipeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "네, 자동판매기는 1층 입구 옆에 있어요.",
+   "beaver_en": "Yes, the vending machine is next to the 1st-floor entrance.",
+   "beaver_roman": "ne, jadongpanmaegineun ilcheung ipgu yeope isseoyo.",
+   "learner": "자동판매기 음료도 할인돼요?",
+   "en": "Are vending machine drinks discounted too?",
+   "roman": "jadongpanmaegi eumnyodo harindwaeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "아니요, 자판기 음료는 할인이 안 돼요.",
+   "beaver_en": "No, vending machine drinks aren't discounted.",
+   "beaver_roman": "aniyo, japangi eumnyoneun harini an dwaeyo.",
+   "learner": "알겠어요. 그리고 꽃집은 어디에 있어요?",
+   "en": "I see. And where is the flower shop?",
+   "roman": "algesseoyo. geurigo kkotjibeun eodie isseoyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "꽃집은 2층 엘리베이터 앞에 있어요.",
+   "beaver_en": "The flower shop is in front of the elevator on the 2nd floor.",
+   "beaver_roman": "kkotjibeun icheung ellibeiteo ape isseoyo.",
+   "learner": "엄마 생일이라서 꽃을 사고 싶어요.",
+   "en": "It's my mom's birthday, so I want to buy flowers.",
+   "roman": "eomma saengiriraseo kkocheul sago sipeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋네요. 오늘 꽃을 사시면 포장 서비스가 무료예요.",
+   "beaver_en": "How nice. If you buy flowers today, wrapping is free.",
+   "beaver_roman": "jonneyo. oneul kkocheul sasimyeon pojang seobiseuga muryoyeyo.",
+   "learner": "와, 좋은 서비스네요. 먼저 우유를 교환하면 되지요?",
+   "en": "Wow, great service. I just exchange the milk first, right?",
+   "roman": "wa, joeun seobiseuneyo. meonjeo uyureul gyohwanhamyeon doejiyo?"
+  },
+  {
+   "n": 10,
+   "beaver": "네, 바로 바꿔 드릴게요. 즐거운 쇼핑 되세요.",
+   "beaver_en": "Yes, I'll swap it right away. Enjoy your shopping.",
+   "beaver_roman": "ne, baro bakkwo deurilgeyo. jeulgeoun syoping doeseyo.",
+   "learner": "감사합니다. 다음에도 이 마트에 올게요.",
+   "en": "Thank you. I'll come to this store again.",
+   "roman": "gamsahamnida. daeumedo i mateue olgeyo."
+  }
+ ]
+}

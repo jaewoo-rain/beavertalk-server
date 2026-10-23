@@ -1,0 +1,96 @@
+{
+ "lesson": "A3-T25-1",
+ "no": 66,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "마이클 씨, 김 교수님께 서류 냈어요?",
+   "beaver_en": "Michael, did you turn in the papers to Professor Kim?",
+   "beaver_roman": "Maikeul ssi, gim gyosunimkke seoryu naesseoyo?",
+   "learner": "아직요. 교수님께 무슨 서류를 내요?",
+   "en": "Not yet. What papers do I give the professor?",
+   "roman": "Ajigyo. Gyosunimkke museun seoryureul naeyo?"
+  },
+  {
+   "n": 2,
+   "beaver": "출석 확인서하고 유학 서류를 내야 해요.",
+   "beaver_en": "You need to submit an attendance form and study-abroad papers.",
+   "beaver_roman": "Chulseok hwaginseohago yuhak seoryureul naeya haeyo.",
+   "learner": "유학생은 출석 확인서가 꼭 필요해요?",
+   "en": "Do international students really need the attendance form?",
+   "roman": "Yuhaksaengeun chulseok hwaginseoga kkok piryohaeyo?"
+  },
+  {
+   "n": 3,
+   "beaver": "네, 물론이에요. 출석이 아주 중요해요.",
+   "beaver_en": "Yes, of course. Attendance is very important.",
+   "beaver_roman": "Ne, mullonieyo. Chulseogi aju jungyohaeyo.",
+   "learner": "저는 지난주에 두 번 출석 못 했어요.",
+   "en": "I missed class twice last week.",
+   "roman": "Jeoneun jinanjue du beon chulseok motaesseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 교수님께 이메일을 간단히 쓰세요.",
+   "beaver_en": "Then write a short email to the professor.",
+   "beaver_roman": "Geureom gyosunimkke imeireul gandanhi sseuseyo.",
+   "learner": "네, 오늘 교수님께 이메일을 보낼게요.",
+   "en": "Okay, I'll send the professor an email today.",
+   "roman": "Ne, oneul gyosunimkke imeireul bonaelkkeyo."
+  },
+  {
+   "n": 5,
+   "beaver": "유학 서류는요? 다 준비했어요?",
+   "beaver_en": "What about the study-abroad papers? Are they all ready?",
+   "beaver_roman": "Yuhak seoryuneunyo? Da junbihaesseoyo?",
+   "learner": "네, 유학 서류는 노트 사이에 넣어 놨어요.",
+   "en": "Yes, I put them inside my notebook.",
+   "roman": "Ne, yuhak seoryuneun noteu saie neoeo nwasseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "마이클 씨, 동생 있죠? 중학생이에요?",
+   "beaver_en": "Michael, you have a younger sibling, right? Middle schooler?",
+   "beaver_roman": "Maikeul ssi, dongsaeng itjyo? Junghaksaengieyo?",
+   "learner": "아니요, 동생은 초등학생이에요.",
+   "en": "No, my sibling is in elementary school.",
+   "roman": "Aniyo, dongsaengeun chodeunghaksaengieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그래요? 동생은 학교생활이 어때요?",
+   "beaver_en": "Really? How's school life for your sibling?",
+   "beaver_roman": "Geuraeyo? Dongsaengeun hakgyosaenghwari eottaeyo?",
+   "learner": "잘 지내요. 학교에서 그림 상을 받았어요.",
+   "en": "They're doing well. They won a drawing prize at school.",
+   "roman": "Jal jinaeyo. Hakgyoeseo geurim sangeul badasseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "와, 대단하네요! 동생한테 축하한다고 전해 주세요.",
+   "beaver_en": "Wow, amazing! Tell your sibling congratulations.",
+   "beaver_roman": "Wa, daedanhaneyo! Dongsaenghante chukahandago jeonhae juseyo.",
+   "learner": "네, 오늘 밤에 동생한테 전화할게요.",
+   "en": "Sure, I'll call my sibling tonight.",
+   "roman": "Ne, oneul bame dongsaenghante jeonhwahalkkeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "서류는 내일 오전까지 교수님 방에 내면 돼요.",
+   "beaver_en": "Just hand the papers in at the professor's office by tomorrow morning.",
+   "beaver_roman": "Seoryuneun naeil ojeonkkaji gyosunim bange naemyeon dwaeyo.",
+   "learner": "고마워요. 서류를 교수님께 직접 드릴게요.",
+   "en": "Thanks. I'll give the papers to the professor in person.",
+   "roman": "Gomawoyo. Seoryureul gyosunimkke jikjeop deurilkkeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 모르면 언제든 물어보세요.",
+   "beaver_en": "Great. Ask me anytime if you're unsure.",
+   "beaver_roman": "Joayo. Moreumyeon eonjedeun mureoboseyo.",
+   "learner": "네, 정말 고마워요. 내일 봐요!",
+   "en": "Okay, thank you so much. See you tomorrow!",
+   "roman": "Ne, jeongmal gomawoyo. Naeil bwayo!"
+  }
+ ]
+}

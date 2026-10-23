@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T08-1",
+ "no": 25,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "지민 씨, 방이 너무 더러워요. 오늘 같이 치워요.",
+   "beaver_en": "Jimin, the room is really messy. Let's clean up together today.",
+   "beaver_roman": "Jimin ssi, bangi neomu deoreowoyo. Oneul gachi chiwoyo.",
+   "learner": "좋아요. 오늘은 할 일을 나눠요.",
+   "en": "Sounds good. Let's split up the chores today.",
+   "roman": "Joayo. Oneureun hal ireul nanwoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 저는 오늘 무엇을 하면 돼요?",
+   "beaver_en": "Then what should I do today?",
+   "beaver_roman": "Geureom jeoneun oneul mueoseul hamyeon dwaeyo?",
+   "learner": "민수 씨는 컵하고 접시를 씻어 주세요.",
+   "en": "Minsu, please wash the cups and plates.",
+   "roman": "Minsu ssineun keopago jeopsireul ssiseo juseyo."
+  },
+  {
+   "n": 3,
+   "beaver": "네, 설거지는 제가 할게요. 지민 씨는요?",
+   "beaver_en": "Okay, I'll do the dishes. What about you, Jimin?",
+   "beaver_roman": "Ne, seolgeojineun jega halgeyo. Jimin ssineunyo?",
+   "learner": "저는 방 청소하고 빨래를 할게요.",
+   "en": "I'll clean the room and do the laundry.",
+   "roman": "Jeoneun bang cheongsohago ppallaereul halgeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "방이 너무 더워요. 에어컨을 켤까요?",
+   "beaver_en": "It's really hot in here. Should I turn on the AC?",
+   "beaver_roman": "Bangi neomu deowoyo. Eeokeoneul kyeolkkayo?",
+   "learner": "네, 에어컨을 켜 주세요.",
+   "en": "Yes, please turn on the AC.",
+   "roman": "Ne, eeokeoneul kyeo juseyo."
+  },
+  {
+   "n": 5,
+   "beaver": "켰어요. 벽에 그림도 걸까요?",
+   "beaver_en": "Done. Should we hang the picture on the wall too?",
+   "beaver_roman": "Kyeosseoyo. Byeoge geurimdo geolkkayo?",
+   "learner": "좋아요. 그럼 못이 필요해요.",
+   "en": "Good idea. Then we need a nail.",
+   "roman": "Joayo. Geureom mosi piryohaeyo."
+  },
+  {
+   "n": 6,
+   "beaver": "그림은 어디에 있어요?",
+   "beaver_en": "Where is the picture?",
+   "beaver_roman": "Geurimeun eodie isseoyo?",
+   "learner": "그림과 못은 책상 위에 있어요.",
+   "en": "The picture and the nail are on the desk.",
+   "roman": "Geurimgwa moseun chaeksang wie isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "청소가 끝나면 쓰레기도 버릴까요?",
+   "beaver_en": "After cleaning, should we take out the trash too?",
+   "beaver_roman": "Cheongsoga kkeunnamyeon sseuregido beorilkkayo?",
+   "learner": "네, 쓰레기는 월요일과 목요일에 버려요.",
+   "en": "Yes, trash goes out on Mondays and Thursdays.",
+   "roman": "Ne, sseuregineun woryoilgwa mogyoire beoryeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "아, 그렇군요. 오늘이 목요일이에요.",
+   "beaver_en": "Oh, I see. Today is Thursday.",
+   "beaver_roman": "A, geureokunyo. Oneuri mogyoirieyo.",
+   "learner": "그럼 오늘 저녁에 같이 버려요.",
+   "en": "Then let's take it out together this evening.",
+   "roman": "Geureom oneul jeonyeoge gachi beoryeoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "좋아요. 나갈 때는 무엇을 꼭 해야 할까요?",
+   "beaver_en": "Okay. What must we do when we go out?",
+   "beaver_roman": "Joayo. Nagal ttaeneun mueoseul kkok haeya halkkayo?",
+   "learner": "불하고 에어컨을 꼭 꺼야 해요.",
+   "en": "We must turn off the lights and the AC.",
+   "roman": "Bulhago eeokeoneul kkok kkeoya haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠어요. 그럼 지금 시작해요!",
+   "beaver_en": "Got it. Then let's start now!",
+   "beaver_roman": "Algesseoyo. Geureom jigeum sijakaeyo!",
+   "learner": "네, 늦지 않게 빨리 끝내요.",
+   "en": "Okay, let's finish quickly so we're not late.",
+   "roman": "Ne, neutji anke ppalli kkeunnaeyo."
+  }
+ ]
+}

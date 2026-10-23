@@ -363,3 +363,46 @@ def test_chat_lesson_switch_only_on_test_tags():
     assert sr.enabled(on, call_type="chat", voice="Fenrir", locale="en") == "Baba"
     assert sr.enabled(SimpleNamespace(SCRIPT_READ="Baba", SCRIPT_READ_CHAT_LESSON="X-9"), call_type="chat", voice="Fenrir", locale="en") is None
     assert sr.enabled(on, call_type="homework", voice="Fenrir", locale="en") is None
+
+
+@pytest.mark.asyncio
+async def test_long_silence_replays_line_once_then_skips():
+    """PM-DEC-1024 — 같은 줄 무음 15초 → 비버 줄 한 번 다시 · 이어 30초 무음 → 다음 줄(call 2683 · 9분 무음)."""
+    h = _H([])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        d = h.s._dunno_s
+        n = len(h.notes)
+        assert await h.s._on_quiet(1, 100.0) is False                 # 첫 빈 판정 = 무음 d초
+        assert await h.s._on_quiet(1, 100.0 + 15 - d) is True         # 15초 — 다시 들려줌
+        await h.turn()
+        assert h.clips(n) == ["sb_1"]
+        n = len(h.notes)
+        assert await h.s._on_quiet(1, 120.0) is False                 # 다시 들려준 뒤 다시 센다
+        assert await h.s._on_quiet(1, 100.0 + 15 - d + 30) is True    # 그 뒤 30초 — 건너뜀
+        await h.turn()
+        assert h.clips(n) == ["sb_2"] and h.cards("script_result", n)[0]["result"] == "skip"
+        assert h.s._quiet_t0 is None and not h.s._quiet_replayed       # 새 줄은 처음부터 센다
+
+
+@pytest.mark.asyncio
+async def test_silent_nudge_can_be_turned_off():
+    h = _H([])
+    h.s._settings = SimpleNamespace(**vars(SETTINGS), SCRIPT_READ_SILENT_REPLAY_S=0, SCRIPT_READ_SILENT_SKIP_S=0)
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        for t in (100.0, 200.0, 400.0):
+            assert await h.s._on_quiet(1, t) is False
+
+
+def test_short_first_part_waits_for_the_rest():
+    """react2 2845 — «아니요» 만 들리면(문장 중간 쉼) 반쪽으로 보고 더 듣는다 · 엉뚱한 짧은 말은 반쪽이 아니다."""
+    line = "아니요, 괜찮아요. 저는 싱거운 음식을 좋아해요."
+    assert sr._is_first_part(line, "아니요")
+    assert sr._is_first_part(line, "아니요 괜찮아요")
+    assert not sr._is_first_part(line, "배고파요")
+    assert not sr._is_first_part(line, "아니요 괜찮아요 저는 싱거운 음식을 좋아해요")

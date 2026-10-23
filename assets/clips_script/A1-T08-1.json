@@ -1,0 +1,96 @@
+{
+ "lesson": "A1-T08-1",
+ "no": 7,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "같이 방 정리해요. 책상 위에 뭐가 있어요?",
+   "beaver_en": "Let's tidy the room. What's on the desk?",
+   "beaver_roman": "Gachi bang jeongnihaeyo. Chaeksang wie mwoga isseoyo?",
+   "learner": "그릇이 있어요. 그리고 열쇠도 있어요.",
+   "en": "There's a bowl. And there's a key too.",
+   "roman": "Geureusi isseoyo. Geurigo yeolsoedo isseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그 열쇠는 누구 거예요?",
+   "beaver_en": "Whose key is that?",
+   "beaver_roman": "Geu yeolsoeneun nugu geoyeyo?",
+   "learner": "이거는 집 키예요. 제 거예요.",
+   "en": "This is the house key. It's mine.",
+   "roman": "Igeoneun jip kiyeyo. Je geoyeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "침대 옆에 의자가 있어요?",
+   "beaver_en": "Is there a chair next to the bed?",
+   "beaver_roman": "Chimdae yeope uijaga isseoyo?",
+   "learner": "아니요, 없어요. 책상 앞에 있어요.",
+   "en": "No, there isn't. It's in front of the desk.",
+   "roman": "Aniyo, eopseoyo. Chaeksang ape isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "텔레비전은 없어요?",
+   "beaver_en": "Isn't there a TV?",
+   "beaver_roman": "Tellebijeoneun eopseoyo?",
+   "learner": "있어요. 저거는 새 텔레비전이에요.",
+   "en": "There is. That's the new TV.",
+   "roman": "Isseoyo. Jeogeoneun sae tellebijeonieyo."
+  },
+  {
+   "n": 5,
+   "beaver": "바닥에 병이 많아요. 이건 뭐예요?",
+   "beaver_en": "Lots of bottles on the floor. What's this?",
+   "beaver_roman": "Badage byeongi manayo. Igeon mwoyeyo?",
+   "learner": "그거는 물병이에요. 그 상자 주세요.",
+   "en": "That's a water bottle. Give me that box, please.",
+   "roman": "Geugeoneun mulbyeongieyo. Geu sangja juseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "여기요. 가구는 깨끗해요?",
+   "beaver_en": "Here. Is the furniture clean?",
+   "beaver_roman": "Yeogiyo. Gaguneun kkaekkeutaeyo?",
+   "learner": "아니요, 의자에 때가 있어요.",
+   "en": "No, there's dirt on the chair.",
+   "roman": "Aniyo, uijae ttaega isseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "흰 의자는 금방 더러워져요.",
+   "beaver_en": "White chairs get dirty fast.",
+   "beaver_roman": "Huin uijaneun geumbang deoreowojyeoyo.",
+   "learner": "네, 맞아요. 걸레 주세요.",
+   "en": "Yes, that's right. A rag, please.",
+   "roman": "Ne, majayo. Geolle juseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "걸레 여기요. 밖에 빨래도 있어요?",
+   "beaver_en": "Here's the rag. Is there laundry outside too?",
+   "beaver_roman": "Geolle yeogiyo. Bakke ppallaedo isseoyo?",
+   "learner": "네, 있어요. 제가 빨래를 걷을게요.",
+   "en": "Yes. I'll bring in the laundry.",
+   "roman": "Ne, isseoyo. Jega ppallaereul geodeulgeyo."
+  },
+  {
+   "n": 9,
+   "beaver": "고마워요. 그릇은 어떻게 해요?",
+   "beaver_en": "Thanks. What about the bowl?",
+   "beaver_roman": "Gomawoyo. Geureuseun eotteoke haeyo?",
+   "learner": "그릇 주세요. 제가 씻을게요.",
+   "en": "Give me the bowl. I'll wash it.",
+   "roman": "Geureut juseyo. Jega ssiseulgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "이제 방이 깨끗해요. 수고했어요!",
+   "beaver_en": "The room is clean now. Good work!",
+   "beaver_roman": "Ije bangi kkaekkeutaeyo. Sugohaesseoyo!",
+   "learner": "수고했어요! 같이 좀 쉬어요.",
+   "en": "You too! Let's rest a bit together.",
+   "roman": "Sugohaesseoyo! Gachi jom swieoyo."
+  }
+ ]
+}

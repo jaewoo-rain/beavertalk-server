@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T33-1",
+ "no": 373,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "오늘 나들이 어디로 갈까? 날씨 좋다.",
+   "beaver_en": "Where should we go on our outing today? The weather's nice.",
+   "beaver_roman": "oneul nadeuri eodiro galkka? nalssi jota.",
+   "learner": "낚시터 어때? 지난주에 거기서 큰 붕어를 낚았어.",
+   "en": "How about the fishing spot? I caught a big carp there last week.",
+   "roman": "naksiteo eottae? jinanjue geogiseo keun bungeoreul nakkasseo."
+  },
+  {
+   "n": 2,
+   "beaver": "우와, 대단하다! 요즘 취미 생활 열심히 하네.",
+   "beaver_en": "Wow, amazing! You're really into your hobbies lately.",
+   "beaver_roman": "uwa, daedanhada! yojeum chwimi saenghwal yeolsimhi hane.",
+   "learner": "응, 레저 활동을 하면서 스트레스를 풀어.",
+   "en": "Yeah, I relieve stress while doing leisure activities.",
+   "roman": "eung, rejeo hwaldongeul hamyeonseo seuteureseureul pureo."
+  },
+  {
+   "n": 3,
+   "beaver": "낚시만 해? 취미에 대해 더 말해 줄래?",
+   "beaver_en": "Just fishing? Can you tell me more about your hobbies?",
+   "beaver_roman": "naksiman hae? chwimie daehae deo malhae jullae?",
+   "learner": "등반도 하고 사진도 찍어. 찰칵 소리가 좋아.",
+   "en": "I go climbing and take photos too. I love the click sound.",
+   "roman": "deungbando hago sajindo jjigeo. chalkak soriga joa."
+  },
+  {
+   "n": 4,
+   "beaver": "사진은 어디에 쓰는데? 그냥 모아 두는 거야?",
+   "beaver_en": "What do you use the photos for? Do you just keep them?",
+   "beaver_roman": "sajineun eodie sseuneunde? geunyang moa duneun geoya?",
+   "learner": "아니, 사진을 넣어서 수필을 썼어. 곧 출간돼!",
+   "en": "No, I wrote essays with the photos. They're getting published soon!",
+   "roman": "ani, sajineul neoeoseo supireul sseosseo. got chulgandwae!"
+  },
+  {
+   "n": 5,
+   "beaver": "진짜? 책이 나온다고? 어느 출판사에서?",
+   "beaver_en": "Really? A book is coming out? Which publisher?",
+   "beaver_roman": "jinjja? chaegi naondago? eoneu chulpansaeseo?",
+   "learner": "작은 출판사인데, 내 글을 좋게 봐 줬어.",
+   "en": "It's a small publisher, but they liked my writing.",
+   "roman": "jageun chulpansainde, nae geureul joke bwa jwosseo."
+  },
+  {
+   "n": 6,
+   "beaver": "축하해! 글 쓰는 거 어렵지 않았어?",
+   "beaver_en": "Congrats! Wasn't writing hard?",
+   "beaver_roman": "chukahae! geul sseuneun geo eoryeopji anasseo?",
+   "learner": "매일 시를 읊으면서 글 감각을 키웠어.",
+   "en": "I built my feel for writing by reciting poems every day.",
+   "roman": "maeil sireul eulpeumyeonseo geul gamgageul kiwosseo."
+  },
+  {
+   "n": 7,
+   "beaver": "시를 읊어? 혼자서?",
+   "beaver_en": "You recite poems? By yourself?",
+   "beaver_roman": "sireul eulpeo? honjaseo?",
+   "learner": "아니, 낭독 모임에 나가. 다 같이 소리 내어 읽어.",
+   "en": "No, I go to a reading-aloud group. We all read out loud together.",
+   "roman": "ani, nangdok moime naga. da gachi sori naeeo ilgeo."
+  },
+  {
+   "n": 8,
+   "beaver": "너 정말 바쁘게 사는구나. 다른 취미는 없어?",
+   "beaver_en": "You really live a busy life. Any other hobbies?",
+   "beaver_roman": "neo jeongmal bappeuge saneunguna. dareun chwimineun eopseo?",
+   "learner": "주말엔 당구도 쳐. 퀴즈 대회에도 나갔고.",
+   "en": "I play billiards on weekends. I also entered a quiz contest.",
+   "roman": "jumaren danggudo chyeo. kwijeu daehoeedo nagatgo."
+  },
+  {
+   "n": 9,
+   "beaver": "나도 다음에 같이 할까? 오늘은 어디 가?",
+   "beaver_en": "Should I join you next time? Where are we going today?",
+   "beaver_roman": "nado daeume gachi halkka? oneureun eodi ga?",
+   "learner": "좋아! 오늘 나들이는 낚시터로 정하자.",
+   "en": "Sure! Let's make today's outing the fishing spot.",
+   "roman": "joa! oneul nadeurineun naksiteoro jeonghaja."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아, 출발하자! 나도 큰 고기 낚아 볼래.",
+   "beaver_en": "Great, let's go! I want to catch a big fish too.",
+   "beaver_roman": "joa, chulbalhaja! nado keun gogi nakka bollae.",
+   "learner": "내가 낚는 법 알려 줄게. 사진도 찰칵!",
+   "en": "I'll show you how to catch one. And snap a photo, click!",
+   "roman": "naega nangneun beop allyeo julge. sajindo chalkak!"
+  }
+ ]
+}

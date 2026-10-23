@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T36-1",
+ "no": 189,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "어제 행사 준비하느라 정말 고생 많았죠?",
+   "beaver_en": "You worked really hard preparing the event yesterday, right?",
+   "beaver_roman": "eoje haengsa junbihaneura jeongmal gosaeng manatjjyo?",
+   "learner": "네, 행사장에서 넘어질 뻔했어요.",
+   "en": "Yes, I almost fell at the event venue.",
+   "roman": "ne, haengsajangeseo neomeojil ppeonhaesseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "정말요? 어쩌다가요?",
+   "beaver_en": "Really? How did that happen?",
+   "beaver_roman": "jeongmallyo? eojjeodagayo?",
+   "learner": "풍선을 들고 가다가 계단을 못 봤어요.",
+   "en": "I was carrying balloons and didn't see the stairs.",
+   "roman": "pungseoneul deulgo gadaga gyedaneul mot bwasseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "다치지 않아서 다행이네요. 환영회는요?",
+   "beaver_en": "Glad you weren't hurt. What about the welcoming party?",
+   "beaver_roman": "dachiji anaseo dahaengineyo. hwanyeonghoeneunyo?",
+   "learner": "환영회는 잘 끝났는데 송별회가 문제였어요.",
+   "en": "The welcoming party went well, but the farewell party was a problem.",
+   "roman": "hwanyeonghoeneun jal kkeunnanneunde songbyeolhoega munjeyeosseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "송별회에서 무슨 일이 있었어요?",
+   "beaver_en": "What happened at the farewell party?",
+   "beaver_roman": "songbyeolhoeeseo museun iri isseosseoyo?",
+   "learner": "김 부장님 선물을 잊어버릴 뻔했어요.",
+   "en": "I almost forgot Manager Kim's gift.",
+   "roman": "gim bujangnim seonmureul ijeobeoril ppeonhaesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "아이고, 기념품은 다 챙겼어요?",
+   "beaver_en": "Oh no, did you get all the souvenirs?",
+   "beaver_roman": "aigo, ginyeompumeun da chaenggyeosseoyo?",
+   "learner": "네, 기념 사진 액자도 잘 챙겼어요.",
+   "en": "Yes, I also got the commemorative photo frame.",
+   "roman": "ne, ginyeom sajin aekjjado jal chaenggyeosseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "다음 주 축제 준비는 어떻게 돼 가요?",
+   "beaver_en": "How is the prep for next week's festival going?",
+   "beaver_roman": "daeum ju chukje junbineun eotteoke dwae gayo?",
+   "learner": "설 축제라서 전통문화 부스를 만들어요.",
+   "en": "It's a Lunar New Year festival, so we're making a traditional culture booth.",
+   "roman": "seol chukjeraseo jeontongmunhwa buseureul mandeureoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "전통문화요? 어떤 내용을 소개해요?",
+   "beaver_en": "Traditional culture? What will you introduce?",
+   "beaver_roman": "jeontongmunhwayo? eotteon naeyongeul sogaehaeyo?",
+   "learner": "설 음식하고 옛날 장례식 문화를 소개해요.",
+   "en": "We'll introduce New Year food and old funeral customs.",
+   "roman": "seol eumsikago yennal jangnyesik munhwareul sogaehaeyo."
+  },
+  {
+   "n": 8,
+   "beaver": "장례식이요? 조금 특별하네요.",
+   "beaver_en": "Funerals? That's a bit unusual.",
+   "beaver_roman": "jangnyesigiyo? jogeum teukbyeolhaneyo.",
+   "learner": "네, 옛날에는 매장을 해서 무덤을 만들었어요.",
+   "en": "Yes, in the past they did burials and made graves.",
+   "roman": "ne, yennareneun maejangeul haeseo mudeomeul mandeureosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "요즘은 많이 다르죠?",
+   "beaver_en": "It's very different these days, right?",
+   "beaver_roman": "yojeumeun mani dareujyo?",
+   "learner": "네, 요즘은 화장을 더 많이 해요.",
+   "en": "Yes, these days cremation is more common.",
+   "roman": "ne, yojeumeun hwajangeul deo mani haeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "재미있겠네요. 축제 때 저도 도울게요.",
+   "beaver_en": "Sounds interesting. I'll help at the festival too.",
+   "beaver_roman": "jaemiitgenneyo. chukje ttae jeodo doulgeyo.",
+   "learner": "고마워요. 이번에는 안 넘어질게요!",
+   "en": "Thanks. This time I won't fall!",
+   "roman": "gomawoyo. ibeoneneun an neomeojilgeyo!"
+  }
+ ]
+}

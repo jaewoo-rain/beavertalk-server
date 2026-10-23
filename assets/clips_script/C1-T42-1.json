@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T42-1",
+ "no": 330,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 오늘 강연 주제가 무엇입니까?",
+   "beaver_en": "Hello. What is today's lecture topic?",
+   "beaver_roman": "Annyeonghasimnikka? Oneul gangyeon jujega mueosimnikka?",
+   "learner": "오늘은 기술과 언론의 변화를 이야기하겠습니다.",
+   "en": "Today I will talk about changes in technology and the press.",
+   "roman": "Oneureun gisulgwa eollonui byeonhwareul iyagihagetseumnida."
+  },
+  {
+   "n": 2,
+   "beaver": "먼저 과학 기술은 어떻게 변했습니까?",
+   "beaver_en": "First, how has science and technology changed?",
+   "beaver_roman": "Meonjeo gwahak gisureun eotteoke byeonhaetseumnikka?",
+   "learner": "인공위성 덕분에 무선 네트워크가 넓어졌습니다.",
+   "en": "Thanks to satellites, wireless networks have expanded.",
+   "roman": "Ingongwiseong deokbune museon neteuwokeuga neolbeojyeotseumnida."
+  },
+  {
+   "n": 3,
+   "beaver": "생활 속 장치도 달라졌습니까?",
+   "beaver_en": "Have everyday devices changed too?",
+   "beaver_roman": "Saenghwal sok jangchido dallajyeotseumnikka?",
+   "learner": "네, 이제 선 없는 무선 이어폰을 많이 씁니다.",
+   "en": "Yes, now many people use cordless wireless earphones.",
+   "roman": "Ne, ije seon eomneun museon ieoponeul mani sseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "언론은 어떻습니까?",
+   "beaver_en": "What about the press?",
+   "beaver_roman": "Eolloneun eotteotseumnikka?",
+   "learner": "일간지 지면은 줄었는가 하면 댓글 난은 커졌습니다.",
+   "en": "While daily papers' page space has shrunk, comment sections have grown.",
+   "roman": "Ilganji jimyeoneun jureonneunga hamyeon daetgeul naneun keojyeotseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "독자들은 신문을 어떻게 봅니까?",
+   "beaver_en": "How do readers read the news?",
+   "beaver_roman": "Dokjadeureun sinmuneul eotteoke bomnikka?",
+   "learner": "종이 구독은 줄고 기사 조회 수는 늘었습니다.",
+   "en": "Paper subscriptions fell, and article views rose.",
+   "roman": "Jongi gudogeun julgo gisa johoe suneun neureotseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "청취자 반응은 어떻습니까?",
+   "beaver_en": "How do listeners respond?",
+   "beaver_roman": "Cheongchwija baneungeun eotteotseumnikka?",
+   "learner": "청취자들은 아이디로 접속해 댓글을 남깁니다.",
+   "en": "Listeners log in with their IDs and leave comments.",
+   "roman": "Cheongchwijadeureun aidiro jeopsokae daetgeureul namgimnida."
+  },
+  {
+   "n": 7,
+   "beaver": "방송 현장도 바뀌었습니까?",
+   "beaver_en": "Has the broadcasting scene changed too?",
+   "beaver_roman": "Bangsong hyeonjangdo bakkwieotseumnikka?",
+   "learner": "리포터는 무인 카메라를 쓰고, 방청객도 직접 찍습니다.",
+   "en": "Reporters use unmanned cameras, and audience members film too.",
+   "roman": "Ripoteoneun muin kamerareul sseugo, bangcheonggaekdo jikjeop jjikseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "걱정되는 점은 없습니까?",
+   "beaver_en": "Is there anything worrying?",
+   "beaver_roman": "Geokjeongdoeneun jeomeun eopseumnikka?",
+   "learner": "무선 기술은 편리한가 하면 해킹 위험도 큽니다.",
+   "en": "While wireless tech is convenient, the hacking risk is also high.",
+   "roman": "Museon gisureun pyeollihanga hamyeon haeking wiheomdo keumnida."
+  },
+  {
+   "n": 9,
+   "beaver": "과학기술과 미디어에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us more about science, tech, and media?",
+   "beaver_roman": "Gwahakgisulgwa midieoe daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "물리와 화학이 발전해서 고체 배터리도 나왔습니다.",
+   "en": "As physics and chemistry advanced, solid-state batteries appeared.",
+   "roman": "Mulliwa hwahagi baljeonhaeseo goche baeteorido nawatseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "감사합니다. 정말 흥미로운 강연이었습니다.",
+   "beaver_en": "Thank you. It was a really interesting lecture.",
+   "beaver_roman": "Gamsahamnida. Jeongmal heungmiroun gangyeonieotseumnida.",
+   "learner": "감사합니다. 질문은 댓글 난에 남겨 주십시오.",
+   "en": "Thank you. Please leave questions in the comment section.",
+   "roman": "Gamsahamnida. Jilmuneun daetgeul nane namgyeo jusipsio."
+  }
+ ]
+}

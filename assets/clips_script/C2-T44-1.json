@@ -1,0 +1,96 @@
+{
+ "lesson": "C2-T44-1",
+ "no": 384,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하십니까? 이번 복원 사업을 취재하러 왔습니다.",
+   "beaver_en": "Hello. I'm here to report on this restoration project.",
+   "beaver_roman": "annyeonghasimnikka? ibeon bogwon saeobeul chwijaehareo wasseumnida.",
+   "learner": "반갑습니다. 저는 복원 담당자 김민수입니다.",
+   "en": "Nice to meet you. I'm Kim Minsu, in charge of restoration.",
+   "roman": "bangapseumnida. jeoneun bogwon damdangja gimminsuimnida."
+  },
+  {
+   "n": 2,
+   "beaver": "이번 사업의 방침을 소개해 주시겠습니까?",
+   "beaver_en": "Could you introduce the project's policy?",
+   "beaver_roman": "ibeon saeobui bangchimeul sogaehae jusigetseumnikka?",
+   "learner": "무너진 궁궐을 옛 모습 그대로 복원하는 것입니다.",
+   "en": "We'll restore the ruined palace exactly as it was.",
+   "roman": "muneojin gunggworeul yet moseup geudaero bogwonhaneun geosimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "자료는 있습니까?",
+   "beaver_en": "Do you have any records?",
+   "beaver_roman": "jaryoneun isseumnikka?",
+   "learner": "옛 그림 몇 장이나마 남아 있어서 다행입니다.",
+   "en": "Luckily, at least a few old paintings remain.",
+   "roman": "yet geurim myeot janginama nama isseoseo dahaengimnida."
+  },
+  {
+   "n": 4,
+   "beaver": "그 그림만으로 정확하게 복원할 수 있겠습니까?",
+   "beaver_en": "Can you restore it accurately with just those?",
+   "beaver_roman": "geu geurimmaneuro jeonghwakage bogwonhal su itgetseumnikka?",
+   "learner": "완벽하진 않지만 조금이나마 가까이 가겠습니다.",
+   "en": "Not perfectly, but we'll get at least a little closer.",
+   "roman": "wanbyeokajin anjiman jogeuminama gakkai gagetseumnida."
+  },
+  {
+   "n": 5,
+   "beaver": "고구려 유적은 어떻습니까?",
+   "beaver_en": "What about the Goguryeo ruins?",
+   "beaver_roman": "goguryeo yujeogeun eotteoseumnikka?",
+   "learner": "고구려 유적은 침략으로 많이 부서졌습니다.",
+   "en": "The Goguryeo ruins were badly damaged by invasions.",
+   "roman": "goguryeo yujeogeun chimnyageuro mani buseojeotseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "백제와 신라 유적도 함께 다룹니까?",
+   "beaver_en": "Do you also cover Baekje and Silla ruins?",
+   "beaver_roman": "baekjewa silla yujeokdo hamkke darumnikka?",
+   "learner": "네, 백제와 신라 유적도 작은 규모로나마 복원합니다.",
+   "en": "Yes, we restore Baekje and Silla ruins too, if only on a small scale.",
+   "roman": "ne, baekjewa silla yujeokdo jageun gyumoronama bogwonhamnida."
+  },
+  {
+   "n": 7,
+   "beaver": "이 궁궐의 역사에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell us more about this palace's history?",
+   "beaver_roman": "i gunggworui yeoksae daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "이 궁궐은 기원후 5세기쯤 지어졌습니다.",
+   "en": "This palace was built around the 5th century AD.",
+   "roman": "i gunggworeun giwonhu 5segijjeum jieojeotseumnida."
+  },
+  {
+   "n": 8,
+   "beaver": "단군 이야기와도 관계가 있습니까?",
+   "beaver_en": "Is it related to the Dangun story?",
+   "beaver_roman": "dangun iyagiwado gwangyega isseumnikka?",
+   "learner": "아니요, 단군 신화보다 훨씬 뒤의 일입니다.",
+   "en": "No, it's much later than the Dangun myth.",
+   "roman": "aniyo, dangun sinhwaboda hwolssin dwie irimnida."
+  },
+  {
+   "n": 9,
+   "beaver": "큰 돌들은 누가 옮겼습니까?",
+   "beaver_en": "Who moved the huge stones?",
+   "beaver_roman": "keun doldeureun nuga omgyeotseumnikka?",
+   "learner": "거인이 옮긴 듯하지만 실제로는 사람들이 옮겼습니다.",
+   "en": "It looks like giants moved them, but people actually did.",
+   "roman": "geoini omgin deutajiman siljeroneun saramdeuri omgyeotseumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "마지막으로, 이번 사업의 의의는 무엇입니까?",
+   "beaver_en": "Lastly, what is the significance of this project?",
+   "beaver_roman": "majimageuro, ibeon saeobui uiuineun mueosimnikka?",
+   "learner": "역사 연구의 작은 혁명이 되겠지요. 감사합니다.",
+   "en": "It'll be a small revolution in history research. Thank you.",
+   "roman": "yeoksa yeonguui jageun hyeongmyeongi doegetjiyo. gamsahamnida."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "B4-T27-1",
+ "no": 271,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 새로 온 김민준입니다.",
+   "beaver_en": "Hello, I'm Minjun Kim, the new hire.",
+   "beaver_roman": "annyeonghaseyo, saero on gimminjunimnida.",
+   "learner": "반가워요. 저는 이 부서 교육 담당 박서연 대리예요.",
+   "en": "Nice to meet you. I'm Seoyeon Park, assistant manager in charge of training.",
+   "roman": "bangawoyo. jeoneun i buseo gyoyuk damdang baksseoyeon daeriyeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "대리님, 우리 부서는 어떤 일을 하나요?",
+   "beaver_en": "What does our department do?",
+   "beaver_roman": "daerinim, uri buseoneun eotteon ireul hanayo?",
+   "learner": "본부의 해외 판매를 맡아요. 책임이 꽤 커요.",
+   "en": "We handle overseas sales for headquarters. It's a big responsibility.",
+   "roman": "bonbuui haeoe panmaereul matayo. chaegimi kkwae keoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "업무량은요? 많이 바쁜가요?",
+   "beaver_en": "What about the workload? Is it very busy?",
+   "beaver_roman": "eommuryangeunyo? mani bappeungayo?",
+   "learner": "일손이 부족해요. 교대로 야근할 정도예요.",
+   "en": "We're short-handed. We even take turns working late.",
+   "roman": "ilsoni bujokaeyo. gyodaero yageunhal jjeongdoyeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그럼 곧바로 사람을 더 뽑지 않나요?",
+   "beaver_en": "Then won't they hire more people right away?",
+   "beaver_roman": "geureom gotbaro sarameul deo ppopjji annayo?",
+   "learner": "두 명이 그만둬서 지금 뽑고 있어요.",
+   "en": "Two people quit, so we're hiring now.",
+   "roman": "du myeongi geumandwoseo jigeum ppopkko isseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "월급은 괜찮은 편인가요?",
+   "beaver_en": "Is the salary fairly good?",
+   "beaver_roman": "wolgeubeun gwaenchaneun pyeoningayo?",
+   "learner": "네, 임금이 높다는 것은 이 표로 알 수 있어요.",
+   "en": "Yes, you can tell from this chart that wages are high.",
+   "roman": "ne, imgeumi nopttaneun geoseun i pyoro al ssu isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "와, 정말 그렇네요. 상사분들은 어떤 분들이에요?",
+   "beaver_en": "Wow, it's true. What are the bosses like?",
+   "beaver_roman": "wa, jeongmal geureonneyo. sangsabundeureun eotteon bundeurieyo?",
+   "learner": "책임자인 최 부장님은 업적이 많은 분이에요.",
+   "en": "Our head, Manager Choi, has many achievements.",
+   "roman": "chaegimjain choe bujangnimeun eopjjeogi maneun bunieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "어떤 업적이 있는데요?",
+   "beaver_en": "What kind of achievements?",
+   "beaver_roman": "eotteon eopjjeogi inneundeyo?",
+   "learner": "벽에 걸린 상장을 보면 알 수 있어요.",
+   "en": "You can tell from the awards hanging on the wall.",
+   "roman": "byeoge geollin sangjangeul bomyeon al ssu isseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "직장 생활에 대해 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me more about work life?",
+   "beaver_roman": "jikjjang saenghware daehae deo malsseumhae jusigesseoyo?",
+   "learner": "맞벌이 직원이 많아서 서로 일을 도와줘요.",
+   "en": "Many staff are dual-income, so we help each other.",
+   "roman": "matbeori jigwoni manaseo seoro ireul dowajwoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "분위기가 좋네요. 저는 무엇부터 하면 될까요?",
+   "beaver_en": "Nice atmosphere. What should I start with?",
+   "beaver_roman": "bunwigiga jonneyo. jeoneun mueotbuteo hamyeon doelkkayo?",
+   "learner": "먼저 근무 시간 관리를 맡아 주세요.",
+   "en": "First, please take charge of managing work hours.",
+   "roman": "meonjeo geunmu sigan gwallireul mata juseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "네, 열심히 하겠습니다. 감사합니다!",
+   "beaver_en": "Okay, I'll work hard. Thank you!",
+   "beaver_roman": "ne, yeolsimhi hagetsseumnida. gamsahamnida!",
+   "learner": "모르는 건 언제든 저한테 물어보세요.",
+   "en": "Ask me anytime if you don't know something.",
+   "roman": "moreuneun geon eonjedeun jeohante mureoboseyo."
+  }
+ ]
+}

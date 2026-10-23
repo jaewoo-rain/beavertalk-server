@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T03-1",
+ "no": 399,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 어떤 분의 초상화를 원하십니까?",
+   "beaver_en": "Hello. Whose portrait would you like?",
+   "beaver_roman": "annyeonghaseyo. eotteon bunui chosanghwareul wonhasimnikka?",
+   "learner": "부모님 초상화요. 두 분의 용모를 말씀드릴게요.",
+   "en": "My parents' portrait. I'll describe their looks.",
+   "roman": "bumonim chosanghwayo. du bunui yongmoreul malsseudeurilgeyo."
+  },
+  {
+   "n": 2,
+   "beaver": "좋습니다. 아버님 몸집은 어떻습니까?",
+   "beaver_en": "Good. What was your father's build like?",
+   "beaver_roman": "josseumnida. abeonim momjibeun eotteosseumnikka?",
+   "learner": "아버지는 덩치가 크고 아주 건장하셨어요.",
+   "en": "My father was big and very well-built.",
+   "roman": "abeojineun deongchiga keugo aju geonjanghasyeosseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "얼굴 생김새는 어떠셨나요?",
+   "beaver_en": "What did his face look like?",
+   "beaver_roman": "eolgul saenggimsaeneun eotteosyeonnayo?",
+   "learner": "콧날이 오뚝한 미남이셨어요. 용모가 수려하셨죠.",
+   "en": "He was handsome with a high nose. Very fine looks.",
+   "roman": "konnari ottukan minamisyeosseoyo. yongmoga suryeohasyeotjyo."
+  },
+  {
+   "n": 4,
+   "beaver": "표정이나 눈빛은 어땠습니까?",
+   "beaver_en": "How were his expression and eyes?",
+   "beaver_roman": "pyojeongina nunbicheun eottaesseumnikka?",
+   "learner": "눈초리는 날카로워도 화난 기색은 없으셨어요.",
+   "en": "His gaze was sharp, but he never looked angry.",
+   "roman": "nunchorineun nalkarowodo hwanan gisaegeun eopseusyeosseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "자세는 어떻게 할까요?",
+   "beaver_en": "What pose should I use?",
+   "beaver_roman": "jaseneun eotteoke halkkayo?",
+   "learner": "군복 입은 늠름한 모습으로 그려 주세요.",
+   "en": "Please paint him looking gallant in uniform.",
+   "roman": "gunbok ibeun neumneumhan moseubeuro geuryeo juseyo."
+  },
+  {
+   "n": 6,
+   "beaver": "알겠습니다. 어머님 몸집은 어떻습니까?",
+   "beaver_en": "I see. What was your mother's build like?",
+   "beaver_roman": "algesseumnida. eomeonim momjibeun eotteosseumnikka?",
+   "learner": "어머니는 몸집이 왜소하고 가냘프셨어요.",
+   "en": "My mother was small and slender.",
+   "roman": "eomeonineun momjibi wasohago ganyapeusyeosseoyo."
+  },
+  {
+   "n": 7,
+   "beaver": "안색은 어떠셨습니까?",
+   "beaver_en": "What was her complexion like?",
+   "beaver_roman": "ansaegeun eotteosyeosseumnikka?",
+   "learner": "늘 조금 창백하셨지만 자태가 고우셨어요.",
+   "en": "She was always a bit pale, but graceful.",
+   "roman": "neul jogeum changbaekasyeotjjiman jataega gousyeosseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "외모와 첫인상에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you tell me more about her looks and first impression?",
+   "beaver_roman": "oemowa cheodinsange daehae deo malsseumhae jusigesseumnikka?",
+   "learner": "옷맵시가 좋고, 늘 환하게 웃으셨어요.",
+   "en": "She dressed elegantly and always smiled brightly.",
+   "roman": "onmaepssiga joko, neul hwanhage useusyeosseoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "머리 모양은 어떻게 할까요?",
+   "beaver_en": "How should I do her hair?",
+   "beaver_roman": "meori moyangeun eotteoke halkkayo?",
+   "learner": "아버지가 빗겨 주시던 단정한 머리로 해 주세요.",
+   "en": "Please give her the neat hair my father used to comb.",
+   "roman": "abeojiga bitkkyeo jusideon danjeonghan meoriro hae juseyo."
+  },
+  {
+   "n": 10,
+   "beaver": "정말 다정한 분들이셨네요. 정성껏 그리겠습니다.",
+   "beaver_en": "They were truly loving. I'll paint it with care.",
+   "beaver_roman": "jeongmal dajeonghan bundeurisyeonneyo. jeongseongkkeot geurigesseumnida.",
+   "learner": "감사합니다. 완성되면 꼭 연락 주세요.",
+   "en": "Thank you. Please contact me when it's done.",
+   "roman": "gamsahamnida. wanseongdoemyeon kkok yeollak juseyo."
+  }
+ ]
+}

@@ -1,0 +1,96 @@
+{
+ "lesson": "C4-T14-1",
+ "no": 451,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 요즘 식사는 어떻게 하세요?",
+   "beaver_en": "Hello. How have you been eating lately?",
+   "beaver_roman": "annyeonghaseyo. yojeum siksaneun eotteoke haseyo?",
+   "learner": "일하랴 아이 보랴 밥 먹을 시간이 없어요.",
+   "en": "Between work and the kids, I have no time to eat.",
+   "roman": "ilharya ai borya bap meogeul sigani eopseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그럼 식사를 자주 거르시나요?",
+   "beaver_en": "Then do you often skip meals?",
+   "beaver_roman": "geureom siksareul jaju georeusinayo?",
+   "learner": "네, 아침은 거의 매일 걸러요.",
+   "en": "Yes, I skip breakfast almost every day.",
+   "roman": "ne, achimeun geoui maeil geolleoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "몸 상하시겠어요. 점심은요?",
+   "beaver_en": "That'll wear you down. What about lunch?",
+   "beaver_roman": "mom sanghasigesseoyo. jeomsimeunyo?",
+   "learner": "회의에 늦을세라 빵만 급하게 먹어요.",
+   "en": "Afraid of being late for meetings, I just gulp down bread.",
+   "roman": "hoeuie neujeulssera ppangman geupage meogeoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그러면 안 됩니다. 저녁은 어떠세요?",
+   "beaver_en": "You shouldn't do that. How about dinner?",
+   "beaver_roman": "geureomyeon an doemnida. jeonyeogeun eotteoseyo?",
+   "learner": "하루 종일 굶다가 밤에 많이 먹어요.",
+   "en": "I go hungry all day, then eat a lot at night.",
+   "roman": "haru jongil gumdaga bame mani meogeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "그래서 체중이 늘었나요?",
+   "beaver_en": "So did you gain weight?",
+   "beaver_roman": "geuraeseo chejungi neureonnayo?",
+   "learner": "네, 그래서 감량을 하고 싶어요.",
+   "en": "Yes, so I want to lose weight.",
+   "roman": "ne, geuraeseo gamnyangeul hago sipeoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "채소는 얼마나 드세요?",
+   "beaver_en": "How many vegetables do you eat?",
+   "beaver_roman": "chaesoneun eolmana deuseyo?",
+   "learner": "거의 안 먹어요. 섬유질이 부족할 거예요.",
+   "en": "Hardly any. I probably lack fiber.",
+   "roman": "geoui an meogeoyo. seomyujiri bujokal geoyeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "물은 충분히 드시나요?",
+   "beaver_en": "Do you drink enough water?",
+   "beaver_roman": "mureun chungbunhi deusinayo?",
+   "learner": "아니요, 수분도 잘 못 챙겨요.",
+   "en": "No, I don't get enough fluids either.",
+   "roman": "aniyo, subundo jal mot chaenggyeoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "평소 식습관에 대해 더 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me more about your usual eating habits?",
+   "beaver_roman": "pyeongso sikseupgwane daehae deo malsseumhae jusigesseoyo?",
+   "learner": "웰빙이 중요한 건 알지만 실천이 어려워요.",
+   "en": "I know well-being matters, but it's hard to practice.",
+   "roman": "welbingi jungyohan geon aljiman silcheoni eoryeowoyo."
+  },
+  {
+   "n": 9,
+   "beaver": "바쁜 분께는 간단한 식단이 좋습니다.",
+   "beaver_en": "For busy people, a simple diet plan is best.",
+   "beaver_roman": "bappeun bunkkeneun gandanhan sikdani josseumnida.",
+   "learner": "장소를 불문하고 먹을 수 있는 식단이면 좋겠어요.",
+   "en": "I'd like a diet I can follow anywhere.",
+   "roman": "jangsoreul bulmunhago meogeul su inneun sikdanimyeon jokesseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 견과류와 물병을 늘 챙기세요.",
+   "beaver_en": "Good. Always carry nuts and a water bottle.",
+   "beaver_roman": "joayo. gyeongwaryuwa mulppyeongeul neul chaenggiseyo.",
+   "learner": "네, 설령 바빠도 아침은 거르지 않을게요.",
+   "en": "Okay, even if I'm busy, I won't skip breakfast.",
+   "roman": "ne, seollyeong bappado achimeun georeuji aneulkkeyo."
+  }
+ ]
+}

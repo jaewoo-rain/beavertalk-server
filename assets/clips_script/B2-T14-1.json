@@ -1,0 +1,96 @@
+{
+ "lesson": "B2-T14-1",
+ "no": 173,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 오늘은 어떤 고민이 있으세요?",
+   "beaver_en": "Hello. What's troubling you today?",
+   "beaver_roman": "annyeonghaseyo. oneureun eotteon gomini isseuseyo?",
+   "learner": "요즘 살쪄서 고민이에요. 바지 치수가 달라졌어요.",
+   "en": "I've been gaining weight. My pants size changed.",
+   "roman": "yojeum saljjyeoseo gominieyo. baji chisuga dallajyeosseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "그렇군요. 평소에 식사는 어떻게 하세요?",
+   "beaver_en": "I see. How do you usually eat?",
+   "beaver_roman": "geureokunyo. pyeongsoe siksaneun eotteoke haseyo?",
+   "learner": "저녁에 과식을 자주 해요. 식사량이 많아요.",
+   "en": "I often overeat at dinner. I eat a lot.",
+   "roman": "jeonyeoge gwasigeul jaju haeyo. siksaryangi manayo."
+  },
+  {
+   "n": 3,
+   "beaver": "식사량을 줄여 보세요. 천천히 먹는 것도 좋아요.",
+   "beaver_en": "Try eating less. Eating slowly also helps.",
+   "beaver_roman": "siksaryangeul juryeo boseyo. cheoncheonhi meongneun geotdo joayo.",
+   "learner": "천천히 먹으면 과식을 막을 수 있어요?",
+   "en": "If I eat slowly, can I prevent overeating?",
+   "roman": "cheoncheonhi meogeumyeon gwasigeul mageul su isseoyo?"
+  },
+  {
+   "n": 4,
+   "beaver": "네, 틀림없이 도움이 될 거예요. 편식은 안 하세요?",
+   "beaver_en": "Yes, it will surely help. Are you a picky eater?",
+   "beaver_roman": "ne, teullimeopsi doumi doel geoyeyo. pyeonsigeun an haseyo?",
+   "learner": "사실 편식을 해요. 채소를 잘 안 먹어요.",
+   "en": "Actually, I'm picky. I rarely eat vegetables.",
+   "roman": "sasil pyeonsigeul haeyo. chaesoreul jal an meogeoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "채소에는 영양이 많아요. 조금씩 드셔 보세요.",
+   "beaver_en": "Vegetables are very nutritious. Try a little at a time.",
+   "beaver_roman": "chaesoeneun yeongyangi manayo. jogeumssik deusyeo boseyo.",
+   "learner": "영양을 생각해야 건강해지겠네요.",
+   "en": "I need to think about nutrition to get healthy.",
+   "roman": "yeongyangeul saenggakaeya geonganghaejigenneyo."
+  },
+  {
+   "n": 6,
+   "beaver": "맞아요. 비타민도 챙기세요.",
+   "beaver_en": "Right. Make sure to get vitamins too.",
+   "beaver_roman": "majayo. bitamindo chaenggiseyo.",
+   "learner": "비타민은 과일로 먹어야 해요?",
+   "en": "Should I get vitamins from fruit?",
+   "roman": "bitamineun gwaillo meogeoya haeyo?"
+  },
+  {
+   "n": 7,
+   "beaver": "과일이 좋아요. 아침에 사과 하나 어떠세요?",
+   "beaver_en": "Fruit is good. How about an apple in the morning?",
+   "beaver_roman": "gwairi joayo. achime sagwa hana eotteoseyo?",
+   "learner": "좋아요. 아침을 먹어야 점심에 과식을 안 하겠죠?",
+   "en": "Good. If I eat breakfast, I won't overeat at lunch, right?",
+   "roman": "joayo. achimeul meogeoya jeomsime gwasigeul an hagetjyo?"
+  },
+  {
+   "n": 8,
+   "beaver": "네, 맞아요. 운동도 하고 계세요?",
+   "beaver_en": "Yes, that's right. Do you exercise too?",
+   "beaver_roman": "ne, majayo. undongdo hago gyeseyo?",
+   "learner": "아니요. 운동도 해야 살찌지 않겠네요.",
+   "en": "No. I guess I must exercise so I won't gain weight.",
+   "roman": "aniyo. undongdo haeya saljjiji ankenneyo."
+  },
+  {
+   "n": 9,
+   "beaver": "꾸준히 하면 습관도 달라질 거예요.",
+   "beaver_en": "If you keep at it, your habits will change.",
+   "beaver_roman": "kkujunhi hamyeon seupgwando dallajil geoyeyo.",
+   "learner": "오늘부터 식사량을 줄이고 편식도 안 할게요.",
+   "en": "From today, I'll eat less and stop being picky.",
+   "roman": "oneulbuteo siksaryangeul jurigo pyeonsikdo an halgeyo."
+  },
+  {
+   "n": 10,
+   "beaver": "좋아요. 다음 주에 다시 이야기해 봐요.",
+   "beaver_en": "Great. Let's talk again next week.",
+   "beaver_roman": "joayo. daeum jue dasi iyagihae bwayo.",
+   "learner": "감사합니다. 다음 주에 또 올게요.",
+   "en": "Thank you. I'll come again next week.",
+   "roman": "gamsahamnida. daeum jue tto olgeyo."
+  }
+ ]
+}

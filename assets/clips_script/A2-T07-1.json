@@ -1,0 +1,96 @@
+{
+ "lesson": "A2-T07-1",
+ "no": 24,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 기숙사 생활은 어때요?",
+   "beaver_en": "Hello. How is dorm life?",
+   "beaver_roman": "annyeonghaseyo. gisuksa saenghwareun eottaeyo?",
+   "learner": "좋아요. 지난해 사월부터 기숙사에 살아요.",
+   "en": "It's good. I've lived in the dorm since last April.",
+   "roman": "joayo. jinanhae sawolbuteo gisuksae sarayo."
+  },
+  {
+   "n": 2,
+   "beaver": "보통 몇 시부터 몇 시까지 방에 있어요?",
+   "beaver_en": "Usually, from what time to what time are you in your room?",
+   "beaver_roman": "botong myeot sibuteo myeot sikkaji bange isseoyo?",
+   "learner": "저녁 여섯 시부터 아침 아홉 시까지 있어요.",
+   "en": "I'm there from 6 p.m. to 9 a.m.",
+   "roman": "jeonyeok yeoseot sibuteo achim ahop sikkaji isseoyo."
+  },
+  {
+   "n": 3,
+   "beaver": "주말에는요?",
+   "beaver_en": "What about weekends?",
+   "beaver_roman": "jumareneunyo?",
+   "learner": "일요일에는 아침부터 저녁까지 방에 있어요.",
+   "en": "On Sundays, I'm in my room from morning to evening.",
+   "roman": "iryoireneun achimbuteo jeonyeokkkaji bange isseoyo."
+  },
+  {
+   "n": 4,
+   "beaver": "학생 방은 어떻게 생겼는지 말해 줄래요?",
+   "beaver_en": "Can you tell me what your room looks like?",
+   "beaver_roman": "haksaeng bangeun eotteoke saenggyeonneunji malhae jullaeyo?",
+   "learner": "방에 큰 창문이 하나 있어요. 문은 작아요.",
+   "en": "There's one big window in the room. The door is small.",
+   "roman": "bange keun changmuni hana isseoyo. muneun jagayo."
+  },
+  {
+   "n": 5,
+   "beaver": "방은 몇 층에 있어요?",
+   "beaver_en": "What floor is your room on?",
+   "beaver_roman": "bangeun myeot cheunge isseoyo?",
+   "learner": "이 건물 구 층에 있어요.",
+   "en": "It's on the ninth floor of this building.",
+   "roman": "i geonmul gu cheunge isseoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "오늘 비가 올 것 같아요. 창문 꼭 닫으세요.",
+   "beaver_en": "It looks like it'll rain today. Be sure to close the window.",
+   "beaver_roman": "oneul biga ol geot gatayo. changmun kkok dadeuseyo.",
+   "learner": "네, 창문하고 문을 다 닫을게요.",
+   "en": "Okay, I'll close both the window and the door.",
+   "roman": "ne, changmunhago muneul da dadeulgeyo."
+  },
+  {
+   "n": 7,
+   "beaver": "부엌은 아침 일곱 시부터 밤 열 시까지 쓸 수 있어요.",
+   "beaver_en": "You can use the kitchen from 7 a.m. to 10 p.m.",
+   "beaver_roman": "bueokeun achim ilgop sibuteo bam yeol sikkaji sseul su isseoyo.",
+   "learner": "저는 저녁 여섯 시부터 일곱 시까지 부엌을 써요.",
+   "en": "I use the kitchen from 6 to 7 p.m.",
+   "roman": "jeoneun jeonyeok yeoseot sibuteo ilgop sikkaji bueokeul sseoyo."
+  },
+  {
+   "n": 8,
+   "beaver": "좋아요. 아파트하고 비교하면 기숙사는 어때요?",
+   "beaver_en": "Good. Compared to an apartment, how is the dorm?",
+   "beaver_roman": "joayo. apateuhago bigyohamyeon gisuksaneun eottaeyo?",
+   "learner": "아파트는 비싸요. 기숙사가 더 좋아요.",
+   "en": "Apartments are expensive. The dorm is better.",
+   "roman": "apateuneun bissayo. gisuksaga deo joayo."
+  },
+  {
+   "n": 9,
+   "beaver": "다른 문제는 없어요?",
+   "beaver_en": "Any other problems?",
+   "beaver_roman": "dareun munjeneun eopseoyo?",
+   "learner": "아, 부엌 문이 고장 났어요.",
+   "en": "Oh, the kitchen door is broken.",
+   "roman": "a, bueong muni gojang nasseoyo."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠어요. 월요일에 고칠게요. 고마워요.",
+   "beaver_en": "I see. I'll fix it on Monday. Thanks.",
+   "beaver_roman": "algesseoyo. woryoire gochilgeyo. gomawoyo.",
+   "learner": "감사합니다. 안녕히 계세요.",
+   "en": "Thank you. Goodbye.",
+   "roman": "gamsahamnida. annyeonghi gyeseyo."
+  }
+ ]
+}

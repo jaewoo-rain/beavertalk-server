@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T04-1",
+ "no": 400,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요, 어머님. 인성 교육 얘기 좀 나눠 볼까요?",
+   "beaver_en": "Hello. Shall we talk a bit about character education?",
+   "beaver_roman": "annyeonghaseyo, eomeonim. inseong gyoyuk yaegi jom nanwo bolkkayo?",
+   "learner": "네, 선생님. 사람의 본성에 관심이 많아요.",
+   "en": "Yes, I'm very interested in human nature.",
+   "roman": "ne, seonsaengnim. saramui bonseonge gwansimi manayo."
+  },
+  {
+   "n": 2,
+   "beaver": "사람의 본성은 선하다고 보세요?",
+   "beaver_en": "Do you think human nature is good?",
+   "beaver_roman": "saramui bonseongeun seonhadago boseyo?",
+   "learner": "본성이 악한 사람은 드물다고 생각해요.",
+   "en": "I think truly evil people are rare.",
+   "roman": "bonseongi akan sarameun deumuldago saenggakaeyo."
+  },
+  {
+   "n": 3,
+   "beaver": "타고난 기질은 어떻습니까?",
+   "beaver_en": "What about inborn temperament?",
+   "beaver_roman": "tagonan gijireun eotteoseumnikka?",
+   "learner": "아이마다 성품과 감수성이 다 달라요.",
+   "en": "Each child's character and sensitivity differ.",
+   "roman": "aimada seongpumgwa gamsuseongi da dallayo."
+  },
+  {
+   "n": 4,
+   "beaver": "어머님 아이는 성격이 어떤가요?",
+   "beaver_en": "What is your child's personality like?",
+   "beaver_roman": "eomeonim aineun seonggyeogi eotteongayo?",
+   "learner": "좀 드세지만 심성은 착하고 친화력이 좋아요.",
+   "en": "A bit strong-willed, but kind and sociable.",
+   "roman": "jom deusejiman simseongeun chakago chinhwaryeogi joayo."
+  },
+  {
+   "n": 5,
+   "beaver": "평소 행동은 어떻습니까?",
+   "beaver_en": "How does your child usually behave?",
+   "beaver_roman": "pyeongso haengdongeun eotteoseumnikka?",
+   "learner": "품행이 한결같고 인간미가 있는 편이에요.",
+   "en": "Steady behavior, and quite warm-hearted.",
+   "roman": "pumhaengi hangyeolgatgo inganmiga inneun pyeonieyo."
+  },
+  {
+   "n": 6,
+   "beaver": "요즘 아이들은 얌체 같은 행동도 하죠.",
+   "beaver_en": "Kids these days act shamelessly sometimes.",
+   "beaver_roman": "yojeum aideureun yamche gateun haengdongdo hajyo.",
+   "learner": "맞아요. 꾀를 부리고 아부하는 얌체도 있죠.",
+   "en": "Right. Some are tricky, flattering freeloaders.",
+   "roman": "majayo. kkoereul burigo abuhaneun yamchedo itjyo."
+  },
+  {
+   "n": 7,
+   "beaver": "그런 아이는 어떻게 지도해야 할까요?",
+   "beaver_en": "How should we guide such children?",
+   "beaver_roman": "geureon aineun eotteoke jidohaeya halkkayo?",
+   "learner": "너무 모질고 냉혹하게 대하면 엇나가기 십상이에요.",
+   "en": "Being too harsh and cold makes them likely to rebel.",
+   "roman": "neomu mojilgo naenghokage daehamyeon eonnagagi sipsangieyo."
+  },
+  {
+   "n": 8,
+   "beaver": "아이가 거친 행동을 하면 어떻게 할까요?",
+   "beaver_en": "What if a child acts rough?",
+   "beaver_roman": "aiga geochin haengdongeul hamyeon eotteoke halkkayo?",
+   "learner": "과격하게 혼내면 난폭해지기 십상이에요.",
+   "en": "Scolding harshly is likely to make them violent.",
+   "roman": "gwagyeokage honnaemyeon nanpokaejigi sipsangieyo."
+  },
+  {
+   "n": 9,
+   "beaver": "성격과 기질에 대해 더 말씀해 주시겠습니까?",
+   "beaver_en": "Could you say more about personality and temperament?",
+   "beaver_roman": "seonggyeokgwa gijire daehae deo malsseumhae jusigetseumnikka?",
+   "learner": "속셈이 교묘한 아이보다 우직한 아이가 좋아요.",
+   "en": "I prefer an honest child to a cunning schemer.",
+   "roman": "soksemi gyomyohan aiboda ujikan aiga joayo."
+  },
+  {
+   "n": 10,
+   "beaver": "인격적인 교육이 중요하겠네요. 감사합니다.",
+   "beaver_en": "Character education must be important, then. Thank you.",
+   "beaver_roman": "ingyeokjeogin gyoyugi jungyohagenneyo. gamsahamnida.",
+   "learner": "네, 부모도 극성 대신 품격을 보여야죠. 감사합니다.",
+   "en": "Yes, parents should show dignity, not excess. Thanks.",
+   "roman": "ne, bumodo geukseong daesin pumgyeogeul boyeoyajyo. gamsahamnida."
+  }
+ ]
+}

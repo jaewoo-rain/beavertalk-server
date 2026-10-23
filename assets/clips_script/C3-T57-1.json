@@ -1,0 +1,96 @@
+{
+ "lesson": "C3-T57-1",
+ "no": 433,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "팀장님, 추천할 사람이 있다고요?",
+   "beaver_en": "Team leader, you have someone to recommend?",
+   "beaver_roman": "Timjangnim, chucheonhal sarami itdagoyo?",
+   "learner": "네, 영업팀 김서준 씨를 추천합니다.",
+   "en": "Yes, I recommend Kim Seojun from the sales team.",
+   "roman": "Ne, yeongeoptim Gim Seojun ssireul chucheonhamnida."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 자질이 있는 사람이죠?",
+   "beaver_en": "What qualities does he have?",
+   "beaver_roman": "Eotteon jajiri inneun saramijyo?",
+   "learner": "사고력과 창의성이 강점인 팔방미인입니다.",
+   "en": "He's a jack of all trades, strong in thinking and creativity.",
+   "roman": "Sagoryeokgwa changuiseongi gangjeomin palbangmiinimnida."
+  },
+  {
+   "n": 3,
+   "beaver": "결단력은요?",
+   "beaver_en": "What about decisiveness?",
+   "beaver_roman": "Gyeoldallyeogeunyo?",
+   "learner": "결단력도 있고 대담하지만 무모하지 않습니다.",
+   "en": "He's decisive and bold, but not reckless.",
+   "roman": "Gyeoldallyeokdo itgo daedamhajiman mumohaji anseumnida."
+  },
+  {
+   "n": 4,
+   "beaver": "젊은 사람이라 산만하지는 않나요?",
+   "beaver_en": "He's young. Isn't he easily distracted?",
+   "beaver_roman": "Jeolmeun saramira sanmanhajineun annayo?",
+   "learner": "말이 많다 뿐이지 일할 때는 집중합니다.",
+   "en": "It's only that he talks a lot; he focuses at work.",
+   "roman": "Mari manta ppuniji ilhal ttaeneun jipjunghamnida."
+  },
+  {
+   "n": 5,
+   "beaver": "태도와 의지는 어떤가요?",
+   "beaver_en": "How are his attitude and will?",
+   "beaver_roman": "Taedowa uijineun eotteongayo?",
+   "learner": "책임감이 투철하고 끈기가 있습니다.",
+   "en": "He has a strong sense of responsibility and perseverance.",
+   "roman": "Chaegimgami tucheolhago kkeungiga itseumnida."
+  },
+  {
+   "n": 6,
+   "beaver": "실패했을 때는 어땠나요?",
+   "beaver_en": "How was he when he failed?",
+   "beaver_roman": "Silpaehaesseul ttaeneun eottaennayo?",
+   "learner": "실패할지라도 포기하지 않는 정신력이 있습니다.",
+   "en": "Even if he fails, he has the mental strength not to give up.",
+   "roman": "Silpaehaljirado pogihaji anneun jeongsinnyeogi itseumnida."
+  },
+  {
+   "n": 7,
+   "beaver": "혹시 자기 성과를 과시하지는 않나요?",
+   "beaver_en": "Does he show off his achievements?",
+   "beaver_roman": "Hoksi jagi seonggwareul gwasihajineun annayo?",
+   "learner": "으스대지 않고 절제할 줄 아는 사람입니다.",
+   "en": "He doesn't swagger; he knows restraint.",
+   "roman": "Euseudaeji anko jeoljehal jul aneun saramimnida."
+  },
+  {
+   "n": 8,
+   "beaver": "팀워크는 어떤가요?",
+   "beaver_en": "How is his teamwork?",
+   "beaver_roman": "Timwokeuneun eotteongayo?",
+   "learner": "협동심도 강하고 팀에 헌신하는 사람입니다.",
+   "en": "He's very cooperative and devoted to the team.",
+   "roman": "Hyeopdongsimdo ganghago time heonsinhaneun saramimnida."
+  },
+  {
+   "n": 9,
+   "beaver": "새 부서에 잘 적응할까요?",
+   "beaver_en": "Will he adapt well to a new department?",
+   "beaver_roman": "Sae buseoe jal jeogeunghalkkayo?",
+   "learner": "새 환경에도 잘 적응하고 잠재력이 큽니다.",
+   "en": "He adapts well to new environments and has great potential.",
+   "roman": "Sae hwangyeongedo jal jeogeunghago jamjaeryeogi keumnida."
+  },
+  {
+   "n": 10,
+   "beaver": "알겠어요. 리더로 세워도 되겠네요.",
+   "beaver_en": "I see. I think we can make him a leader.",
+   "beaver_roman": "Algesseoyo. Rideoro sewodo doegenneyo.",
+   "learner": "감사합니다. 제 안목을 믿으셔도 됩니다.",
+   "en": "Thank you. You can trust my judgment.",
+   "roman": "Gamsahamnida. Je anmogeul mideusyeodo doemnida."
+  }
+ ]
+}

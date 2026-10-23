@@ -1,0 +1,96 @@
+{
+ "lesson": "C1-T32-1",
+ "no": 319,
+ "lines": [
+  {
+   "n": 1,
+   "beaver": "안녕하세요. 상담실에 오신 걸 환영합니다.",
+   "beaver_en": "Hello. Welcome to the consultation room.",
+   "beaver_roman": "annyeonghaseyo. sangdamsire osin geol hwanyeonghamnida.",
+   "learner": "안녕하세요. 요즘 마음이 너무 힘들어서 왔어요.",
+   "en": "Hello. I came because I've been struggling a lot lately.",
+   "roman": "annyeonghaseyo. yojeum maeumi neomu himdeureoseo wasseoyo."
+  },
+  {
+   "n": 2,
+   "beaver": "어떤 점이 힘드신지 말씀해 주시겠어요?",
+   "beaver_en": "Could you tell me what's been hard for you?",
+   "beaver_roman": "eotteon jeomi himdeusinji malsseumhae jusigesseoyo?",
+   "learner": "한 달째 잠을 못 자요. 불면증인 것 같아요.",
+   "en": "I haven't slept for a month. I think it's insomnia.",
+   "roman": "han daljjae jameul mot jjayo. bulmyeonjeungin geot gatayo."
+  },
+  {
+   "n": 3,
+   "beaver": "많이 피곤하시겠네요. 기분은 어떠세요?",
+   "beaver_en": "You must be very tired. How is your mood?",
+   "beaver_roman": "mani pigonhasigenneyo. gibuneun eotteoseyo?",
+   "learner": "계속 우울해요. 우울증일까 봐 걱정돼요.",
+   "en": "I feel down all the time. I'm worried it's depression.",
+   "roman": "gyesok uulhaeyo. uuljeungilkka bwa geokjeongdwaeyo."
+  },
+  {
+   "n": 4,
+   "beaver": "그런 걱정이 드실 수 있어요. 언제부터 그러셨어요?",
+   "beaver_en": "That's an understandable worry. Since when?",
+   "beaver_roman": "geureon geokjeongi deusil su isseoyo. eonjebuteo geureosyeosseoyo?",
+   "learner": "일이 많아진 뒤부터요. 이러다간 못 버티겠어요.",
+   "en": "Since work got busy. At this rate, I can't hold on.",
+   "roman": "iri manajin dwibuteoyo. ireodagan mot beotigesseoyo."
+  },
+  {
+   "n": 5,
+   "beaver": "혹시 나쁜 생각이 든 적도 있으세요?",
+   "beaver_en": "Have you ever had any dark thoughts?",
+   "beaver_roman": "hoksi nappeun saenggagi deun jeokdo isseuseyo?",
+   "learner": "자살 생각은 없어요. 그래도 무서워요.",
+   "en": "I have no thoughts of suicide. But I'm still scared.",
+   "roman": "jasal saenggageun eopseoyo. geuraedo museowoyo."
+  },
+  {
+   "n": 6,
+   "beaver": "말씀해 주셔서 고맙습니다. 술이나 약은 많이 드세요?",
+   "beaver_en": "Thank you for telling me. Do you drink or take pills a lot?",
+   "beaver_roman": "malsseumhae jusyeoseo gomapseumnida. surina yageun mani deuseyo?",
+   "learner": "요즘 술을 자주 마셔요. 중독이 될까 봐 걱정이에요.",
+   "en": "I drink often these days. I'm afraid of addiction.",
+   "roman": "yojeum sureul jaju masyeoyo. jungdogi doelkka bwa geokjeongieyo."
+  },
+  {
+   "n": 7,
+   "beaver": "정신과 진료와 상담을 같이 받아 보시겠습니까?",
+   "beaver_en": "Would you like psychiatric care and counseling together?",
+   "beaver_roman": "jeongsingwa jillyowa sangdameul gachi bada bosigetseumnikka?",
+   "learner": "네, 정신과에 가 보고 싶어요. 소개해 주세요.",
+   "en": "Yes, I'd like to see a psychiatrist. Please refer me.",
+   "roman": "ne, jeongsingwae ga bogo sipeoyo. sogaehae juseyo."
+  },
+  {
+   "n": 8,
+   "beaver": "네, 연결해 드릴게요. 명상도 도움이 돼요.",
+   "beaver_en": "Sure, I'll connect you. Meditation also helps.",
+   "beaver_roman": "ne, yeongyeolhae deurilgeyo. myeongsangdo doumi dwaeyo.",
+   "learner": "명상은 처음이에요. 심리적으로 편해질까요?",
+   "en": "I've never meditated. Will it help me psychologically?",
+   "roman": "myeongsangeun cheoeumieyo. simnijeogeuro pyeonhaejilkkayo?"
+  },
+  {
+   "n": 9,
+   "beaver": "네, 마음을 쉬게 해 줘요. 매일 십 분만 해 보세요.",
+   "beaver_en": "Yes, it lets your mind rest. Try just ten minutes a day.",
+   "beaver_roman": "ne, maeumeul swige hae jwoyo. maeil sip bunman hae boseyo.",
+   "learner": "알겠어요. 저한테도 재충전이 필요한 것 같아요.",
+   "en": "I see. I think I need to recharge too.",
+   "roman": "algesseoyo. jeohantedo jaechungjeoni piryohan geot gatayo."
+  },
+  {
+   "n": 10,
+   "beaver": "힘들면 언제든 상담실로 연락 주세요.",
+   "beaver_en": "If it gets hard, contact the consultation room anytime.",
+   "beaver_roman": "himdeulmyeon eonjedeun sangdamsillo yeollak juseyo.",
+   "learner": "정말 감사합니다. 다음 주에 또 올게요.",
+   "en": "Thank you so much. I'll come again next week.",
+   "roman": "jeongmal gamsahamnida. daeum jue tto olgeyo."
+  }
+ ]
+}
