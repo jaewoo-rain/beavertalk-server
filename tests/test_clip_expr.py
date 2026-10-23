@@ -128,6 +128,31 @@ async def test_happy_path_ask_native_then_next_item():
         assert ids[0].startswith("g_rep_ok_") and ids[1] == "ask_2_2"
 
 
+@pytest.mark.parametrize("miss", ["other", "close", "dunno", "native_lang"])
+@pytest.mark.asyncio
+async def test_native_example_one_miss_moves_to_next_item(miss):
+    """PM-DEC-1052 — call 2874: 현지인 예문 other ×3 → g_back + native 되풀이. 한 번 못 따라 하면 다음 항목."""
+    h = _Harness(["correct", miss])
+    async with h.s:
+        h.it = h.s.events().__aiter__()
+        await h.s.send_text_turn("SEED")
+        await h.turn()
+        await h.say()
+        await h.it.__anext__()
+        await h.turn()
+        assert h.s.stage == "native"
+        n = len(h.notes)
+        await h.say()
+        await h.it.__anext__()
+        await h.turn()
+        ids = h.ids_since(n)
+        if miss == "close":            # 따라 말하기 근접은 통과(기존 규칙)
+            assert ids[0].startswith("g_rep_ok_")
+        else:
+            assert ids[0].startswith("g_move_")
+        assert ids[1].startswith("ask_2_") and "native_1" not in ids
+
+
 @pytest.mark.asyncio
 async def test_wrong_then_model_then_rep_fail_twice_moves_on_with_explain_fallback_at_cap():
     h = _Harness(["wrong", "wrong", "wrong"])

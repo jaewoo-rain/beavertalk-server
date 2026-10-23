@@ -1,4 +1,5 @@
-"""PM-DEC-1044 — 표현학습 클립 차시를 버킷에서: 업로드만 하면 열리고, 하나라도 없으면 Live."""
+"""PM-DEC-1044 — 표현학습 클립 차시를 버킷에서: 업로드만 하면 열리고, 필수 항목 클립이 manifest 에 없으면 Live.
+PM-DEC-1052 — 클립은 통화 시작 전 EB_WAIT_S 만 기다리고 나머지는 통화 중에 받는다(못 받으면 그 차례만 TTS)."""
 from __future__ import annotations
 
 import io
@@ -22,11 +23,13 @@ def _wav(sec=0.4):
     return buf.getvalue()
 
 
-def _objects(items=("1", "2"), drop=()):
+def _objects(items=("1", "2"), drop=(), drop_man=()):
     doc = {"lesson": LESSON, "no": 1, "items": [{"seq": s, "item_id": "9" + s, "surface": f"표현{s}", "en": f"e{s}"} for s in items]}
     man, objs = [], {}
     for s in items:
         for cid in (f"ask_{s}_1", f"model_{s}", f"quiz_{s}"):
+            if cid in drop_man:
+                continue
             man.append({"id": cid, "slot": "x", "text": cid, "item": f"표현{s}", "sec": 0.4, "face": "neutral"})
             if cid not in drop:
                 objs[f"Baba_en/{LESSON}/{cid}.wav"] = _wav()
@@ -37,10 +40,10 @@ def _objects(items=("1", "2"), drop=()):
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    for c in (ce._EB_LRU, ce._EB_MISS, ce._BANK_CACHE):
+    for c in (ce._EB_LRU, ce._EB_MISS, ce._BANK_CACHE, ce._EB_FUT):
         c.clear()
     yield
-    for c in (ce._EB_LRU, ce._EB_MISS, ce._BANK_CACHE):
+    for c in (ce._EB_LRU, ce._EB_MISS, ce._BANK_CACHE, ce._EB_FUT):
         c.clear()
 
 
@@ -67,9 +70,58 @@ def test_uploaded_lesson_opens_and_bank_merges_generic_clips(monkeypatch):
     assert all(p == ce.EB_PREFIX for p, _ in asked)
 
 
-def test_missing_clip_falls_back_to_live(monkeypatch):
-    _serve(monkeypatch, _objects(drop=("model_2",)))
+def test_required_clip_missing_from_manifest_falls_back_to_live(monkeypatch):
+    _serve(monkeypatch, _objects(drop_man=("model_2",)))
     assert ce.enabled(ON, call_type="expression", voice="Fenrir", locale="en", lesson=LESSON) is None
+
+
+def test_missing_wav_opens_and_that_turn_reads_with_tts(monkeypatch):
+    """manifest 에 있는데 wav 를 못 받으면 차시는 열고, 그 클립 차례만 같은 목소리 TTS 로 읽는다."""
+    import asyncio
+    _serve(monkeypatch, _objects(drop=("model_2",)))
+    assert ce.enabled(ON, call_type="expression", voice="Fenrir", locale="en", lesson=LESSON) == "Baba"
+    clips, _ = ce.load_bank("Baba", lesson=LESSON)
+    assert clips["model_1"].pcm and not clips["model_2"].pcm
+    said = []
+
+    async def fake_tts(text, *, lang="en", voice="Fenrir"):
+        said.append((text, lang, voice))
+        return b"\x01\x00" * 4800
+
+    monkeypatch.setattr(ce, "tts_pcm", fake_tts)
+    sess = SimpleNamespace(char="Baba", tts_chars=0)
+    got = asyncio.run(ce.ClipExprSession._fill_or_tts(sess, clips["model_2"]))
+    assert got is not None and got.pcm and said == [("model_2", "en", "Fenrir")]
+    assert asyncio.run(ce.ClipExprSession._fill_or_tts(sess, clips["model_1"])) is clips["model_1"]
+
+
+def test_slow_bucket_starts_within_budget_and_fills_during_call(monkeypatch):
+    """call 2874 — 189 클립 첫 받기 15.3초 동안 무음. 통화 시작은 EB_WAIT_S 만 기다린다."""
+    import asyncio
+    import threading
+    import time
+    objs = _objects(items=tuple(str(i) for i in range(1, 21)))
+    gate = threading.Event()
+    import core.storage as storage
+
+    def slow(prefix, path):
+        if path.endswith(".wav"):
+            gate.wait(5)
+        return objs.get(path)
+
+    monkeypatch.setattr(storage, "download", slow)
+    monkeypatch.setattr(ce, "EB_WAIT_S", 0.2)
+    t0 = time.monotonic()
+    assert ce.enabled(ON, call_type="expression", voice="Fenrir", locale="en", lesson=LESSON) == "Baba"
+    assert time.monotonic() - t0 < 1.5
+    clips, items = ce.load_bank("Baba", lesson=LESSON)
+    assert len(items) == 20 and not clips["ask_1_1"].pcm
+    gate.set()
+    assert asyncio.run(ce.ensure_pcm(clips["ask_1_1"])) is True
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline and not all(c.pcm for c in clips.values()):
+        time.sleep(0.05)
+    assert all(c.pcm for c in clips.values()) and not ce._EB_FUT
 
 
 def test_missing_lesson_falls_back_to_live(monkeypatch):
