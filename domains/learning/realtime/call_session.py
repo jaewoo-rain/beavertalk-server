@@ -857,7 +857,8 @@ class _CallState:
         "beaver_end_ts", "noise_note_count", "noise_note_ts", "noise_cap_logged", "noise_stream_end_at",   # PM-DEC-998
         "mic_n", "mic_sum", "mic_max", "mic_loud", "mic_log_ts",
         "ambient_ema", "ambient_ts", "gate_voice_ts", "gate_zeroed",   # PM-DEC-1005
-        "ag_hist", "ag_thr", "ag_n", "ag_speaking", "ag_run_t0", "ag_loud_ts", "ag_pre", "ag_onsets", "ag_held",   # 적응 게이트
+        "ag_hist", "ag_thr", "ag_n", "ag_speaking", "ag_run_t0", "ag_loud_ts", "ag_pre", "ag_onsets", "ag_held",
+        "ag_a", "ag_loud_a", "ag_held_loud", "ag_held_gap",   # seventh2 — 클립 게이트 소리 시계   # 적응 게이트
         "ag_bg", "voiced_since_end",   # PM-DEC-1018
         "server_turn_ts", "beaver_end_onsets", "hold_dropped",   # PM-DEC-1015
         "midcall_echo_until", "midcall_echo_turn",  # PM-DEC-977 — 대체 소리 재생 중 늦은 비버 턴(이중 발화) 막기
@@ -1092,6 +1093,10 @@ class _CallState:
         self.ag_loud_ts = 0.0
         self.ag_pre: list = []            # (시각, 원음) — 말 시작 인정 때 앞 0.3초를 다시 보낸다
         self.ag_held: list = []           # sixth3 — 클립 세션: 인정 대기 중 붙잡은 원음(0 대신)
+        self.ag_a = 0.0                   # seventh2 — 클립 게이트: 받은 소리 길이 시계(초)
+        self.ag_loud_a = 0.0
+        self.ag_held_loud = 0.0           # 붙잡은 것 중 문턱 넘은 소리 길이
+        self.ag_held_gap = 0.0            # 붙잡은 뒤 이어진 조용한 길이
         self.ag_onsets = 0
         self.ag_bg = 0.0                  # PM-DEC-1018 — 배경 표본 하위 20% 값
         self.voiced_since_end = 0.0       # 직전 비버 턴 끝 뒤 «배경보다 확실히 큰» 마이크 소리 합(초)
@@ -8269,6 +8274,8 @@ def _agate(state: _CallState, data: bytes) -> list:
     thr = state.ag_thr
     if r >= max(AGATE_FLOOR, UNPROMPTED_BG_MULT * state.ag_bg, thr):   # 게이트 문턱보다 작은 소리는 세지 않는다(TV 봉우리)
         state.voiced_since_end += len(data) / float(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)   # PM-DEC-1018
+    if getattr(state, "clip_expr", None):
+        return _agate_clip(state, data, r)
     if state.ag_speaking:
         if r >= thr * AGATE_TAIL_RATIO:
             state.ag_loud_ts = now
@@ -8280,28 +8287,69 @@ def _agate(state: _CallState, data: bytes) -> list:
     state.ag_pre.append((now, data))
     while state.ag_pre and now - state.ag_pre[0][0] > AGATE_PREROLL_S:
         state.ag_pre.pop(0)
-    # sixth3 — 클립·대본 세션은 인정 대기 중 프레임을 0 대신 붙잡는다(앞 0.3초 재전송이 쉼을 늘려 1.5초 말끝을 채우던 것 · 2887)
-    hold = bool(getattr(state, "clip_expr", None))
-    released: list = []
     if r >= thr:
         if state.ag_run_t0 is None:
             state.ag_run_t0 = now
-            state.ag_held = []
-        if hold:
-            state.ag_held.append(data)
         if now - state.ag_run_t0 >= AGATE_ONSET_S:
             state.ag_speaking = True
             state.ag_loud_ts = now
             state.ag_onsets += 1
-            out = list(state.ag_held) if hold else [f for _, f in state.ag_pre]
+            out = [f for _, f in state.ag_pre]
             state.ag_pre.clear()
-            state.ag_held = []
             return out
     else:
-        if hold and state.ag_held:
-            released = [_zeros(len(f)) for f in state.ag_held]   # 말로 인정 안 된 봉우리 — 붙잡은 시간만큼 0(시간 보존)
-        state.ag_held = []
         state.ag_run_t0 = None
+    _ag_learn(state, r)
+    state.gate_zeroed += 1
+    return [_zeros(len(data))]
+
+
+AGATE_CLIP_GAP_S = 0.3     # seventh2 — 짧은 소리 뒤 이만큼 안쪽 틈은 다음 소리와 한 덩어리(«국|적» 받침 폐쇄)
+
+
+def _agate_clip(state: _CallState, data: bytes, r: float) -> list:
+    """seventh2 — 클립·대본 세션 게이트. 시계는 받은 소리 길이(벽시계 아님 · 묶여 오는 프레임에도 같다).
+    배경은 0 · 문턱 넘은 소리는 붙잡고, 붙잡은 소리 합이 인정 길이를 넘으면 붙잡은 것(사이 틈 포함)을 원음 그대로 ·
+    틈이 AGATE_CLIP_GAP_S 를 넘도록 인정 못 받으면 붙잡은 길이만큼 0(시간 보존)."""
+    dur = len(data) / float(INPUT_SAMPLE_RATE * SAMPLE_WIDTH_BYTES)
+    thr = state.ag_thr
+    state.ag_a += dur
+    if state.ag_speaking:
+        if r >= thr * AGATE_TAIL_RATIO:
+            state.ag_loud_a = state.ag_a
+        if state.ag_a - state.ag_loud_a <= AGATE_TAIL_S:
+            return [data]
+        state.ag_speaking = False
+    if r >= thr:
+        state.ag_held.append(data)
+        state.ag_held_loud += dur
+        state.ag_held_gap = 0.0
+        if state.ag_held_loud >= AGATE_ONSET_S:
+            state.ag_speaking = True
+            state.ag_loud_a = state.ag_a
+            state.ag_onsets += 1
+            out, state.ag_held, state.ag_held_loud = state.ag_held, [], 0.0
+            return out
+        _ag_learn(state, r)
+        return []
+    if state.ag_held:
+        state.ag_held_gap += dur
+        if state.ag_held_gap <= AGATE_CLIP_GAP_S:
+            state.ag_held.append(data)
+            _ag_learn(state, r)
+            return []
+        out = [_zeros(len(f)) for f in state.ag_held]
+        state.ag_held, state.ag_held_loud, state.ag_held_gap = [], 0.0, 0.0
+        _ag_learn(state, r)
+        state.gate_zeroed += 1
+        return out + [_zeros(len(data))]
+    _ag_learn(state, r)
+    state.gate_zeroed += 1
+    return [_zeros(len(data))]
+
+
+def _ag_learn(state: _CallState, r: float) -> None:
+    """배경 표본·문턱 갱신(종전 _agate 끝부분 그대로)."""
     # ⛔ 문턱 넘은 짧은 봉우리도 배경 표본에 넣는다 — 빼면 문턱이 TV 봉우리를 영영 못 배운다(시험이 잡음)
     state.ag_hist.append(r)
     if len(state.ag_hist) > AGATE_HIST_N:
@@ -8314,10 +8362,6 @@ def _agate(state: _CallState, data: bytes) -> list:
         # PM-DEC-1018 — 학습자 목소리가 p95 를 끌어올려도 문턱이 배경 하위 20% × AGATE_MED_MULT 를 넘지 않게
         quiet_room = AGATE_MED_MULT > 0 and state.ambient_ema < AGATE_QUIET_AMBIENT
         state.ag_thr = max(AGATE_FLOOR, min(p95, AGATE_MED_MULT * state.ag_bg) if quiet_room else p95)
-    state.gate_zeroed += 1
-    if hold and state.ag_run_t0 is not None:
-        return released          # 런 중 — 붙잡았다(인정되면 원음으로 · 끊기면 0 으로 나간다)
-    return released + [_zeros(len(data))]
 
 
 def _noise_gate(state: _CallState, data: bytes) -> bytes:
