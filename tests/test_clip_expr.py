@@ -466,3 +466,18 @@ async def test_tts_pcm_runs_off_the_event_loop(monkeypatch):
 
     pcm, _ = await asyncio.gather(ce.tts_pcm("hi"), ticker())
     assert pcm == b"\x01\x02" and len(ticks) == 5
+
+
+@pytest.mark.asyncio
+async def test_ask_uses_only_existing_variants():
+    """ask_N_2 가 없는 짝(받아쓰기 불합격으로 뺀 줄)은 ask_N_1 만 번갈아 쓴다 — 질문이 빠지지 않는다."""
+    h = _Harness([])
+    for k in [k for k in h.s.clips if k.startswith("ask_1_") and k != "ask_1_1"]:
+        del h.s.clips[k]
+    got = []
+    for n in (0, 1, 2):
+        h.s.ask_n = n
+        got.append(h.s._ask_id())
+    assert got == ["ask_1_1"] * 3
+    h.s.idx, h.s.ask_n = 1, 1
+    assert h.s._ask_id() == "ask_2_2"          # 두 변형이 다 있으면 기존처럼 번갈아
