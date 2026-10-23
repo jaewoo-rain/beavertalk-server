@@ -151,3 +151,37 @@ def test_repeated_correct_answer_is_correct_not_close():
     assert ce.rule_judge("다시 말해 주세요 다시 말해 주세요", ["다시 말해 주세요"], blank=False)[0] == "correct"
     assert ce.rule_judge("감사합니다 감사합니다", ["다시 말해 주세요"], blank=False)[0] is None   # 틀린 말은 접어도 틀림
 
+
+
+def test_needed_clip_jumps_the_queue(monkeypatch):
+    """인사 재생 중 첫 질문 클립은 줄(189개) 뒤에서 기다리지 않고 바로 받는다(기다림 0 · PM-DEC-1052 다음 판)."""
+    import asyncio
+    import threading
+    objs = _objects(items=tuple(str(i) for i in range(1, 21)))
+    hold = threading.Event()
+    import core.storage as storage
+
+    def slow(prefix, path):
+        if path.endswith(".wav") and not path.endswith("ask_7_1.wav"):
+            hold.wait(5)                       # 줄의 나머지는 막혀 있다
+        return objs.get(path)
+
+    monkeypatch.setattr(storage, "download", slow)
+    monkeypatch.setattr(ce, "EB_WAIT_S", 0.0)
+    assert ce.enabled(ON, call_type="expression", voice="Fenrir", locale="en", lesson=LESSON) == "Baba"
+    clips, _ = ce.load_bank("Baba", lesson=LESSON)
+    try:
+        assert asyncio.run(ce.ensure_pcm(clips["ask_7_1"])) is True
+    finally:
+        hold.set()
+
+
+@pytest.mark.parametrize("heard,target,want", [
+    ("몰라요", "몰라요", "correct"),
+    ("잘 모르겠어요", "잘 모르겠어요.", "correct"),
+    ("몰라요", "다시 말해 주세요", "dunno"),          # 정답이 아니면 모름 그대로
+    ("잘 모르겠어요", "천천히 말해 주세요", "dunno"),
+])
+def test_dunno_phrase_as_target_is_judged_by_match(heard, target, want):
+    """2889 — 정답이 «몰라요» 인 문항에서 «몰라요» 가 dunno 로 처리됐다."""
+    assert ce.rule_judge(heard, [target], blank=False)[0] == want

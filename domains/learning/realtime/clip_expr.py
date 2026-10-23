@@ -162,7 +162,8 @@ def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional
     if not _KEEP.sub("", h):
         return "dunno", 0.0
     low = h.lower()
-    if any(k in low for k in _DUNNO):
+    # 2889 — 정답 문장 자체가 «몰라요»·«잘 모르겠어요» 인 문항은 모름 규칙보다 정답 대조가 먼저다
+    if any(k in low for k in _DUNNO) and not any(k in (t or "").lower() for t in targets for k in _DUNNO):
         return "dunno", 0.0
     if not _HANGUL.search(h):
         return "native_lang", 0.0
@@ -189,7 +190,7 @@ if EB_PREFIX != "clips_expr" and not EB_PREFIX.startswith("clips_expr/"):
     EB_PREFIX = "clips_expr"
 EB_LRU_MAX = 16                       # 차시 묶음 캐시 상한(한 묶음 ≈ 190 클립 · 약 35MB · 2Gi 인스턴스)
 EB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다
-EB_WAIT_S = 2.0                       # PM-DEC-1052 — 통화 시작은 이만큼만 기다린다(나머지는 통화 중 계속 받는다)
+EB_WAIT_S = float(os.environ.get("CLIP_EXPR_EB_WAIT_S", "0") or 0)   # PM-DEC-1052 — 통화 시작 전 기다림. 0 = 인사(저장소 g_open) 재생과 겹쳐 받는다
 EB_CLIP_WAIT_S = 3.0                  # 재생할 클립이 아직이면 이만큼 기다린 뒤 TTS 로 대신
 _EB_LRU: "OrderedDict[tuple[str, str, str], tuple[dict, list]]" = OrderedDict()
 _EB_MISS: dict[tuple[str, str, str], float] = {}
@@ -280,9 +281,10 @@ async def ensure_pcm(clip: Clip) -> bool:
         return bool(clip.pcm)
     fut = _EB_FUT.get((*clip.src, clip.id))
     try:
-        if fut is not None and not fut.done():
+        if fut is not None and fut.running():
             await asyncio.wait_for(asyncio.wrap_future(fut), EB_CLIP_WAIT_S)
         if not clip.pcm:
+            # 줄 서 있는(아직 시작 안 한) 받기를 기다리지 않고 이 클립 하나를 바로 받는다 — 뒤의 줄은 그대로 채운다
             await asyncio.wait_for(asyncio.to_thread(_eb_fill, clip), EB_CLIP_WAIT_S)
     except asyncio.TimeoutError:
         logger.warning("clip_expr: 버킷 클립 기다림 초과 %s/%s", clip.src[2], clip.id)
@@ -656,9 +658,12 @@ class ClipExprSession:
             # 앱이 아직 비버 소리를 트는 중(추정) — 그 사이 말은 이전 시도의 꼬리다(call 2040·2041 반쪽 판정). 버린다.
             return
         dur = len(pcm16_16k) / _MIC_BPS
-        loud = _rms(pcm16_16k) >= self._vad_th
+        rms = _rms(pcm16_16k)
+        loud = rms >= self._vad_th
+        self._tl_add("L" if loud else ("Z" if pcm16_16k == bytes(len(pcm16_16k)) else "q"), dur, rms)
         if loud:
             self._voiced_s += dur
+            self._gap_max_s = max(getattr(self, "_gap_max_s", 0.0), self._silence_s)
             self._silence_s = 0.0
             self._pre_gap_s = 0.0
             self._t_last_voiced = time.monotonic()
@@ -675,6 +680,15 @@ class ClipExprSession:
             if self._silence_s >= self._end_s or len(self._speech) >= _MIC_BPS * 12:
                 self._listening = False
                 spec, self._spec = self._spec, None
+                # 진단(2880·2881·2882 말 중간 쉼에 끊김) — 닫힌 까닭과 말 길이·가장 긴 쉼
+                logger.info("normalcall clipexpr 말 닫힘: call_id=%s 까닭=%s 말=%.2fs 소리=%.2fs 가장긴쉼=%.2fs 끝무음=%.2fs 문턱=%.3f "
+                            "게이트0=%d 게이트문턱=%.4f",
+                            self._cid(), "무음" if self._silence_s >= self._end_s else "12초", len(self._speech) / _MIC_BPS,
+                            self._voiced_s, getattr(self, "_gap_max_s", 0.0), self._silence_s, self._vad_th,
+                            (getattr(self._state, "gate_zeroed", 0) or 0) - getattr(self, "_gz0", 0),
+                            float(getattr(self._state, "ag_thr", 0.0) or 0.0))
+                logger.info("normalcall clipexpr 말 프레임: call_id=%s %s", self._cid(), self._tl_text())
+                self._gap_max_s = 0.0
                 self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced, spec))
             return
         # 아직 말 시작 전 — 짧은 잡음은 버리고 무응답 시간을 센다(재생 중 프레임은 위에서 이미 버렸다)
@@ -683,6 +697,10 @@ class ClipExprSession:
             self._pre_gap_s += dur
             self._speech.extend(pcm16_16k)
             return
+        if self._voiced_s > 0:
+            # 진단 — 말 문턱(0.2초) 전 소리를 잡음으로 버린다(첫 음절 빠짐 후보)
+            logger.info("normalcall clipexpr 말 앞 버림: call_id=%s 소리=%.2fs 프레임 %s", self._cid(), self._voiced_s, self._tl_text())
+        self._tl = []
         self._pre_gap_s = 0.0
         self._speech.clear()
         self._voiced_s = 0.0
@@ -792,7 +810,9 @@ class ClipExprSession:
             return f"rep_{seq}" if self._has(f"rep_{seq}") else f"model_{seq}"
         if self.stage in ("native", "native2") and self._has(f"native_{seq}"):
             return f"native_{seq}"
-        return f"ask_{seq}_{1 + self.ask_n % 2}"
+        # 있는 질문 변형만 번갈아 쓴다 — ask_N_2 가 받아쓰기 불합격으로 빠진 짝도 ask_N_1 로 연다(call flow 1묶음)
+        alts = sorted(c for c in self.clips if c.startswith(f"ask_{seq}_")) or ([f"ask_{seq}"] if self._has(f"ask_{seq}") else [])
+        return alts[self.ask_n % len(alts)] if alts else f"ask_{seq}_{1 + self.ask_n % 2}"
 
     async def _fill_or_tts(self, c: Clip) -> Optional[Clip]:
         """PM-DEC-1052 — 버킷 클립이 아직이면 기다려 받고, 끝내 없으면 그 차례만 같은 목소리 TTS 로 읽는다."""
@@ -1144,7 +1164,26 @@ class ClipExprSession:
         t0 = getattr(self._state, "call_start_ts", None)
         return (asyncio.get_running_loop().time() - t0) if t0 else 0.0
 
+    def _tl_add(self, kind: str, dur: float, rms: float) -> None:
+        """진단 프레임 줄 — 같은 종류는 이어 붙인다(종류 · 길이 · 그 안 최대 RMS)."""
+        tl = getattr(self, "_tl", None)
+        if tl is None:
+            tl = self._tl = []
+        if tl and tl[-1][0] == kind:
+            tl[-1][1] += dur
+            tl[-1][2] = max(tl[-1][2], rms)
+        else:
+            tl.append([kind, dur, rms])
+        if len(tl) > 60:
+            del tl[:-60]
+
+    def _tl_text(self) -> str:
+        return " ".join(f"{k}{d:.2f}@{r:.3f}" for k, d, r in getattr(self, "_tl", []) or [])
+
     def _reset_listen(self) -> None:
         self._speech.clear()
         self._voiced_s = self._silence_s = self._idle_s = self._pre_gap_s = 0.0
+        self._gap_max_s = 0.0
+        self._gz0 = getattr(self._state, "gate_zeroed", 0) or 0
+        self._tl = []
         self._listening = True
