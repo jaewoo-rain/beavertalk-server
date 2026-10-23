@@ -657,7 +657,9 @@ class ClipExprSession:
             # 앱이 아직 비버 소리를 트는 중(추정) — 그 사이 말은 이전 시도의 꼬리다(call 2040·2041 반쪽 판정). 버린다.
             return
         dur = len(pcm16_16k) / _MIC_BPS
-        loud = _rms(pcm16_16k) >= self._vad_th
+        rms = _rms(pcm16_16k)
+        loud = rms >= self._vad_th
+        self._tl_add("L" if loud else ("Z" if pcm16_16k == bytes(len(pcm16_16k)) else "q"), dur, rms)
         if loud:
             self._voiced_s += dur
             self._gap_max_s = max(getattr(self, "_gap_max_s", 0.0), self._silence_s)
@@ -684,6 +686,7 @@ class ClipExprSession:
                             self._voiced_s, getattr(self, "_gap_max_s", 0.0), self._silence_s, self._vad_th,
                             (getattr(self._state, "gate_zeroed", 0) or 0) - getattr(self, "_gz0", 0),
                             float(getattr(self._state, "ag_thr", 0.0) or 0.0))
+                logger.info("normalcall clipexpr 말 프레임: call_id=%s %s", self._cid(), self._tl_text())
                 self._gap_max_s = 0.0
                 self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced, spec))
             return
@@ -693,6 +696,10 @@ class ClipExprSession:
             self._pre_gap_s += dur
             self._speech.extend(pcm16_16k)
             return
+        if self._voiced_s > 0:
+            # 진단 — 말 문턱(0.2초) 전 소리를 잡음으로 버린다(첫 음절 빠짐 후보)
+            logger.info("normalcall clipexpr 말 앞 버림: call_id=%s 소리=%.2fs 프레임 %s", self._cid(), self._voiced_s, self._tl_text())
+        self._tl = []
         self._pre_gap_s = 0.0
         self._speech.clear()
         self._voiced_s = 0.0
@@ -1154,9 +1161,26 @@ class ClipExprSession:
         t0 = getattr(self._state, "call_start_ts", None)
         return (asyncio.get_running_loop().time() - t0) if t0 else 0.0
 
+    def _tl_add(self, kind: str, dur: float, rms: float) -> None:
+        """진단 프레임 줄 — 같은 종류는 이어 붙인다(종류 · 길이 · 그 안 최대 RMS)."""
+        tl = getattr(self, "_tl", None)
+        if tl is None:
+            tl = self._tl = []
+        if tl and tl[-1][0] == kind:
+            tl[-1][1] += dur
+            tl[-1][2] = max(tl[-1][2], rms)
+        else:
+            tl.append([kind, dur, rms])
+        if len(tl) > 60:
+            del tl[:-60]
+
+    def _tl_text(self) -> str:
+        return " ".join(f"{k}{d:.2f}@{r:.3f}" for k, d, r in getattr(self, "_tl", []) or [])
+
     def _reset_listen(self) -> None:
         self._speech.clear()
         self._voiced_s = self._silence_s = self._idle_s = self._pre_gap_s = 0.0
         self._gap_max_s = 0.0
         self._gz0 = getattr(self._state, "gate_zeroed", 0) or 0
+        self._tl = []
         self._listening = True
