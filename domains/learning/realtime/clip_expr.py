@@ -159,6 +159,36 @@ def collapse_repeats(text: str) -> str:
 _PUNCT_RE = re.compile(r"[.,!?~…·\"'«»()\[\]]")
 
 
+_ABBREV_PATH = Path(__file__).with_name("ko_abbrev.json")
+
+
+def _load_abbrev() -> list[tuple[re.Pattern, str]]:
+    """PM-DEC-1059 — 줄임말 짝 표(ko_abbrev.json) → (정규식, 본딧말). 없거나 깨지면 빈 표(정규화 안 함)."""
+    try:
+        pairs = json.loads(_ABBREV_PATH.read_text(encoding="utf-8")).get("pairs") or []
+    except (OSError, ValueError):
+        return []
+    out = []
+    for p in pairs:
+        frm, to, kind = p.get("from"), p.get("to"), p.get("kind")
+        if not frm or not to or kind not in ("token", "prefix"):
+            continue
+        tail = r"(?=\s|$|[.,!?~…])" if kind == "token" else ""
+        out.append((re.compile(r"(?:(?<=\s)|^)" + re.escape(frm) + tail), to))
+    return out
+
+
+_ABBREV = _load_abbrev()
+
+
+def normalize_abbrev(text: str) -> str:
+    """판정 전 줄임말을 본딧말로(목표·들음 양쪽에 같이 쓴다 · 낱말 경계에서만)."""
+    t = text or ""
+    for pat, to in _ABBREV:
+        t = pat.sub(to, t)
+    return t
+
+
 def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional[str], float]:
     """(결과 또는 None=LLM 에 묻기, 최고 자모 유사도)."""
     h = (heard or "").strip()
@@ -172,8 +202,10 @@ def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional
         return "native_lang", 0.0
     if blank and _BLANK_RE.search(h):
         return "correct", 1.0
+    h = normalize_abbrev(h)                       # PM-DEC-1059 — «낼모레» ↔ «내일모레»
     once = collapse_repeats(h)
-    sim = max((max(jamo_sim(t, h), jamo_sim(t, once)) for t in targets if t), default=0.0)
+    nts = [normalize_abbrev(t) for t in targets if t]
+    sim = max((max(jamo_sim(t, h), jamo_sim(t, once)) for t in nts), default=0.0)
     if sim >= 0.8:
         return "correct", sim
     if sim >= 0.6:
