@@ -162,7 +162,8 @@ def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional
     if not _KEEP.sub("", h):
         return "dunno", 0.0
     low = h.lower()
-    if any(k in low for k in _DUNNO):
+    # 2889 — 정답 문장 자체가 «몰라요»·«잘 모르겠어요» 인 문항은 모름 규칙보다 정답 대조가 먼저다
+    if any(k in low for k in _DUNNO) and not any(k in (t or "").lower() for t in targets for k in _DUNNO):
         return "dunno", 0.0
     if not _HANGUL.search(h):
         return "native_lang", 0.0
