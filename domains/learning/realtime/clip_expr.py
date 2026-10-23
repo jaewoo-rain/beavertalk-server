@@ -189,7 +189,7 @@ if EB_PREFIX != "clips_expr" and not EB_PREFIX.startswith("clips_expr/"):
     EB_PREFIX = "clips_expr"
 EB_LRU_MAX = 16                       # 차시 묶음 캐시 상한(한 묶음 ≈ 190 클립 · 약 35MB · 2Gi 인스턴스)
 EB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다
-EB_WAIT_S = 2.0                       # PM-DEC-1052 — 통화 시작은 이만큼만 기다린다(나머지는 통화 중 계속 받는다)
+EB_WAIT_S = float(os.environ.get("CLIP_EXPR_EB_WAIT_S", "0") or 0)   # PM-DEC-1052 — 통화 시작 전 기다림. 0 = 인사(저장소 g_open) 재생과 겹쳐 받는다
 EB_CLIP_WAIT_S = 3.0                  # 재생할 클립이 아직이면 이만큼 기다린 뒤 TTS 로 대신
 _EB_LRU: "OrderedDict[tuple[str, str, str], tuple[dict, list]]" = OrderedDict()
 _EB_MISS: dict[tuple[str, str, str], float] = {}
@@ -280,9 +280,10 @@ async def ensure_pcm(clip: Clip) -> bool:
         return bool(clip.pcm)
     fut = _EB_FUT.get((*clip.src, clip.id))
     try:
-        if fut is not None and not fut.done():
+        if fut is not None and fut.running():
             await asyncio.wait_for(asyncio.wrap_future(fut), EB_CLIP_WAIT_S)
         if not clip.pcm:
+            # 줄 서 있는(아직 시작 안 한) 받기를 기다리지 않고 이 클립 하나를 바로 받는다 — 뒤의 줄은 그대로 채운다
             await asyncio.wait_for(asyncio.to_thread(_eb_fill, clip), EB_CLIP_WAIT_S)
     except asyncio.TimeoutError:
         logger.warning("clip_expr: 버킷 클립 기다림 초과 %s/%s", clip.src[2], clip.id)
