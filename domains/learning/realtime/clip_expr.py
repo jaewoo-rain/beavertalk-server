@@ -809,7 +809,9 @@ class ClipExprSession:
             return f"rep_{seq}" if self._has(f"rep_{seq}") else f"model_{seq}"
         if self.stage in ("native", "native2") and self._has(f"native_{seq}"):
             return f"native_{seq}"
-        return f"ask_{seq}_{1 + self.ask_n % 2}"
+        # 있는 질문 변형만 번갈아 쓴다 — ask_N_2 가 받아쓰기 불합격으로 빠진 짝도 ask_N_1 로 연다(call flow 1묶음)
+        alts = sorted(c for c in self.clips if c.startswith(f"ask_{seq}_")) or ([f"ask_{seq}"] if self._has(f"ask_{seq}") else [])
+        return alts[self.ask_n % len(alts)] if alts else f"ask_{seq}_{1 + self.ask_n % 2}"
 
     async def _fill_or_tts(self, c: Clip) -> Optional[Clip]:
         """PM-DEC-1052 — 버킷 클립이 아직이면 기다려 받고, 끝내 없으면 그 차례만 같은 목소리 TTS 로 읽는다."""
