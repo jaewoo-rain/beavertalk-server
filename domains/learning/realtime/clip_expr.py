@@ -377,7 +377,7 @@ class ClipExprSession:
         self._play_until = 0.0
         self._spec: Optional[asyncio.Task] = None
         self._vad_th = float(getattr(settings, "LIVE_REGROUND_VOICE_RMS", 0.02) or 0.02)
-        self._end_s = float(getattr(settings, "CLIP_EXPR_END_SILENCE_S", 0.8) or 0.8)
+        self._end_s = float(getattr(settings, "CLIP_EXPR_END_SILENCE_S", 1.5) or 1.5)
         self._dunno_s = float(getattr(settings, "CLIP_EXPR_DUNNO_S", 8.0) or 8.0)
         self._min_voiced_s = 0.2        # 이만큼 소리가 나야 말로 친다(짧은 잡음은 버린다)
         self._pre_gap_s = 0.0           # 말 문턱 전 첫 음절 뒤 틈(PM-DEC-913)
