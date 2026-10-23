@@ -157,6 +157,30 @@ def _create_genai_client(settings: Settings, location: str | None = None,
 
 
 @contextlib.asynccontextmanager
+def _warm_first_call(engine, settings: Settings) -> None:
+    """seventh — 새 인스턴스 첫 통화 데우기(작업 스레드 · 실패해도 기동·통화는 그대로)."""
+    import time as _time
+
+    t0 = _time.monotonic()
+    db = "ok"
+    try:
+        from sqlalchemy import text
+
+        with engine.connect() as conn:
+            conn.execute(text("select 1"))
+    except Exception as exc:  # noqa: BLE001 - 데우기 실패는 첫 요청이 다시 연다
+        db = type(exc).__name__
+    clip: dict = {}
+    if str(getattr(settings, "CLIP_EXPR", "") or "").strip():
+        try:
+            from domains.learning.realtime import clip_expr
+
+            clip = clip_expr.warmup()
+        except Exception as exc:  # noqa: BLE001
+            clip = {"err": type(exc).__name__}
+    logger.info("첫 통화 데우기: db=%s clip=%s %.0fms", db, clip, (_time.monotonic() - t0) * 1000)
+
+
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """앱 수명 동안 공유 자원(엔진/세션 팩토리/genai)을 준비하고 종료 시 정리한다."""
     settings: Settings = app.state.settings
@@ -186,6 +210,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     from domains.learning.realtime import call_session as _cs
     # 2차(2026-10-22) — 벙어리 첫 인사 TTS 대체의 차가운 첫 합성 예열(작업 스레드 · 기동을 막지 않는다)
     tts_warm_task = asyncio.create_task(asyncio.to_thread(_cs.warm_greeting_tts), name="tts-warmup")
+    # seventh — 새 인스턴스 첫 클립 통화 데우기(2897 첫 소리 7.2s): DB 연결 1개 + 저장소·공통 클립·Speech·TTS
+    clip_warm_task = asyncio.create_task(asyncio.to_thread(_warm_first_call, engine, settings), name="clip-warmup")
     try:
         from domains.learning.service import homework_service, normalcall_service
         try:
@@ -199,6 +225,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         yield
         sweep_task.cancel()
         tts_warm_task.cancel()
+        clip_warm_task.cancel()
     finally:
         engine.dispose()  # 종료 시 커넥션 정리
 
