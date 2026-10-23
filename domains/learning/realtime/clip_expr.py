@@ -24,13 +24,14 @@ import io
 import json
 import logging
 import math
+import os
 import random
 import re
 import time
 import wave
 from array import array
 from collections import OrderedDict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Optional
@@ -96,6 +97,7 @@ class Clip:
     sec: float
     pcm: bytes
     face: str = "neutral"
+    src: Optional[tuple] = None        # 버킷 클립(char, lang, lesson) — pcm 이 아직 비어 있을 수 있다(PM-DEC-1052)
 
 
 @dataclass(slots=True)
@@ -181,12 +183,18 @@ _BANK_CACHE: dict[str, tuple[dict[str, Clip], list[Item]]] = {}
 # ── PM-DEC-1044 — 차시별 항목 클립을 버킷에서(업로드만으로 차시가 열린다) ──
 #   gs://<GCS_AUDIO_BUCKET>/clips_expr/<차시>.json · clips_expr/<캐릭터>_<lang>/<차시>/manifest.json + <id>.wav
 #   공통 클립(항목 없는 g_*)은 저장소 manifest 그대로. 저장소에 차시 파일이 있으면(L1-S01-1) 종전 그대로.
-EB_PREFIX = "clips_expr"
-EB_LRU_MAX = 12                       # 차시 묶음 캐시 상한(한 묶음 ≈ 120 클립 · 약 40MB)
+# 시험 태그는 clips_expr/ 아래 하위 폴더(예 clips_expr/_stage)를 읽어 운영과 섞이지 않게 한다(PM-DEC-1052)
+EB_PREFIX = os.environ.get("CLIP_EXPR_EB_PREFIX", "").strip("/") or "clips_expr"
+if EB_PREFIX != "clips_expr" and not EB_PREFIX.startswith("clips_expr/"):
+    EB_PREFIX = "clips_expr"
+EB_LRU_MAX = 16                       # 차시 묶음 캐시 상한(한 묶음 ≈ 190 클립 · 약 35MB · 2Gi 인스턴스)
 EB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다
+EB_WAIT_S = 2.0                       # PM-DEC-1052 — 통화 시작은 이만큼만 기다린다(나머지는 통화 중 계속 받는다)
+EB_CLIP_WAIT_S = 3.0                  # 재생할 클립이 아직이면 이만큼 기다린 뒤 TTS 로 대신
 _EB_LRU: "OrderedDict[tuple[str, str, str], tuple[dict, list]]" = OrderedDict()
 _EB_MISS: dict[tuple[str, str, str], float] = {}
-_EB_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="eb-fetch")
+_EB_FUT: dict[tuple[str, str, str, str], Any] = {}    # 받는 중인 클립(char, lang, lesson, id) → Future
+_EB_POOL = ThreadPoolExecutor(max_workers=32, thread_name_prefix="eb-fetch")   # call 2874 — 8개로 189 클립 15.3초
 
 
 def _eb_json(path: str) -> Optional[Any]:
@@ -201,28 +209,35 @@ def _eb_json(path: str) -> Optional[Any]:
         return None
 
 
-def _eb_clip(char: str, lang: str, lesson: str, c: dict) -> Optional[Clip]:
+def _eb_pcm(char: str, lang: str, lesson: str, cid: str) -> Optional[bytes]:
     from core import storage
-    data = storage.download(EB_PREFIX, f"{char}_{lang}/{lesson}/{c['id']}.wav")
+    data = storage.download(EB_PREFIX, f"{char}_{lang}/{lesson}/{cid}.wav")
     if not data:
         return None
     try:
         with wave.open(io.BytesIO(data), "rb") as w:
             if not (w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1):
-                logger.warning("clip_expr: 버킷 클립 형식 다름 %s/%s/%s", char, lesson, c["id"])
+                logger.warning("clip_expr: 버킷 클립 형식 다름 %s/%s/%s", char, lesson, cid)
                 return None
-            frames = w.readframes(w.getnframes())
+            return w.readframes(w.getnframes())
     except (wave.Error, EOFError) as exc:
-        logger.warning("clip_expr: 버킷 클립 읽기 실패 %s/%s/%s: %s", char, lesson, c["id"], exc)
+        logger.warning("clip_expr: 버킷 클립 읽기 실패 %s/%s/%s: %s", char, lesson, cid, exc)
         return None
-    face = c.get("face") or "neutral"
-    if face == "neutral":
-        face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
-    return Clip(c["id"], c.get("text") or "", float(c.get("sec") or len(frames) / 48000.0), frames, face)
+
+
+def _eb_fill(clip: Clip) -> bool:
+    """버킷 클립 하나를 받아 그 자리(clip.pcm)에 채운다. 작업 스레드에서."""
+    char, lang, lesson = clip.src
+    pcm = _eb_pcm(char, lang, lesson, clip.id)
+    if pcm:
+        clip.pcm = pcm
+    _EB_FUT.pop((char, lang, lesson, clip.id), None)
+    return bool(pcm)
 
 
 def _remote_lesson(char: str, lang: str, lesson: str) -> Optional[tuple[dict, list]]:
-    """버킷의 차시 파일 + 그 캐릭터 항목 클립 전부(하나라도 없으면 None). 작업 스레드에서 부른다."""
+    """버킷의 차시 파일 + 그 캐릭터 manifest. 클립은 받기를 걸어 두고 EB_WAIT_S 만 기다린다 — 덜 온 클립은
+    빈 pcm 자리로 두고 통화 중에 채운다(PM-DEC-1052 · call 2874 첫 소리 18초). 작업 스레드에서 부른다."""
     key = (char, lang, lesson)
     if key in _EB_LRU:
         _EB_LRU.move_to_end(key)
@@ -231,30 +246,56 @@ def _remote_lesson(char: str, lang: str, lesson: str) -> Optional[tuple[dict, li
     if miss is not None and time.monotonic() - miss < EB_MISS_TTL_S:
         return None
     t0 = time.monotonic()
-    doc = _eb_json(f"{lesson}.json")
-    man = _eb_json(f"{char}_{lang}/{lesson}/manifest.json")
-    ok = isinstance(doc, dict) and isinstance(doc.get("items"), list) and isinstance(man, list) and man
-    got: list = []
-    if ok:
-        got = list(_EB_POOL.map(lambda c: _eb_clip(char, lang, lesson, c), man))
-        ok = all(g is not None for g in got)
-    if not ok:
+    f_doc = _EB_POOL.submit(_eb_json, f"{lesson}.json")
+    f_man = _EB_POOL.submit(_eb_json, f"{char}_{lang}/{lesson}/manifest.json")
+    doc, man = f_doc.result(), f_man.result()
+    if not (isinstance(doc, dict) and isinstance(doc.get("items"), list) and isinstance(man, list) and man):
         _EB_MISS[key] = time.monotonic()
-        logger.info("clip_expr: 버킷 차시 묶음 없음·부족 %s/%s %d/%d (%.0fms)", char, lesson,
-                    sum(g is not None for g in got), len(man) if isinstance(man, list) else 0,
-                    (time.monotonic() - t0) * 1000)
+        logger.info("clip_expr: 버킷 차시 묶음 없음·부족 %s/%s (%.0fms)", char, lesson, (time.monotonic() - t0) * 1000)
         return None
-    bank = {g.id: g for g in got}
+    bank: dict[str, Clip] = {}
+    futs = []
+    for c in man:
+        face = c.get("face") or "neutral"
+        if face == "neutral":
+            face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
+        clip = Clip(c["id"], c.get("text") or "", float(c.get("sec") or 0.0), b"", face, (char, lang, lesson))
+        bank[clip.id] = clip
+        fut = _EB_POOL.submit(_eb_fill, clip)
+        _EB_FUT[(char, lang, lesson, clip.id)] = fut
+        futs.append(fut)
+    wait(futs, timeout=max(0.0, EB_WAIT_S - (time.monotonic() - t0)))
     _EB_LRU[key] = (bank, doc["items"])
     while len(_EB_LRU) > EB_LRU_MAX:
         _EB_LRU.popitem(last=False)
-    logger.info("clip_expr: 버킷 차시 묶음 받음 %s/%s 클립 %d개 %.0fms", char, lesson, len(bank),
-                (time.monotonic() - t0) * 1000)
+    got = sum(1 for c in bank.values() if c.pcm)
+    logger.info("clip_expr: 버킷 차시 묶음 받음 %s/%s 클립 %d/%d %.0fms%s", char, lesson, got, len(bank),
+                (time.monotonic() - t0) * 1000, "" if got == len(bank) else " (나머지는 통화 중에 받음)")
     return _EB_LRU[key]
 
 
+async def ensure_pcm(clip: Clip) -> bool:
+    """재생 직전 — 버킷 클립이 아직 비었으면 받는 중인 것을 기다리고, 없으면 바로 하나 받는다(EB_CLIP_WAIT_S 까지)."""
+    if clip.pcm or clip.src is None:
+        return bool(clip.pcm)
+    fut = _EB_FUT.get((*clip.src, clip.id))
+    try:
+        if fut is not None and not fut.done():
+            await asyncio.wait_for(asyncio.wrap_future(fut), EB_CLIP_WAIT_S)
+        if not clip.pcm:
+            await asyncio.wait_for(asyncio.to_thread(_eb_fill, clip), EB_CLIP_WAIT_S)
+    except asyncio.TimeoutError:
+        logger.warning("clip_expr: 버킷 클립 기다림 초과 %s/%s", clip.src[2], clip.id)
+    return bool(clip.pcm)
+
+
+_GENERIC: dict[tuple[str, str], dict[str, Clip]] = {}
+
+
 def _base_generic(char: str, lang: str) -> dict[str, Clip]:
-    """저장소 manifest 의 공통 클립(항목 없는 것 · g_*)만."""
+    """저장소 manifest 의 공통 클립(항목 없는 것 · g_*)만. 프로세스당 한 번 읽는다."""
+    if (char, lang) in _GENERIC:
+        return _GENERIC[(char, lang)]
     d = ROOT / f"{char}_{lang}"
     out: dict[str, Clip] = {}
     for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
@@ -265,6 +306,7 @@ def _base_generic(char: str, lang: str) -> dict[str, Clip]:
             if face == "neutral":
                 face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
             out[c["id"]] = Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
+    _GENERIC[(char, lang)] = out
     return out
 
 
@@ -281,8 +323,7 @@ def load_bank(char: str, lang: str = "en", lesson: str = "L1-S01-1") -> tuple[di
         clips = dict(_base_generic(char, lang))
         clips.update(bank)
         items = [Item(x["seq"], x["surface"], x.get("en") or "", "◯" in x["surface"]) for x in raw_items]
-        _BANK_CACHE[key] = (clips, items)
-        return clips, items
+        return clips, items        # 버킷 묶음은 _EB_LRU 가 상한을 지킨다(여기 캐시에 두지 않는다)
     d = ROOT / f"{char}_{lang}"
     clips: dict[str, Clip] = {}
     for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
@@ -753,6 +794,21 @@ class ClipExprSession:
             return f"native_{seq}"
         return f"ask_{seq}_{1 + self.ask_n % 2}"
 
+    async def _fill_or_tts(self, c: Clip) -> Optional[Clip]:
+        """PM-DEC-1052 — 버킷 클립이 아직이면 기다려 받고, 끝내 없으면 그 차례만 같은 목소리 TTS 로 읽는다."""
+        t0 = time.monotonic()
+        if await ensure_pcm(c):
+            logger.info("normalcall clipexpr: 클립 늦게 받음 %s %.0fms", c.id, (time.monotonic() - t0) * 1000)
+            return c
+        lang = "ko" if _HANGUL.search(c.text or "") else "en"
+        pcm = await tts_pcm(c.text, lang=lang, voice=CHAR_VOICE.get(self.char, "Fenrir")) if c.text else None
+        if pcm:
+            self.tts_chars += len(c.text)
+            logger.warning("normalcall clipexpr: 클립 못 받음 %s → TTS(%s) %.0fms", c.id, lang, (time.monotonic() - t0) * 1000)
+            return Clip(c.id, c.text, len(pcm) / 48000.0, pcm, c.face)
+        logger.warning("normalcall clipexpr: 클립 못 받음 %s · TTS 도 실패(건너뜀)", c.id)
+        return None
+
     def _has(self, cid: str) -> bool:
         return cid in self.clips
 
@@ -813,6 +869,10 @@ class ClipExprSession:
             await self._turn([self._pick("g_back")], result=r, heard=heard, t_end=t_end)
             return
         seq = it.seq
+        if st in ("native", "native2") and r != "correct":
+            # PM-DEC-1052 — 현지인 예문은 길어 받아쓰기·대조가 약하다. 한 번 못 따라 하면 다음 항목(call 2874 other ×3 되풀이).
+            await self._turn([self._pick("g_move")] + self._next_item_clips(), result=r, heard=heard, t_end=t_end)
+            return
         if r in ("other", "native_lang"):
             # 딴말·영어 답 — 클립(g_back «Back to Korean» + 지금 문제)으로 바로 받는다. TTS 응답은 2.5~3.9초라(call 2043) 뺐다.
             await self._turn([self._pick("g_back"), self._ask_id()], result=r, heard=heard, t_end=t_end)
@@ -831,14 +891,7 @@ class ClipExprSession:
             lead = self._pick("g_ok") if st in ("ask", "hint") else self._pick("g_rep_ok")
             await self._turn([lead] + self._next_item_clips(), result=r, heard=heard, t_end=t_end, react=self._correct_rx(st))
             return
-        # 실패(close·wrong·dunno)
-        if st in ("native", "native2"):
-            if st == "native":
-                self.stage = "native2"
-                await self._turn([self._pick("g_rep_again"), f"native_{seq}"], result=r, heard=heard, t_end=t_end)
-            else:
-                await self._turn([self._pick("g_move")] + self._next_item_clips(), result=r, heard=heard, t_end=t_end)
-            return
+        # 실패(close·wrong·dunno) — native 단계 실패는 위에서 이미 다음 항목으로 넘겼다
         self.item_fails += 1
         if self.item_fails >= 3:
             model = [f"model_{seq}"]
@@ -1046,6 +1099,10 @@ class ClipExprSession:
             if c is None:
                 logger.warning("normalcall clipexpr: 클립 없음 %s(건너뜀)", cid)
                 continue
+            if not c.pcm:
+                c = await self._fill_or_tts(c)
+                if c is None:
+                    continue
             self._on_clip_start(cid, c, max(0.0, self._play_until - time.monotonic()))   # PM-DEC-893 — 재생 시작까지 남은 초
             face_now = await self._emit_pcm(c.pcm, (" " if first_sound else "") + c.text, c.face, face_now)
             if first_sound is None:
