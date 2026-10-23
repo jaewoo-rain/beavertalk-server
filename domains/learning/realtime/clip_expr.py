@@ -59,7 +59,9 @@ _OUT_BPS = 48000         # 출력 24kHz·16bit·mono 바이트/초
 _MIC_BPS = 32000         # 업링크 16kHz·16bit·mono 바이트/초
 EXC_CAP = 8              # 예외 턴 통화당 상한(요청서 4절)
 LAUGH_P = 0.3
-PRE_GAP_S = 0.3          # 말 문턱 전 이만큼 짧은 틈은 말을 끊지 않는다(PM-DEC-913)
+PRE_GAP_S = 0.5          # 말 문턱 전 이만큼 짧은 틈은 말을 끊지 않는다(PM-DEC-913 · 0.3→0.5 call 2898 «국|적» 받침 폐쇄 틈 0.32s)
+SHORT_VOICED_S = 0.12    # 또렷한 짧은 말(최대 RMS ≥ 문턱×SHORT_PEAK_X)은 이만큼이면 말로 친다(«네»·«국적» 단답 · 2898)
+SHORT_PEAK_X = 5.0
 SPEC_SILENCE_S = 0.35    # 이만큼 무음이면 판정을 미리 시작한다(말이 이어지면 버린다)
 PLAYBACK_SLACK_S = 0.3   # 앱 재생 끝 추정에 더하는 여유
 # 클립 묶음 → 표정(set_face). 매니페스트 face 칸이 neutral 이 아니면 그것이 먼저다. 앱 표정 이름(neutral·happy·surprised·sad·angry·laugh)만.
@@ -541,6 +543,7 @@ Return result:
 class ClipExprSession:
     """클립 주도 표현학습 대리 세션(LiveSessionProtocol 흉내 + async CM)."""
 
+    SHORT_ANSWERS = True   # 2898 — 표현학습은 한 단어 단답이 정답일 수 있다(대본 읽기는 끈다 · 긴 문장)
     PERSIST = ("idx", "stage", "item_fails", "ask_n", "quiz_q", "done_items", "exc_used", "_last_in_group", "_recent")
 
     def __init__(self, factory: Callable, client: Any, settings: Any, factory_kwargs: dict, *, char: str,
@@ -687,6 +690,7 @@ class ClipExprSession:
         loud = rms >= self._vad_th
         self._tl_add("L" if loud else ("Z" if pcm16_16k == bytes(len(pcm16_16k)) else "q"), dur, rms)
         if loud:
+            self._peak = max(getattr(self, "_peak", 0.0), rms)
             self._voiced_s += dur
             self._gap_max_s = max(getattr(self, "_gap_max_s", 0.0), self._silence_s)
             self._silence_s = 0.0
@@ -697,7 +701,9 @@ class ClipExprSession:
                 self._spec.cancel()
                 self._spec = None
             return
-        if self._voiced_s >= self._min_voiced_s:
+        enough = self._voiced_s >= self._min_voiced_s or (
+            self.SHORT_ANSWERS and self._voiced_s >= SHORT_VOICED_S and getattr(self, "_peak", 0.0) >= self._vad_th * SHORT_PEAK_X)
+        if enough:
             self._speech.extend(pcm16_16k)
             self._silence_s += dur
             if self._spec is None and self._silence_s >= SPEC_SILENCE_S:
@@ -726,6 +732,7 @@ class ClipExprSession:
             # 진단 — 말 문턱(0.2초) 전 소리를 잡음으로 버린다(첫 음절 빠짐 후보)
             logger.info("normalcall clipexpr 말 앞 버림: call_id=%s 소리=%.2fs 프레임 %s", self._cid(), self._voiced_s, self._tl_text())
         self._tl = []
+        self._peak = 0.0
         self._pre_gap_s = 0.0
         self._speech.clear()
         self._voiced_s = 0.0
@@ -1209,6 +1216,7 @@ class ClipExprSession:
         self._speech.clear()
         self._voiced_s = self._silence_s = self._idle_s = self._pre_gap_s = 0.0
         self._gap_max_s = 0.0
+        self._peak = 0.0
         self._gz0 = getattr(self._state, "gate_zeroed", 0) or 0
         self._tl = []
         self._listening = True
