@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import difflib
+import io
 import json
 import logging
 import math
@@ -28,6 +29,8 @@ import re
 import time
 import wave
 from array import array
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, AsyncIterator, Callable, Optional
@@ -135,6 +138,22 @@ def jamo_sim(a: str, b: str) -> float:
     return difflib.SequenceMatcher(None, ja, jb).ratio()
 
 
+def collapse_repeats(text: str) -> str:
+    """같은 말을 연속으로 되풀이했으면 하나로(«다시 말해 주세요 다시 말해 주세요» → «다시 말해 주세요»).
+
+    clipb 2866: 정확히 두 번 말하면 자모 유사도가 0.67 로 떨어져 close 가 됐다 · 대본 읽기는 되풀이를 덧붙임으로 안 친다.
+    """
+    words = [w for w in re.split(r"\s+", _PUNCT_RE.sub(" ", text or "")) if w]
+    n = len(words)
+    for size in range(1, n // 2 + 1):
+        if n % size == 0 and words == words[:size] * (n // size):
+            return " ".join(words[:size])
+    return " ".join(words)
+
+
+_PUNCT_RE = re.compile(r"[.,!?~…·\"'«»()\[\]]")
+
+
 def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional[str], float]:
     """(결과 또는 None=LLM 에 묻기, 최고 자모 유사도)."""
     h = (heard or "").strip()
@@ -147,7 +166,8 @@ def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional
         return "native_lang", 0.0
     if blank and _BLANK_RE.search(h):
         return "correct", 1.0
-    sim = max((jamo_sim(t, h) for t in targets if t), default=0.0)
+    once = collapse_repeats(h)
+    sim = max((max(jamo_sim(t, h), jamo_sim(t, once)) for t in targets if t), default=0.0)
     if sim >= 0.8:
         return "correct", sim
     if sim >= 0.6:
@@ -158,11 +178,111 @@ def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional
 # ── 자산 ──────────────────────────────────────────────────────────────────── #
 _BANK_CACHE: dict[str, tuple[dict[str, Clip], list[Item]]] = {}
 
+# ── PM-DEC-1044 — 차시별 항목 클립을 버킷에서(업로드만으로 차시가 열린다) ──
+#   gs://<GCS_AUDIO_BUCKET>/clips_expr/<차시>.json · clips_expr/<캐릭터>_<lang>/<차시>/manifest.json + <id>.wav
+#   공통 클립(항목 없는 g_*)은 저장소 manifest 그대로. 저장소에 차시 파일이 있으면(L1-S01-1) 종전 그대로.
+EB_PREFIX = "clips_expr"
+EB_LRU_MAX = 12                       # 차시 묶음 캐시 상한(한 묶음 ≈ 120 클립 · 약 40MB)
+EB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다
+_EB_LRU: "OrderedDict[tuple[str, str, str], tuple[dict, list]]" = OrderedDict()
+_EB_MISS: dict[tuple[str, str, str], float] = {}
+_EB_POOL = ThreadPoolExecutor(max_workers=8, thread_name_prefix="eb-fetch")
+
+
+def _eb_json(path: str) -> Optional[Any]:
+    from core import storage
+    data = storage.download(EB_PREFIX, path)
+    if not data:
+        return None
+    try:
+        return json.loads(data.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        logger.warning("clip_expr: 버킷 json 읽기 실패 %s", path)
+        return None
+
+
+def _eb_clip(char: str, lang: str, lesson: str, c: dict) -> Optional[Clip]:
+    from core import storage
+    data = storage.download(EB_PREFIX, f"{char}_{lang}/{lesson}/{c['id']}.wav")
+    if not data:
+        return None
+    try:
+        with wave.open(io.BytesIO(data), "rb") as w:
+            if not (w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1):
+                logger.warning("clip_expr: 버킷 클립 형식 다름 %s/%s/%s", char, lesson, c["id"])
+                return None
+            frames = w.readframes(w.getnframes())
+    except (wave.Error, EOFError) as exc:
+        logger.warning("clip_expr: 버킷 클립 읽기 실패 %s/%s/%s: %s", char, lesson, c["id"], exc)
+        return None
+    face = c.get("face") or "neutral"
+    if face == "neutral":
+        face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
+    return Clip(c["id"], c.get("text") or "", float(c.get("sec") or len(frames) / 48000.0), frames, face)
+
+
+def _remote_lesson(char: str, lang: str, lesson: str) -> Optional[tuple[dict, list]]:
+    """버킷의 차시 파일 + 그 캐릭터 항목 클립 전부(하나라도 없으면 None). 작업 스레드에서 부른다."""
+    key = (char, lang, lesson)
+    if key in _EB_LRU:
+        _EB_LRU.move_to_end(key)
+        return _EB_LRU[key]
+    miss = _EB_MISS.get(key)
+    if miss is not None and time.monotonic() - miss < EB_MISS_TTL_S:
+        return None
+    t0 = time.monotonic()
+    doc = _eb_json(f"{lesson}.json")
+    man = _eb_json(f"{char}_{lang}/{lesson}/manifest.json")
+    ok = isinstance(doc, dict) and isinstance(doc.get("items"), list) and isinstance(man, list) and man
+    got: list = []
+    if ok:
+        got = list(_EB_POOL.map(lambda c: _eb_clip(char, lang, lesson, c), man))
+        ok = all(g is not None for g in got)
+    if not ok:
+        _EB_MISS[key] = time.monotonic()
+        logger.info("clip_expr: 버킷 차시 묶음 없음·부족 %s/%s %d/%d (%.0fms)", char, lesson,
+                    sum(g is not None for g in got), len(man) if isinstance(man, list) else 0,
+                    (time.monotonic() - t0) * 1000)
+        return None
+    bank = {g.id: g for g in got}
+    _EB_LRU[key] = (bank, doc["items"])
+    while len(_EB_LRU) > EB_LRU_MAX:
+        _EB_LRU.popitem(last=False)
+    logger.info("clip_expr: 버킷 차시 묶음 받음 %s/%s 클립 %d개 %.0fms", char, lesson, len(bank),
+                (time.monotonic() - t0) * 1000)
+    return _EB_LRU[key]
+
+
+def _base_generic(char: str, lang: str) -> dict[str, Clip]:
+    """저장소 manifest 의 공통 클립(항목 없는 것 · g_*)만."""
+    d = ROOT / f"{char}_{lang}"
+    out: dict[str, Clip] = {}
+    for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
+        if c.get("item"):
+            continue
+        with wave.open(str(d / f"{c['id']}.wav"), "rb") as w:
+            face = c.get("face") or "neutral"
+            if face == "neutral":
+                face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
+            out[c["id"]] = Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
+    return out
+
 
 def load_bank(char: str, lang: str = "en", lesson: str = "L1-S01-1") -> tuple[dict[str, Clip], list[Item]]:
     key = f"{char}_{lang}_{lesson}"
     if key in _BANK_CACHE:
         return _BANK_CACHE[key]
+    if not (ROOT / f"{lesson}.json").exists():
+        # PM-DEC-1044 — 저장소에 없는 차시는 버킷 묶음(공통 클립은 저장소 것)
+        remote = _remote_lesson(char, lang, lesson)
+        if remote is None:
+            raise FileNotFoundError(f"clip_expr: 차시 묶음 없음 {char}_{lang}/{lesson}")
+        bank, raw_items = remote
+        clips = dict(_base_generic(char, lang))
+        clips.update(bank)
+        items = [Item(x["seq"], x["surface"], x.get("en") or "", "◯" in x["surface"]) for x in raw_items]
+        _BANK_CACHE[key] = (clips, items)
+        return clips, items
     d = ROOT / f"{char}_{lang}"
     clips: dict[str, Clip] = {}
     for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
@@ -189,7 +309,16 @@ def lesson_missing(lesson: Optional[str], char: str, lang: str = "en") -> Option
     if not lesson:
         return "차시 없음"
     if not (ROOT / f"{lesson}.json").exists():
-        return f"차시 파일 없음({lesson})"
+        # PM-DEC-1044 — 버킷 묶음: 차시 파일·manifest·클립을 다 받아 보고, 항목마다 ask_·model_ 이 있어야 연다
+        remote = _remote_lesson(char, lang, lesson)
+        if remote is None:
+            return f"차시 묶음 없음({lesson})"
+        bank, raw_items = remote
+        ids = list(bank)
+        miss = [str(x.get("seq")) for x in raw_items
+                if not any(i == f"ask_{x.get('seq')}" or i.startswith(f"ask_{x.get('seq')}_") for i in ids)
+                or not any(i == f"model_{x.get('seq')}" or i.startswith(f"model_{x.get('seq')}_") for i in ids)]
+        return f"항목 클립 없음(seq {miss[:5]})" if miss else None
     d = ROOT / f"{char}_{lang}"
     if not (d / "manifest.json").exists():
         return f"캐릭터 자산 없음({char}_{lang})"
