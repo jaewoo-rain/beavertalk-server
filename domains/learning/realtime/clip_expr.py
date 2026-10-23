@@ -27,6 +27,7 @@ import math
 import os
 import random
 import re
+import threading
 import time
 import wave
 from array import array
@@ -301,22 +302,25 @@ def warmup(chars: tuple[str, ...] = ("Baba", "Bibi"), lang: str = "en") -> dict[
     작업 스레드에서 부른다 · 하나가 실패해도 나머지는 한다 · 실패는 그 통화가 처음 할 때 다시 시도된다."""
     out: dict[str, str] = {}
     t0 = time.monotonic()
-    try:
+    def step(name, fn):
+        t = time.monotonic()
+        try:
+            v = fn()
+        except Exception as exc:  # noqa: BLE001 - 데우기 실패는 첫 통화가 다시 한다
+            v = type(exc).__name__
+        out[name] = f"{v} {int((time.monotonic() - t) * 1000)}ms"
+
+    def _storage():
         from core import storage
         storage.download(EB_PREFIX, "_warmup.json")          # 없는 객체 — 인증·연결만 연다(404 는 «없음»)
-        out["storage"] = "ok"
-    except Exception as exc:  # noqa: BLE001 - 데우기 실패는 첫 통화가 다시 한다
-        out["storage"] = type(exc).__name__
+        return "ok"
+
+    # 첫 소리에 필요한 것(저장소·공통 클립) 먼저 · 받아쓰기·TTS 클라이언트는 그 뒤(첫 답 판정 때 필요)
+    step("storage", _storage)
     for ch in chars:
-        try:
-            out[f"generic_{ch}"] = str(len(_base_generic(ch, lang)))
-        except Exception as exc:  # noqa: BLE001
-            out[f"generic_{ch}"] = type(exc).__name__
-    for name, fn in (("speech", _sync_speech_client), ("tts", _sync_tts_client)):
-        try:
-            out[name] = "ok" if fn() is not None else "없음"
-        except Exception as exc:  # noqa: BLE001
-            out[name] = type(exc).__name__
+        step(f"generic_{ch}", lambda ch=ch: len(_base_generic(ch, lang)))
+    step("speech", lambda: "ok" if _sync_speech_client() is not None else "없음")
+    step("tts", lambda: "ok" if _sync_tts_client() is not None else "없음")
     out["ms"] = str(int((time.monotonic() - t0) * 1000))
     return out
 
@@ -443,9 +447,20 @@ _SYNC_SPEECH: list = []          # PM-DEC-923 — 동기 SpeechClient 프로세�
 RECOGNIZE_TIMEOUT_S = 8.0
 
 
+_SPEECH_LOCK = threading.Lock()   # seventh2 — 데우기와 통화가 동시에 만들면 하나는 기다린다(1 vCPU 에서 둘 다 느려지던 것)
+_TTS_LOCK = threading.Lock()
+
+
 def _sync_speech_client():
     if _SYNC_SPEECH:
         return _SYNC_SPEECH[0]
+    with _SPEECH_LOCK:
+        if _SYNC_SPEECH:
+            return _SYNC_SPEECH[0]
+        return _make_speech_client()
+
+
+def _make_speech_client():
     from google.cloud import speech_v1
     from google.oauth2 import service_account
 
@@ -491,6 +506,13 @@ TTS_TIMEOUT_S = 10.0
 def _sync_tts_client():
     if _SYNC_TTS:
         return _SYNC_TTS[0]
+    with _TTS_LOCK:
+        if _SYNC_TTS:
+            return _SYNC_TTS[0]
+        return _make_tts_client()
+
+
+def _make_tts_client():
     from google.cloud import texttospeech
     from google.oauth2 import service_account
 
