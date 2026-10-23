@@ -371,6 +371,37 @@ def test_agate_clip_session_short_peak_released_as_silence(monkeypatch):
     monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
     st = cs._CallState()
     st.clip_expr = "Baba"
-    out = _feed(st, clock, 0.001, 3) + _feed(st, clock, 0.05, 0.06) + _feed(st, clock, 0.001, 0.2)
-    assert _stream_s(out) == pytest.approx(3.26, abs=0.03)
+    out = _feed(st, clock, 0.001, 3) + _feed(st, clock, 0.05, 0.06) + _feed(st, clock, 0.001, 0.4)   # seventh2 — 틈 0.3초까지 붙잡음
+    assert _stream_s(out) == pytest.approx(3.46, abs=0.03)
     assert all(f == bytes(len(f)) for o in out for f in o) and st.ag_onsets == 0
+
+
+def test_agate_clip_gukjeok_burst_keeps_both_syllables(monkeypatch):
+    """seventh2 — 2901 «국적» 4번 dunno: 「국」 문턱 위 약 80ms · 0.2초 저음량 틈 · 「적」 160ms.
+    프레임이 묶여 와도(벽시계가 안 흐름) 두 음절 다 원음으로 나간다 · 내보낸 길이 = 받은 길이."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    st.clip_expr = "Baba"
+    out = _feed(st, clock, 0.001, 3)                       # 조용한 방(문턱 바닥 0.006)
+    env = [0.098, 0.078, 0.004, 0.003, 0.005, 0.004, 0.004, 0.047, 0.153, 0.133, 0.062]   # 40ms 포락(하네스 실측)
+    burst = []
+    for lv in env:
+        for _ in range(2):                                 # 20ms 프레임 두 개 = 40ms
+            burst.append(cs._agate(st, _pcm(lv)))          # 시계를 안 움직인다 — 한꺼번에 도착
+    tail = _feed(st, clock, 0.001, 1.6)
+    sent = [f for o in burst for f in o]
+    loud = [f for f in sent if f != bytes(len(f))]
+    assert len(loud) >= 4 * 2 + 2 * 2                      # 「국」 두 칸 + 「적」 네 칸이 원음으로
+    assert _stream_s(out + burst + tail) == pytest.approx(3 + len(env) * 0.04 + 1.6, abs=0.03)
+
+
+def test_agate_clip_short_peak_alone_still_silent(monkeypatch):
+    """짧은 봉우리 하나(0.08초) 뒤 0.3초 넘게 조용하면 0 으로(시간 보존) — 배경 잡음은 그대로 막는다."""
+    clock = _Clock()
+    monkeypatch.setattr(cs.asyncio, "get_running_loop", lambda: clock)
+    st = cs._CallState()
+    st.clip_expr = "Baba"
+    out = _feed(st, clock, 0.001, 3) + _feed(st, clock, 0.08, 0.08) + _feed(st, clock, 0.001, 0.5)
+    assert all(f == bytes(len(f)) for o in out for f in o) and st.ag_onsets == 0
+    assert _stream_s(out) == pytest.approx(3.58, abs=0.03)
