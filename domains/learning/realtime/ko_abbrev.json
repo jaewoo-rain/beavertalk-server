@@ -1,9 +1,30 @@
 {
-  "_doc": "PM-DEC-1059 — 판정 전 줄임말 정규화(목표·들음 양쪽). 정본은 이 파일 하나 · call flow 는 사본을 쓴다. 확실한 것만 작게. kind: token = 낱말 전체가 같을 때만 · prefix = 낱말 머리에서만(뒤에 조사·어미가 붙어도).",
+  "_doc": "PM-DEC-1059 — 판정 전 줄임말 정규화(목표·들음 양쪽). 정본은 이 파일 하나 · call flow 는 사본을 쓴다. 확실한 것만 작게. kind: token = 낱말 전체가 같을 때만 · prefix = 낱말 머리에서만(뒤에 조사·어미가 붙어도). · PM-DEC-1063 표기 변이 «깜박→깜빡»(둘 다 표준어 · 받아쓰기가 늘 «깜빡» 으로 적음).",
   "pairs": [
-    {"from": "낼모레", "to": "내일모레", "kind": "prefix"},
-    {"from": "낼", "to": "내일", "kind": "token"},
-    {"from": "얘기", "to": "이야기", "kind": "prefix"},
-    {"from": "근데", "to": "그런데", "kind": "prefix"}
+    {
+      "from": "낼모레",
+      "to": "내일모레",
+      "kind": "prefix"
+    },
+    {
+      "from": "낼",
+      "to": "내일",
+      "kind": "token"
+    },
+    {
+      "from": "얘기",
+      "to": "이야기",
+      "kind": "prefix"
+    },
+    {
+      "from": "근데",
+      "to": "그런데",
+      "kind": "prefix"
+    },
+    {
+      "from": "깜박",
+      "to": "깜빡",
+      "kind": "prefix"
+    }
   ]
 }

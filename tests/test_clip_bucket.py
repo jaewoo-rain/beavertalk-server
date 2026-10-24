@@ -254,3 +254,19 @@ def test_abbrev_does_not_touch_inside_words(heard, target):
 ])
 def test_abbrev_no_false_correct(heard, target):
     assert ce.rule_judge(heard, [target], blank=False)[0] != "correct"
+
+
+@pytest.mark.parametrize("heard,target", [
+    ("깜빡했어요", "깜박했어요"),        # C1-T14-1 — 받아쓰기는 늘 «깜빡-»
+    ("깜빡이 켜세요", "깜박이 켜세요"),
+    ("깜박하다", "깜빡하다"),
+])
+def test_kkambak_variant_normalized(heard, target):
+    """PM-DEC-1063 — «깜박»·«깜빡» 은 같은 답(낱말 머리)."""
+    assert ce.rule_judge(heard, [target], blank=False)[0] == "correct"
+
+
+def test_kkambak_variant_does_not_touch_other_words():
+    assert ce.normalize_abbrev("반짝반짝 깜박") == "반짝반짝 깜빡"      # 낱말 머리만
+    assert ce.normalize_abbrev("눈을깜박") == "눈을깜박"                # 낱말 속은 그대로
+    assert ce.rule_judge("깜짝 놀랐어요", ["깜박했어요"], blank=False)[0] != "correct"
