@@ -935,7 +935,8 @@ class ClipExprSession:
         """지금 항목을 끝내고 다음 출제(또는 퀴즈·마무리) 클립."""
         self.done_items += 1
         if self.done_items % 3 == 0:
-            self.quiz_q = [it.seq for it in self.items[self.idx - 2:self.idx + 1]]
+            # quiz_N 클립이 없는 항목은 퀴즈에서 뺀다 — 빈 차례(질문 없이 8초 dunno) 방지(A3-T05-1 Bibi quiz_7 없음)
+            self.quiz_q = [it.seq for it in self.items[self.idx - 2:self.idx + 1] if self._has(f"quiz_{it.seq}")]
         self.idx += 1
         self.item_fails = 0
         self.ask_n += 1
