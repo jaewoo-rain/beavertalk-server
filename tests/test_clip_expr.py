@@ -508,3 +508,28 @@ async def test_short_clear_answer_is_not_dropped(pattern, heard):
         await s.send_audio(SILENT)
     got = [c for c in list(s._cmd._queue) if c[0] == "utt"]
     assert bool(got) is heard, (pattern, list(s._cmd._queue))
+
+
+def test_quiz_skips_items_without_quiz_clip():
+    """quiz_N 클립이 빠진 항목은 퀴즈에 넣지 않는다 — 질문 없는 빈 차례가 생기지 않는다."""
+    h = _Harness([])
+    s = h.s
+    for k in [k for k in s.clips if k == "quiz_2"]:
+        del s.clips[k]
+    s.idx, s.done_items = 2, 2
+    out = s._next_item_clips()
+    assert 2 not in s.quiz_q and all(f"quiz_{q}" in s.clips for q in s.quiz_q)
+    assert all(c in s.clips for c in out)
+
+
+@pytest.mark.asyncio
+async def test_short_one_syllable_bak_is_heard():
+    """2910 꼴 「박」 — 받침 ㄱ 한 음절(또렷 0.16s)만 말해도 말로 친다(대조 시험 · 하네스 TTS 잘림 원인 분리)."""
+    h = _Harness([])
+    s = h.s
+    s._reset_listen()
+    for f in _frames(8000, 160):
+        await s.send_audio(f)
+    for _ in range(12):
+        await s.send_audio(SILENT)
+    assert any(c[0] == "utt" for c in list(s._cmd._queue))
