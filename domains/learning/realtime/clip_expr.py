@@ -228,6 +228,7 @@ if EB_PREFIX != "clips_expr" and not EB_PREFIX.startswith("clips_expr/"):
 EB_LRU_MAX = 16                       # 차시 묶음 캐시 상한(한 묶음 ≈ 190 클립 · 약 35MB · 2Gi 인스턴스)
 EB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다
 EB_WAIT_S = float(os.environ.get("CLIP_EXPR_EB_WAIT_S", "0") or 0)   # PM-DEC-1052 — 통화 시작 전 기다림. 0 = 인사(저장소 g_open) 재생과 겹쳐 받는다
+CLOSE_WAIT_S = 2.0                    # call 2929 — 통화 끝에 일꾼·미리 판정이 멈추길 기다리는 상한
 EB_CLIP_WAIT_S = 3.0                  # 재생할 클립이 아직이면 이만큼 기다린 뒤 TTS 로 대신
 _EB_LRU: "OrderedDict[tuple[str, str, str], tuple[dict, list]]" = OrderedDict()
 _EB_MISS: dict[tuple[str, str, str], float] = {}
@@ -688,8 +689,11 @@ class ClipExprSession:
         for t in (self._worker, self._spec):
             if t is not None:
                 t.cancel()
-                with contextlib.suppress(BaseException):
-                    await t
+                # call 2929 — 닫기는 일꾼을 무한정 기다리지 않는다(못 멈추면 남겨 두고 저장·종료를 계속한다)
+                done, _ = await asyncio.wait({t}, timeout=CLOSE_WAIT_S)
+                if not done:
+                    logger.warning("normalcall clipexpr: 닫기 — 작업이 %.0f초 안에 멈추지 않아 기다리지 않고 진행 call_id=%s %s",
+                                   CLOSE_WAIT_S, self._cid(), t.get_name())
         self._save()
         lat = sorted(self.latency_ms)
         jm = sorted(self.judge_ms)
@@ -833,6 +837,11 @@ class ClipExprSession:
                 heard, result = await spec
                 self.spec_hits += 1
             except asyncio.CancelledError:
+                # ⛔ call 2929 — 일꾼 자신이 취소된 것(통화 끝 __aexit__)이면 그대로 올린다. 미리 판정만 취소된 것을
+                #   일꾼 취소와 구분하지 않으면 다시 판정·클립을 내고 명령 큐를 영영 기다려 통화가 닫히지 않는다.
+                task = asyncio.current_task()
+                if task is not None and task.cancelling():
+                    raise
                 heard, result = await self._analyze(pcm)
         else:
             heard, result = await self._analyze(pcm)
