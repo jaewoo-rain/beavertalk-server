@@ -229,7 +229,9 @@ EB_LRU_MAX = 16                       # 차시 묶음 캐시 상한(한 묶음 �
 EB_MISS_TTL_S = 300.0                 # 없던 차시는 이 동안 다시 받지 않는다
 EB_WAIT_S = float(os.environ.get("CLIP_EXPR_EB_WAIT_S", "0") or 0)   # PM-DEC-1052 — 통화 시작 전 기다림. 0 = 인사(저장소 g_open) 재생과 겹쳐 받는다
 CLOSE_WAIT_S = 2.0                    # call 2929 — 통화 끝에 일꾼·미리 판정이 멈추길 기다리는 상한
-EB_CLIP_WAIT_S = 3.0                  # 재생할 클립이 아직이면 이만큼 기다린 뒤 TTS 로 대신
+EB_CLIP_WAIT_S = 3.0
+WARM_LESSON = "L1-S01-1"              # PM-DEC-1082 — 시동 데우기에서 받는 차시(처음 회원의 첫 차시)
+WARM_POOL_WAIT_S = 30.0               # 데우기는 요청 경로 밖이다 — 다 받을 때까지 넉넉히                  # 재생할 클립이 아직이면 이만큼 기다린 뒤 TTS 로 대신
 _EB_LRU: "OrderedDict[tuple[str, str, str], tuple[dict, list]]" = OrderedDict()
 _EB_MISS: dict[tuple[str, str, str], float] = {}
 _EB_FUT: dict[tuple[str, str, str, str], Any] = {}    # 받는 중인 클립(char, lang, lesson, id) → Future
@@ -389,10 +391,23 @@ def warmup(chars: tuple[str, ...] = ("Baba", "Bibi"), lang: str = "en") -> dict[
         storage.download(EB_PREFIX, "_warmup.json")          # 없는 객체 — 인증·연결만 연다(404 는 «없음»)
         return "ok"
 
+    def _pool(ch: str) -> str:
+        """PM-DEC-1082 — 버킷 받기 일꾼(_EB_POOL)을 미리 돌린다. 콜드 첫 통화의 0.76초(call 2929)는 145 클립을
+        일꾼 32개에 처음 실을 때 쓰였다(json·manifest 받기는 각 ≈0.1초). 실제 차시 하나를 버킷 경로 그대로 받아
+        스레드·연결을 열어 두고, 그 차시(처음 회원의 첫 차시)는 LRU 에 남는다."""
+        r = _remote_lesson(ch, lang, WARM_LESSON)
+        if r is None:
+            return "없음"
+        futs = [f for k, f in list(_EB_FUT.items()) if k[:3] == (ch, lang, WARM_LESSON)]
+        wait(futs, timeout=WARM_POOL_WAIT_S)
+        return f"{sum(1 for c in r[0].values() if c.pcm)}/{len(r[0])}"
+
     # 첫 소리에 필요한 것(저장소·공통 클립) 먼저 · 받아쓰기·TTS 클라이언트는 그 뒤(첫 답 판정 때 필요)
     step("storage", _storage)
     for ch in chars:
         step(f"generic_{ch}", lambda ch=ch: len(_base_generic(ch, lang)))
+    for ch in chars:
+        step(f"eb_pool_{ch}", lambda ch=ch: _pool(ch))
     step("speech", lambda: "ok" if _sync_speech_client() is not None else "없음")
     step("tts", lambda: "ok" if _sync_tts_client() is not None else "없음")
     out["ms"] = str(int((time.monotonic() - t0) * 1000))
