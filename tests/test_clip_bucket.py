@@ -309,3 +309,27 @@ def test_bucket_lesson_g_clip_overrides_repo_generic(monkeypatch):
     assert clips["g_open_1"].text == "bucket greeting" and clips["g_open_1"].src == ("Baba", "en", LESSON)
     assert "g_open_2" in clips                            # 버킷에 없는 공통 클립은 저장소 것 그대로
 
+
+
+def test_warmup_runs_bucket_pool_on_first_lesson(monkeypatch):
+    """PM-DEC-1082 — 데우기가 버킷 경로로 L1-S01-1 을 받아 일꾼을 미리 돌린다(실패해도 결과만 남긴다)."""
+    seen = []
+    real = ce._remote_lesson
+
+    def spy(char, lang, lesson):
+        seen.append((char, lesson))
+        return real(char, lang, lesson)
+    monkeypatch.setattr(ce, "_remote_lesson", spy)
+    monkeypatch.setattr(ce, "_sync_speech_client", lambda: None)
+    monkeypatch.setattr(ce, "_sync_tts_client", lambda: None)
+    out = ce.warmup(("Baba",))
+    assert seen == [("Baba", "L1-S01-1")]
+    got, total = out["eb_pool_Baba"].split()[0].split("/")
+    assert int(total) > 0 and got == total
+
+
+def test_warmup_pool_survives_missing_lesson(monkeypatch):
+    monkeypatch.setattr(ce, "_remote_lesson", lambda char, lang, lesson: None)
+    monkeypatch.setattr(ce, "_sync_speech_client", lambda: None)
+    monkeypatch.setattr(ce, "_sync_tts_client", lambda: None)
+    assert ce.warmup(("Baba",))["eb_pool_Baba"].startswith("없음")
