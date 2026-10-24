@@ -105,3 +105,41 @@ def _serialize_run_db(monkeypatch: pytest.MonkeyPatch) -> None:
             return await original(session_factory, fn)
 
     monkeypatch.setattr(_svc, "run_db", _serialized)
+
+
+@pytest.fixture(autouse=True)
+def _clip_l1_fixture_as_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
+    """PM-DEC-1074 — 운영 로더는 모든 차시를 버킷에서만 읽는다. 시험은 저장소 assets/clips_expr 의 L1-S01-1 을
+    «버킷에 그 묶음이 있는 것처럼» 내준다 — 로더의 버킷 경로(_remote_lesson → load_bank·lesson_missing)를 그대로 돈다.
+    다른 차시는 진짜 _remote_lesson 으로 넘긴다(test_clip_bucket 이 가짜 저장소로 그 경로를 따로 시험한다).
+    «버킷에 L1-S01-1 이 없으면 Live» 를 보는 시험은 monkeypatch 로 이 대체를 걷어 낸다."""
+    import json
+    import wave
+
+    from domains.learning.realtime import clip_expr as ce
+
+    real = ce._remote_lesson
+    cache: dict = {}
+
+    def _fixture(char: str, lang: str, lesson: str):
+        if lesson != "L1-S01-1":
+            return real(char, lang, lesson)
+        key = (char, lang)
+        if key not in cache:
+            d = ce.ROOT / f"{char}_{lang}"
+            if not (d / "manifest.json").exists():
+                return None
+            bank = {}
+            for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
+                if not c.get("item"):
+                    continue                        # 공통 g_* 는 load_bank 가 _base_generic 으로 붙인다
+                with wave.open(str(d / f"{c['id']}.wav"), "rb") as w:
+                    face = c.get("face") or "neutral"
+                    if face == "neutral":
+                        face = ce.FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
+                    bank[c["id"]] = ce.Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
+            items = json.loads((ce.ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["items"]
+            cache[key] = (bank, items)
+        return cache[key]
+
+    monkeypatch.setattr(ce, "_remote_lesson", _fixture)

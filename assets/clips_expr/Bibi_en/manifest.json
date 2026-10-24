@@ -810,17 +810,17 @@
  {
   "id": "g_open_1",
   "slot": "공통:open",
-  "text": "Ahh, greetings today! Let's gooo!",
+  "text": "Yay, you're here! Let's gooo!",
   "item": null,
-  "sec": 3.88,
+  "sec": 2.71,
   "face": "neutral"
  },
  {
   "id": "g_open_2",
   "slot": "공통:open",
-  "text": "Oh my gosh, greetings today! I'm so pumped!",
+  "text": "Oh my gosh, lesson time! I'm so pumped!",
   "item": null,
-  "sec": 4.72,
+  "sec": 4.05,
   "face": "neutral"
  },
  {
