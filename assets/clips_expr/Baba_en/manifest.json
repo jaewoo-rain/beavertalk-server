@@ -810,17 +810,17 @@
  {
   "id": "g_open_1",
   "slot": "공통:open",
-  "text": "Today: greeting someone you just met. Let's go.",
+  "text": "Alright, class is in session. Let's go.",
   "item": null,
-  "sec": 5.08,
+  "sec": 3.44,
   "face": "neutral"
  },
  {
   "id": "g_open_2",
   "slot": "공통:open",
-  "text": "Greetings today. Try not to embarrass yourself.",
+  "text": "Okay. Let's get this done.",
   "item": null,
-  "sec": 4.84,
+  "sec": 2.34,
   "face": "neutral"
  },
  {
