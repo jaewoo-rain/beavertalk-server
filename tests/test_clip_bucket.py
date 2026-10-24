@@ -12,6 +12,7 @@ import pytest
 import domains.learning.realtime.clip_expr as ce
 
 LESSON = "L9-T01-1"
+_REAL_REMOTE = ce._remote_lesson          # 모듈 읽을 때 잡아 둔 진짜 버킷 로더(conftest 가 시험마다 L1-S01-1 만 바꿔 끼운다)
 ON = SimpleNamespace(CLIP_EXPR="Baba")
 
 
@@ -40,10 +41,10 @@ def _objects(items=("1", "2"), drop=(), drop_man=()):
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    for c in (ce._EB_LRU, ce._EB_MISS, ce._BANK_CACHE, ce._EB_FUT):
+    for c in (ce._EB_LRU, ce._EB_MISS, ce._EB_FUT):
         c.clear()
     yield
-    for c in (ce._EB_LRU, ce._EB_MISS, ce._BANK_CACHE, ce._EB_FUT):
+    for c in (ce._EB_LRU, ce._EB_MISS, ce._EB_FUT):
         c.clear()
 
 
@@ -270,3 +271,41 @@ def test_kkambak_variant_does_not_touch_other_words():
     assert ce.normalize_abbrev("반짝반짝 깜박") == "반짝반짝 깜빡"      # 낱말 머리만
     assert ce.normalize_abbrev("눈을깜박") == "눈을깜박"                # 낱말 속은 그대로
     assert ce.rule_judge("깜짝 놀랐어요", ["깜박했어요"], blank=False)[0] != "correct"
+
+
+# ── PM-DEC-1074 — 저장소 차시 우선 갈래 없음: L1-S01-1 도 버킷에서만 ─────────────────── #
+def test_l1_s01_reads_bucket_not_repo_and_bucket_clip_wins(monkeypatch):
+    """저장소 assets 에 L1-S01-1 이 있어도 로더는 버킷 묶음을 쓴다 — 버킷 판 클립이 나와야 한다."""
+    monkeypatch.setattr(ce, "_remote_lesson", _REAL_REMOTE)   # conftest 의 L1-S01-1 고정물 대체를 걷어 낸다
+    objs = {k.replace(LESSON, "L1-S01-1"): v for k, v in _objects().items()}
+    objs["L1-S01-1.json"] = objs["L1-S01-1.json"].replace(LESSON.encode(), b"L1-S01-1")
+    asked = _serve(monkeypatch, objs)
+    assert (ce.ROOT / "L1-S01-1.json").exists()          # 저장소 사본은 남아 있다(공통 g_* manifest · 시험 고정물)
+    clips, items = ce.load_bank("Baba", lesson="L1-S01-1")
+    assert [i.seq for i in items] == ["1", "2"]           # 버킷 차시 파일(저장소 판은 15항목)
+    assert clips["ask_1_1"].src == ("Baba", "en", "L1-S01-1")   # 버킷 클립
+    assert ("clips_expr", "L1-S01-1.json") in asked
+
+
+def test_l1_s01_missing_in_bucket_falls_back_to_live(monkeypatch):
+    """버킷에 L1-S01-1 묶음이 없으면 저장소 판으로 몰래 돌지 않고 Live(enabled None · lesson_missing 사유)."""
+    monkeypatch.setattr(ce, "_remote_lesson", _REAL_REMOTE)
+    _serve(monkeypatch, {})
+    assert ce.lesson_missing("L1-S01-1", "Baba") == "차시 묶음 없음(L1-S01-1)"
+    assert ce.enabled(ON, call_type="expression", voice="Fenrir", locale="en", lesson="L1-S01-1") is None
+    with pytest.raises(FileNotFoundError):
+        ce.load_bank("Baba", lesson="L1-S01-1")
+
+
+def test_bucket_lesson_g_clip_overrides_repo_generic(monkeypatch):
+    """PM-DEC-1075 — 버킷 묶음에 g_open 이 있으면 저장소 공통 g_open 위에 덮인다(bank.update 가 generic 뒤)."""
+    objs = _objects()
+    man = json.loads(objs[f"Baba_en/{LESSON}/manifest.json"])
+    man.append({"id": "g_open_1", "slot": "인사", "text": "bucket greeting", "sec": 0.4, "face": "neutral"})
+    objs[f"Baba_en/{LESSON}/manifest.json"] = json.dumps(man).encode()
+    objs[f"Baba_en/{LESSON}/g_open_1.wav"] = _wav()
+    _serve(monkeypatch, objs)
+    clips, _ = ce.load_bank("Baba", lesson=LESSON)
+    assert clips["g_open_1"].text == "bucket greeting" and clips["g_open_1"].src == ("Baba", "en", LESSON)
+    assert "g_open_2" in clips                            # 버킷에 없는 공통 클립은 저장소 것 그대로
+

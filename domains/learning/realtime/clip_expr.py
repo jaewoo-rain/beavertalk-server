@@ -214,11 +214,13 @@ def rule_judge(heard: str, targets: list[str], *, blank: bool) -> tuple[Optional
 
 
 # ── 자산 ──────────────────────────────────────────────────────────────────── #
-_BANK_CACHE: dict[str, tuple[dict[str, Clip], list[Item]]] = {}
 
 # ── PM-DEC-1044 — 차시별 항목 클립을 버킷에서(업로드만으로 차시가 열린다) ──
 #   gs://<GCS_AUDIO_BUCKET>/clips_expr/<차시>.json · clips_expr/<캐릭터>_<lang>/<차시>/manifest.json + <id>.wav
-#   공통 클립(항목 없는 g_*)은 저장소 manifest 그대로. 저장소에 차시 파일이 있으면(L1-S01-1) 종전 그대로.
+#   공통 클립(항목 없는 g_*)은 저장소 manifest 그대로.
+#   PM-DEC-1074 — 차시 항목 클립은 모든 차시(L1-S01-1 포함)를 버킷에서만 읽는다. 저장소 assets/clips_expr 의
+#   L1-S01-1.json·항목 wav 는 운영이 읽지 않는다(공통 g_* 의 manifest 와 시험 고정물로만 남김).
+#   버킷에 그 차시 묶음이 없으면 lesson_missing → enabled() 가 None → 그 통화는 Live 표현학습으로 간다.
 # 시험 태그는 clips_expr/ 아래 하위 폴더(예 clips_expr/_stage)를 읽어 운영과 섞이지 않게 한다(PM-DEC-1052)
 EB_PREFIX = os.environ.get("CLIP_EXPR_EB_PREFIX", "").strip("/") or "clips_expr"
 if EB_PREFIX != "clips_expr" and not EB_PREFIX.startswith("clips_expr/"):
@@ -291,6 +293,17 @@ def _remote_lesson(char: str, lang: str, lesson: str) -> Optional[tuple[dict, li
         return None
     bank: dict[str, Clip] = {}
     futs = []
+    left = [len(man)]
+    lock = threading.Lock()
+
+    def _all_done(_f) -> None:          # PM-DEC-1076 — 묶음 클립을 다 받아 풀기까지(차가운 첫 받기 시간 계측)
+        with lock:
+            left[0] -= 1
+            last = left[0] == 0
+        if last:
+            got_all = sum(1 for c in bank.values() if c.pcm)
+            logger.info("clip_expr: 버킷 차시 묶음 클립 전부 받음 %s/%s %d/%d %.0fms", char, lesson, got_all, len(bank),
+                        (time.monotonic() - t0) * 1000)
     for c in man:
         face = c.get("face") or "neutral"
         if face == "neutral":
@@ -300,6 +313,7 @@ def _remote_lesson(char: str, lang: str, lesson: str) -> Optional[tuple[dict, li
         fut = _EB_POOL.submit(_eb_fill, clip)
         _EB_FUT[(char, lang, lesson, clip.id)] = fut
         futs.append(fut)
+        fut.add_done_callback(_all_done)
     wait(futs, timeout=max(0.0, EB_WAIT_S - (time.monotonic() - t0)))
     _EB_LRU[key] = (bank, doc["items"])
     while len(_EB_LRU) > EB_LRU_MAX:
@@ -376,32 +390,15 @@ def _base_generic(char: str, lang: str) -> dict[str, Clip]:
 
 
 def load_bank(char: str, lang: str = "en", lesson: str = "L1-S01-1") -> tuple[dict[str, Clip], list[Item]]:
-    key = f"{char}_{lang}_{lesson}"
-    if key in _BANK_CACHE:
-        return _BANK_CACHE[key]
-    if not (ROOT / f"{lesson}.json").exists():
-        # PM-DEC-1044 — 저장소에 없는 차시는 버킷 묶음(공통 클립은 저장소 것)
-        remote = _remote_lesson(char, lang, lesson)
-        if remote is None:
-            raise FileNotFoundError(f"clip_expr: 차시 묶음 없음 {char}_{lang}/{lesson}")
-        bank, raw_items = remote
-        clips = dict(_base_generic(char, lang))
-        clips.update(bank)
-        items = [Item(x["seq"], x["surface"], x.get("en") or "", "◯" in x["surface"]) for x in raw_items]
-        return clips, items        # 버킷 묶음은 _EB_LRU 가 상한을 지킨다(여기 캐시에 두지 않는다)
-    d = ROOT / f"{char}_{lang}"
-    clips: dict[str, Clip] = {}
-    for c in json.loads((d / "manifest.json").read_text(encoding="utf-8")):
-        with wave.open(str(d / f"{c['id']}.wav"), "rb") as w:
-            assert w.getframerate() == 24000 and w.getsampwidth() == 2 and w.getnchannels() == 1, c["id"]
-            face = c.get("face") or "neutral"
-            if face == "neutral":
-                face = FACE_BY_GROUP.get(c["id"].rsplit("_", 1)[0], "neutral")
-            clips[c["id"]] = Clip(c["id"], c["text"], float(c["sec"]), w.readframes(w.getnframes()), face)
-    data = json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))
-    items = [Item(x["seq"], x["surface"], x.get("en") or "", "◯" in x["surface"]) for x in data["items"]]
-    _BANK_CACHE[key] = (clips, items)
-    return clips, items
+    """차시 항목 클립은 버킷 묶음에서만(PM-DEC-1074 · 저장소 차시 우선 갈래 없음). 공통 g_* 는 저장소 manifest."""
+    remote = _remote_lesson(char, lang, lesson)
+    if remote is None:
+        raise FileNotFoundError(f"clip_expr: 차시 묶음 없음 {char}_{lang}/{lesson}")
+    bank, raw_items = remote
+    clips = dict(_base_generic(char, lang))
+    clips.update(bank)
+    items = [Item(x["seq"], x["surface"], x.get("en") or "", "◯" in x["surface"]) for x in raw_items]
+    return clips, items        # 버킷 묶음은 _EB_LRU 가 상한을 지킨다(여기 캐시에 두지 않는다)
 
 
 def fallback(kind: str, reason: str, **kw: Any) -> None:
@@ -414,26 +411,15 @@ def lesson_missing(lesson: Optional[str], char: str, lang: str = "en") -> Option
     """이 차시 클립 묶음에 빠진 것(없으면 None) — 차시 파일 · 캐릭터 manifest · 항목별 ask_/model_ 클립."""
     if not lesson:
         return "차시 없음"
-    if not (ROOT / f"{lesson}.json").exists():
-        # PM-DEC-1044 — 버킷 묶음: 차시 파일·manifest·클립을 다 받아 보고, 항목마다 ask_·model_ 이 있어야 연다
-        remote = _remote_lesson(char, lang, lesson)
-        if remote is None:
-            return f"차시 묶음 없음({lesson})"
-        bank, raw_items = remote
-        ids = list(bank)
-        miss = [str(x.get("seq")) for x in raw_items
-                if not any(i == f"ask_{x.get('seq')}" or i.startswith(f"ask_{x.get('seq')}_") for i in ids)
-                or not any(i == f"model_{x.get('seq')}" or i.startswith(f"model_{x.get('seq')}_") for i in ids)]
-        return f"항목 클립 없음(seq {miss[:5]})" if miss else None
-    d = ROOT / f"{char}_{lang}"
-    if not (d / "manifest.json").exists():
-        return f"캐릭터 자산 없음({char}_{lang})"
-    ids = [c["id"] for c in json.loads((d / "manifest.json").read_text(encoding="utf-8"))]
-
-    def has(prefix: str) -> bool:      # «model_3» 그대로 · «ask_3_a» 처럼 변형 접미가 붙은 것도
-        return any(i == prefix or i.startswith(prefix + "_") for i in ids)
-    seqs = [x["seq"] for x in json.loads((ROOT / f"{lesson}.json").read_text(encoding="utf-8"))["items"]]
-    miss = [s for s in seqs if not has(f"ask_{s}") or not has(f"model_{s}")]
+    # PM-DEC-1044·1074 — 모든 차시가 버킷 묶음: 차시 파일·manifest·클립을 다 받아 보고, 항목마다 ask_·model_ 이 있어야 연다
+    remote = _remote_lesson(char, lang, lesson)
+    if remote is None:
+        return f"차시 묶음 없음({lesson})"
+    bank, raw_items = remote
+    ids = list(bank)
+    miss = [str(x.get("seq")) for x in raw_items
+            if not any(i == f"ask_{x.get('seq')}" or i.startswith(f"ask_{x.get('seq')}_") for i in ids)
+            or not any(i == f"model_{x.get('seq')}" or i.startswith(f"model_{x.get('seq')}_") for i in ids)]
     return f"항목 클립 없음(seq {miss[:5]})" if miss else None
 
 
@@ -615,6 +601,8 @@ class ClipExprSession:
         self._request_close = request_close
         self._rng = rng or random.Random()
         self.clips, self.items = bank if bank is not None else load_bank(char, lesson=lesson or "L1-S01-1")
+        self._lesson_code = lesson or "L1-S01-1"
+        self._open_ask_pending = False
         self._out: asyncio.Queue = asyncio.Queue()
         self._cmd: asyncio.Queue = asyncio.Queue()
         self._worker: Optional[asyncio.Task] = None
@@ -877,6 +865,7 @@ class ClipExprSession:
         if self._restored:
             await self._turn([self._ask_id()], result="resume")       # 조각 이어하기 — 지금 문제를 그대로 다시
             return
+        self._open_ask_pending = True      # PM-DEC-1076 — 통화 열림 → 첫 출제 클립 재생 시작까지를 한 번 잰다
         await self._turn([self._pick("g_open"), self._ask_id()], result="open")
 
     # ── 진행 틀(요청서 3-1) ──────────────────────────────────────────────── #
@@ -1242,7 +1231,11 @@ class ClipExprSession:
         self._reset_listen()
 
     def _on_clip_start(self, cid: str, clip: "Clip", delay_s: float) -> None:
-        """클립 하나가 앱에서 재생되기 시작할 때(지금부터 delay_s 뒤) — 표현학습은 쓰지 않는다(PM-DEC-893)."""
+        """클립 하나가 앱에서 재생되기 시작할 때(지금부터 delay_s 뒤) — 표현학습은 첫 출제 시각만 남긴다(PM-DEC-893·1076)."""
+        if self._open_ask_pending and cid.startswith(("ask_", "quiz_")):
+            self._open_ask_pending = False
+            logger.info("normalcall clipexpr 첫 출제: call_id=%s 차시=%s 열림→%s 재생 시작 %.2fs", self._cid(),
+                        self._lesson_code, cid, self._t_rel() + delay_s)
 
     def _on_turn_audio_end(self, delay_s: float) -> None:
         """이 턴 소리가 앱에서 다 재생될 때(지금부터 delay_s 뒤)."""
