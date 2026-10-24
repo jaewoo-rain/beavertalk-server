@@ -533,3 +533,39 @@ async def test_short_one_syllable_bak_is_heard():
     for _ in range(12):
         await s.send_audio(SILENT)
     assert any(c[0] == "utt" for c in list(s._cmd._queue))
+
+
+@pytest.mark.asyncio
+async def test_close_while_speculative_judge_pending_does_not_hang(monkeypatch):
+    """call 2929(2026-10-24) — 미리 판정(spec)을 기다리는 중에 통화가 끝나 일꾼이 취소되면, 그 취소를 «미리 판정만
+    취소됨» 으로 오인해 다시 판정·클립을 내고 명령 큐를 영영 기다렸다(__aexit__ 의 await 가 안 끝나 저장·종료 안 됨 ·
+    회원은 540초 동안 ALREADY_IN_CALL). 이제 일꾼 자신의 취소는 그대로 올리고, 닫기는 일꾼을 무한정 기다리지 않는다."""
+    monkeypatch.setattr(clip_expr, "_progress_store", lambda call_id, snap: None)   # 진행 저장은 실제 GCS — 시험 밖
+    gate = asyncio.Event()
+    h = _Harness([])
+
+    calls, seen = [], []
+
+    async def slow_judge(pcm, ctx):
+        calls.append(1)
+        await gate.wait()
+        return "말", "correct"
+    h.s._judge_fn = slow_judge
+
+    async def run():
+        async with h.s:
+            h.it = h.s.events().__aiter__()
+            await h.s.send_text_turn("SEED")
+            await h.turn()
+            h.s._end_s = 0.5                       # 말 끝(0.5초) > 미리 판정 문턱(0.35초) — 운영과 같은 순서
+            for _ in range(8):
+                await h.s.send_audio(VOICED)
+            for _ in range(13):                    # 0.36초에 미리 판정 시작 · 0.52초에 말 끝 → 명령에 spec 이 실린다
+                await h.s.send_audio(SILENT)
+            await asyncio.sleep(0.05)              # 일꾼이 미리 판정(spec)을 기다리는 중에 닫는다
+            assert len(calls) == 1 and h.s._cmd.empty()
+            seen.append(len(calls))
+    await asyncio.wait_for(run(), 3)
+    assert h.s._worker.done()
+    await asyncio.sleep(0.05)
+    assert len(calls) == seen[0]                   # 닫힌 뒤 다시 판정하지 않는다(미리 판정 1번이 전부)
