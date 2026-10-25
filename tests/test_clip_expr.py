@@ -569,3 +569,106 @@ async def test_close_while_speculative_judge_pending_does_not_hang(monkeypatch):
     assert h.s._worker.done()
     await asyncio.sleep(0.05)
     assert len(calls) == seen[0]                   # 닫힌 뒤 다시 판정하지 않는다(미리 판정 1번이 전부)
+
+
+# ── thirteenth — 말 앞소리 남김(PREROLL_S) ─────────────────────────────────── #
+_PRE_DIR = __import__("pathlib").Path(__file__).parent / "fixtures" / "clip_preroll"
+_FR = 1280   # 40ms @16k
+
+
+def _live_settings():
+    return SimpleNamespace(CLIP_EXPR="Baba", LIVE_REGROUND_VOICE_RMS=0.02, CLIP_EXPR_END_SILENCE_S=1.5,
+                           CLIP_EXPR_DUNNO_S=8.0, CLIP_EXPR_JUDGE_MODEL="x")
+
+
+def _bare_session(settings=SETTINGS):
+    state = SimpleNamespace(call_id=1, close_seed="CLOSE", call_start_ts=None, fragment_index=1)
+
+    async def judge(pcm, ctx):   # pragma: no cover - 일꾼을 돌리지 않는다
+        return "", "dunno"
+
+    s = ClipExprSession(None, None, settings, {"system_instruction": "S", "voice": "Fenrir"}, char="Baba", state=state,
+                        judge=judge, rng=random.Random(0))
+    s._reset_listen()
+    return s
+
+
+def _utt(s) -> bytes:
+    got = [c for c in list(s._cmd._queue) if c[0] == "utt"]
+    assert len(got) == 1, list(s._cmd._queue)
+    return got[0][1]
+
+
+@pytest.mark.asyncio
+async def test_preroll_keeps_weak_onset_before_threshold():
+    """2909·2920 — 문턱(0.02) 아래 첫 자음(ㅊ 기식·ㄱ 파열)을 버려 STT 가 «한국»·«북극» 으로 들었다. 말 앞 0.16초를 붙인다."""
+    s = _bare_session()
+    weak = [array.array("h", [300 + k, -300 - k] * 320).tobytes() for k in range(6)]   # RMS ≈ 0.009(문턱 아래) · 프레임마다 다름
+    for f in weak:
+        await s.send_audio(f)
+    for f in _frames(8000, 200):
+        await s.send_audio(f)
+    for _ in range(4):
+        await s.send_audio(SILENT)
+    pcm = _utt(s)
+    n = clip_expr._PREROLL_B // _FR
+    assert n == 4 and pcm[:clip_expr._PREROLL_B] == b"".join(weak[-n:])   # 마지막 4프레임만 · 순서 그대로
+    assert pcm[clip_expr._PREROLL_B:clip_expr._PREROLL_B + _FR] == _frames(8000, 40)[0]
+
+
+@pytest.mark.asyncio
+async def test_preroll_skips_playback_guard_frames_and_measures_them():
+    """재생 중(추정) 버린 프레임은 앞소리에 담지 않는다(비버 소리 꼬리). 그중 문턱 넘은 길이는 재기만 한다."""
+    import time as _t
+    s = _bare_session()
+    s._play_until = _t.monotonic() + 30
+    for f in _frames(8000, 160):
+        await s.send_audio(f)
+    assert s._guard_loud_s == pytest.approx(0.16) and not s._pre and not s._speech
+    s._play_until = 0.0
+    for f in _frames(8000, 200):
+        await s.send_audio(f)
+    for _ in range(4):
+        await s.send_audio(SILENT)
+    pcm = _utt(s)
+    assert pcm[:_FR] == _frames(8000, 40)[0] and s._pre_used_s == 0.0
+
+
+@pytest.mark.asyncio
+async def test_preroll_resets_each_listen_window():
+    """앞 듣기 창의 잡음이 다음 답 앞에 붙지 않는다."""
+    s = _bare_session()
+    for _ in range(3):
+        await s.send_audio(array.array("h", [300, -300] * 320).tobytes())
+    s._reset_listen()
+    for f in _frames(8000, 200):
+        await s.send_audio(f)
+    for _ in range(4):
+        await s.send_audio(SILENT)
+    assert _utt(s)[:_FR] == _frames(8000, 40)[0]
+
+
+def _fixtures():
+    import json as _j
+    return _j.loads((_PRE_DIR / "index.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("fx", _fixtures(), ids=lambda f: f["file"])
+@pytest.mark.asyncio
+async def test_preroll_recordings_send_head_to_stt(fx):
+    """시험 계정 녹음 10턴(오청 3 · 정답 7) — 판정으로 넘기는 PCM 이 첫 문턱 프레임 앞 4프레임(0.16초)부터 시작한다.
+    이 PCM 을 서버와 같은 STT 설정에 넣으면 미리 판정·말 끝 둘 다 10/10 목표로 들린다(앞소리 없으면 7/10 · 6/10 ·
+    실측 _workspace/2026-10-20_운영안정화U32/judge_1085/stt_preroll_live.json)."""
+    import gzip
+    pcm = gzip.decompress((_PRE_DIR / fx["file"]).read_bytes())
+    s = _bare_session(_live_settings())
+    for i in range(0, len(pcm), _FR):
+        await s.send_audio(pcm[i:i + _FR])
+    for _ in range(40):
+        if any(c[0] == "utt" for c in list(s._cmd._queue)):
+            break
+        await s.send_audio(SILENT)
+    got = _utt(s)
+    start = (fx["onset_frame"] - 4) * _FR
+    assert got[:len(pcm) - start] == pcm[start:], fx["file"]
+

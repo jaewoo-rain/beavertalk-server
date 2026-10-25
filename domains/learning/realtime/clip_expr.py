@@ -65,6 +65,9 @@ SHORT_VOICED_S = 0.12    # 또렷한 짧은 말(최대 RMS ≥ 문턱×SHORT_PEA
 SHORT_PEAK_X = 5.0
 SPEC_SILENCE_S = 0.35    # 이만큼 무음이면 판정을 미리 시작한다(말이 이어지면 버린다)
 PLAYBACK_SLACK_S = 0.3   # 앱 재생 끝 추정에 더하는 여유
+PREROLL_S = 0.16         # thirteenth — 말 문턱(RMS) 넘기 전 이만큼을 말 앞에 붙인다(약한 첫 자음 · 2909 «창구»→«한국» · 2920 «국고»→«북극»)
+                         #   녹음 10턴 실측: 미리 판정 PCM 은 0.12·0.16·0.20 모두 10/10 · 말 끝 PCM 은 0.16 만 10/10(0.12·0.20 은 «천국»·«탕국» 8/10)
+_PREROLL_B = int(PREROLL_S * 32000) // 2 * 2
 # 클립 묶음 → 표정(set_face). 매니페스트 face 칸이 neutral 이 아니면 그것이 먼저다. 앱 표정 이름(neutral·happy·surprised·sad·angry·laugh)만.
 FACE_BY_GROUP = {"g_ok": "happy", "g_rep_ok": "happy", "g_open": "happy", "g_close": "happy", "g_quiz_start": "happy",
                  "g_laugh": "laugh", "g_wrong": "surprised", "g_rep_again": "surprised", "g_dunno": "sad"}
@@ -666,6 +669,9 @@ class ClipExprSession:
         self._dunno_s = float(getattr(settings, "CLIP_EXPR_DUNNO_S", 8.0) or 8.0)
         self._min_voiced_s = 0.2        # 이만큼 소리가 나야 말로 친다(짧은 잡음은 버린다)
         self._pre_gap_s = 0.0           # 말 문턱 전 첫 음절 뒤 틈(PM-DEC-913)
+        self._pre = bytearray()         # 말 시작 전 마지막 PREROLL_S(링버퍼 · 재생 중 프레임은 안 담는다)
+        self._pre_used_s = 0.0
+        self._guard_loud_s = 0.0        # 재생 중(추정)이라 버린 프레임 가운데 말 문턱을 넘은 길이(계측만)
         self._model = getattr(settings, "CLIP_EXPR_JUDGE_MODEL", "") or "gemini-2.5-flash"
         # 진행
         self.idx = 0
@@ -772,6 +778,8 @@ class ClipExprSession:
             return
         if not self._voiced_s and time.monotonic() < self._play_until:
             # 앱이 아직 비버 소리를 트는 중(추정) — 그 사이 말은 이전 시도의 꼬리다(call 2040·2041 반쪽 판정). 버린다.
+            if _rms(pcm16_16k) >= self._vad_th:   # thirteenth — 이 버림이 답 머리를 먹는지 재기만 한다(동작은 그대로)
+                self._guard_loud_s += len(pcm16_16k) / _MIC_BPS
             return
         dur = len(pcm16_16k) / _MIC_BPS
         rms = _rms(pcm16_16k)
@@ -784,6 +792,12 @@ class ClipExprSession:
             self._silence_s = 0.0
             self._pre_gap_s = 0.0
             self._t_last_voiced = time.monotonic()
+            if not self._speech and self._pre:
+                # thirteenth — 문턱 아래 첫 자음(ㅊ 기식·ㄱ 파열)을 살린다. 잘리면 힌트를 줘도 STT 가 다른 낱말로 듣는다.
+                self._pre_used_s = len(self._pre) / _MIC_BPS
+                self._tl.insert(0, ["P", self._pre_used_s, _rms(bytes(self._pre))])
+                self._speech.extend(self._pre)
+                self._pre.clear()
             self._speech.extend(pcm16_16k)
             if self._spec is not None:          # 말이 이어졌다 — 미리 한 판정은 버린다
                 self._spec.cancel()
@@ -801,11 +815,11 @@ class ClipExprSession:
                 spec, self._spec = self._spec, None
                 # 진단(2880·2881·2882 말 중간 쉼에 끊김) — 닫힌 까닭과 말 길이·가장 긴 쉼
                 logger.info("normalcall clipexpr 말 닫힘: call_id=%s 까닭=%s 말=%.2fs 소리=%.2fs 가장긴쉼=%.2fs 끝무음=%.2fs 문턱=%.3f "
-                            "게이트0=%d 게이트문턱=%.4f",
+                            "게이트0=%d 게이트문턱=%.4f 앞소리=%.2fs 재생중버림소리=%.2fs",
                             self._cid(), "무음" if self._silence_s >= self._end_s else "12초", len(self._speech) / _MIC_BPS,
                             self._voiced_s, getattr(self, "_gap_max_s", 0.0), self._silence_s, self._vad_th,
                             (getattr(self._state, "gate_zeroed", 0) or 0) - getattr(self, "_gz0", 0),
-                            float(getattr(self._state, "ag_thr", 0.0) or 0.0))
+                            float(getattr(self._state, "ag_thr", 0.0) or 0.0), self._pre_used_s, self._guard_loud_s)
                 logger.info("normalcall clipexpr 말 프레임: call_id=%s %s", self._cid(), self._tl_text())
                 self._gap_max_s = 0.0
                 self._cmd.put_nowait(("utt", bytes(self._speech), self._t_last_voiced, spec))
@@ -824,9 +838,14 @@ class ClipExprSession:
         self._pre_gap_s = 0.0
         self._speech.clear()
         self._voiced_s = 0.0
+        self._pre.extend(pcm16_16k)
+        if len(self._pre) > _PREROLL_B:
+            del self._pre[:len(self._pre) - _PREROLL_B]
         self._idle_s += dur
         if self._idle_s >= self._dunno_s:
             self._listening = False
+            if self._guard_loud_s > 0:
+                logger.info("normalcall clipexpr 재생중 버림: call_id=%s 소리=%.2fs 끝=무응답", self._cid(), self._guard_loud_s)
             self._cmd.put_nowait(("silent", b"", time.monotonic(), None))
 
     async def send_text_turn(self, text: str) -> None:
@@ -1318,4 +1337,6 @@ class ClipExprSession:
         self._peak = 0.0
         self._gz0 = getattr(self._state, "gate_zeroed", 0) or 0
         self._tl = []
+        self._pre.clear()
+        self._pre_used_s = self._guard_loud_s = 0.0
         self._listening = True
