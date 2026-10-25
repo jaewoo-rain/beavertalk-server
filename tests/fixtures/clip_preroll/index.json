@@ -1,0 +1,72 @@
+[
+ {
+  "file": "2907_0013.pcm.gz",
+  "call": "2907",
+  "target": "창구",
+  "kind": "miss",
+  "onset_frame": 10
+ },
+ {
+  "file": "2909_0019.pcm.gz",
+  "call": "2909",
+  "target": "창구",
+  "kind": "miss",
+  "onset_frame": 10
+ },
+ {
+  "file": "2920_0009.pcm.gz",
+  "call": "2920",
+  "target": "국고",
+  "kind": "miss",
+  "onset_frame": 10
+ },
+ {
+  "file": "2907_0015.pcm.gz",
+  "call": "2907",
+  "target": "창구",
+  "kind": "ok",
+  "onset_frame": 10
+ },
+ {
+  "file": "2907_0021.pcm.gz",
+  "call": "2907",
+  "target": "창구",
+  "kind": "ok",
+  "onset_frame": 10
+ },
+ {
+  "file": "2909_0013.pcm.gz",
+  "call": "2909",
+  "target": "창구",
+  "kind": "ok",
+  "onset_frame": 10
+ },
+ {
+  "file": "2919_0003.pcm.gz",
+  "call": "2919",
+  "target": "국고",
+  "kind": "ok",
+  "onset_frame": 10
+ },
+ {
+  "file": "2919_0005.pcm.gz",
+  "call": "2919",
+  "target": "국고",
+  "kind": "ok",
+  "onset_frame": 10
+ },
+ {
+  "file": "2919_0011.pcm.gz",
+  "call": "2919",
+  "target": "국고",
+  "kind": "ok",
+  "onset_frame": 10
+ },
+ {
+  "file": "2920_0003.pcm.gz",
+  "call": "2920",
+  "target": "국고",
+  "kind": "ok",
+  "onset_frame": 10
+ }
+]
