@@ -1206,9 +1206,12 @@ class ClipExprSession:
             self._face_n += 1
             await self._out.put(LiveEvent(kind="tool_call", fn_name="set_face", fn_id=f"clip-face-{self._face_n}",
                                           fn_args={"emotion": face}, auto_acked=True))
-        await self._out.put(LiveEvent(kind="out_tr", text=text))
+        # 자막은 소리 위치 마커로(sync) — 클립 앞에 글, 뒤에 빈 마커. 빈 마커의 바이트 위치가 이 클립의
+        #   소리 길이를 앱에 알려 줘서 글자가 소리와 같이 끝난다(2026-10-26 call 2946 · 자막이 소리보다 통째로 먼저 뜸).
+        await self._out.put(LiveEvent(kind="out_tr", text=text, sync=True))
         for i in range(0, len(pcm), _CHUNK):
             await self._out.put(LiveEvent(kind="audio", audio=pcm[i:i + _CHUNK]))
+        await self._out.put(LiveEvent(kind="out_tr", text="", sync=True))
         now = time.monotonic()
         self._play_until = max(self._play_until, now) + len(pcm) / _OUT_BPS
         return face

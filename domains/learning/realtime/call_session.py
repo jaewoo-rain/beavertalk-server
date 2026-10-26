@@ -7839,6 +7839,20 @@ async def _forward_event(client_ws, event: LiveEvent, state: _CallState) -> bool
             turn_started = True
             await _maybe_send_face_reset(client_ws, state)   # D — 자막이 먼저 여는 턴도 같다(오디오는 아직 0바이트)
         text = event.text or ""
+        if event.sync:
+            # 클립 통화 — 자막을 소리 위치 마커로 보낸다(2026-10-26 call 2946).
+            #   output_transcript 는 도착 즉시 통째로 뜨는데, 클립은 글과 소리를 한 번에 보내서
+            #   자막이 소리보다 0.7~0.9초 먼저 다 떠 있었다. 마커는 앱이 오디오 봉투 위치에 꽂아
+            #   재생이 닿을 때 글자를 드러낸다(빈 마커 = 클립 끝 위치 · 타자기 속도 재료).
+            state.face_seq += 1
+            await _send_json(client_ws, ServerSentenceMarker(
+                turn_id=state.turn_id or "", seq=state.face_seq, emotion=state.face_last or "neutral",
+                text=text.strip(), server_bytes=len(state.cur_beaver_pcm),
+            ))
+            if text.strip():
+                state.cur_beaver_text.append(text)
+                logger.info("normalcall 🦫 beaver(소리 위치 자막): %s", text)
+            return turn_started
         if not state.face_first_tr_at and (text or "").strip():
             state.face_first_tr_at = asyncio.get_running_loop().time()
         # ⛔ **자막으로 나가기 전에** tool 낭독을 걷어낸다(2026-09-01). 여기서 안 막으면
