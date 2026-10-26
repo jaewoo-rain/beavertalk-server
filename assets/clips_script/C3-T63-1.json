@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "협력할 산업에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about partner industries?",
-   "beaver_roman": "Hyeomnyeokal saneobe daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "농업 말고 다른 산업과도 협력합니까?",
+   "beaver_en": "Will you also work with industries other than farming?",
+   "beaver_roman": "Nongeop malgo dareun saneopgwado hyeomnyeokamnikka?",
    "learner": "수산업은 물론이려니와 임업과도 협력하겠습니다.",
    "en": "We'll work with fishing and forestry alike.",
    "roman": "Suseobeun mulloniryeoniwa imeopgwado hyeomnyeokagetseumnida."

@@ -70,9 +70,9 @@
    "beaver": "그리고 매달 가계부를 써 보세요.",
    "beaver_en": "Also, try keeping a household budget book every month.",
    "beaver_roman": "geurigo maedal gagyebureul sseo boseyo.",
-   "learner": "가계부를 쓰면서 어디에 낭비하는지 볼게요.",
+   "learner": "가계부를 쓰며 어디에 낭비하는지 볼게요.",
    "en": "I'll keep a budget book and see where I waste money.",
-   "roman": "gagyebureul sseumyeonseo eodie nangbihaneunji bolgeyo."
+   "roman": "gagyebureul sseumyeo eodie nangbihaneunji bolgeyo."
   },
   {
    "n": 9,
@@ -85,9 +85,9 @@
   },
   {
    "n": 10,
-   "beaver": "돈 관리에 대해 더 이야기해 보실래요?",
-   "beaver_en": "Would you like to talk more about managing money?",
-   "beaver_roman": "don gwallie daehae deo iyagihae bosillaeyo?",
+   "beaver": "다음 주에 돈 관리 방법을 더 알려 드릴까요?",
+   "beaver_en": "Shall I tell you more about managing money next week?",
+   "beaver_roman": "daeum jue don gwalli bangbeobeul deo allyeo deurilkkayo?",
    "learner": "네, 먹고살려면 배워야죠. 다음 주에 올게요.",
    "en": "Yes, I have to learn this to get by. I'll come next week.",
    "roman": "ne, meokgosallyeomyeon baewoyajyo. daeum jue olgeyo."

@@ -31,9 +31,9 @@
   },
   {
    "n": 4,
-   "beaver": "위치와 방향에 대해 더 말씀해 주시겠어요?",
-   "beaver_en": "Could you tell me more about the location and direction?",
-   "beaver_roman": "Wichiwa banghyange daehae deo malsseumhae jusigesseoyo?",
+   "beaver": "광장 어디쯤에서 만나면 찾기 쉬울까요?",
+   "beaver_en": "Where in the plaza would be easy to find each other?",
+   "beaver_roman": "Gwangjang eodijjeumeseo mannamyeon chatgi swiulkkayo?",
    "learner": "광장 북쪽에 큰 조형물이 있어요.",
    "en": "There's a big sculpture on the north side of the plaza.",
    "roman": "Gwangjang bukjjoge keun johyeongmuri isseoyo."
@@ -79,9 +79,9 @@
    "beaver": "좋아요. 단체방에도 올려 주시겠어요?",
    "beaver_en": "Good. Could you post it in the group chat too?",
    "beaver_roman": "Joayo. Danchebangedo ollyeo jusigesseoyo?",
-   "learner": "네, 지도도 같이 올릴게요.",
-   "en": "Sure, I'll post a map with it too.",
-   "roman": "Ne, jidodo gachi ollilgeyo."
+   "learner": "네, 아래와 같이 정리해서 지도와 함께 올릴게요.",
+   "en": "Sure, I'll sort it out as below and post it with a map.",
+   "roman": "Ne, araewa gachi jeongnihaeseo jidowa hamkke ollilgeyo."
   },
   {
    "n": 10,

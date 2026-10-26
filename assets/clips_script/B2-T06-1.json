@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "하루 일과에 대해 더 얘기해 줄래?",
-   "beaver_en": "Can you tell me more about your daily schedule?",
-   "beaver_roman": "haru ilgwae daehae deo yaegihae jullae?",
+   "beaver": "산책 말고 또 매일 하는 거 있어?",
+   "beaver_en": "Anything else you do every day besides walking?",
+   "beaver_roman": "sanchaek malgo tto maeil haneun geo isseo?",
    "learner": "아침엔 운동하고, 밤엔 일기를 써.",
    "en": "I exercise in the morning and write a diary at night.",
    "roman": "achimen undonghago, bamen ilgireul sseo."

@@ -25,9 +25,9 @@
    "beaver": "왜 그렇게 생각하세요?",
    "beaver_en": "Why do you think so?",
    "beaver_roman": "wae geureoke saenggakaseyo?",
-   "learner": "뉴스를 보면 불평등이 커지는 걸 알 수 있어요.",
-   "en": "If you watch the news, you can tell inequality is growing.",
-   "roman": "nyuseureul bomyeon bulpyeongdeungi keojineun geol al su isseoyo."
+   "learner": "불평등이 커진다는 것은 뉴스에서 알 수 있어요.",
+   "en": "You can tell from the news that inequality is growing.",
+   "roman": "bulpyeongdeungi keojindaneun geoseun nyuseueseo al su isseoyo."
   },
   {
    "n": 4,
@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "사회 제도와 복지에 대해 더 이야기해 볼래요?",
-   "beaver_en": "Shall we talk more about social systems and welfare?",
-   "beaver_roman": "sahoe jedowa bokjie daehae deo iyagihae bollaeyo?",
-   "learner": "세계적인 문제라서 복지 제도가 꼭 필요해요.",
-   "en": "It's a worldwide problem, so we really need a welfare system.",
-   "roman": "segyejeogin munjeraseo bokji jedoga kkok piryohaeyo."
+   "beaver": "쉼터만으로 충분할까요? 복지 제도는 어때요?",
+   "beaver_en": "Would shelters alone be enough? What about the welfare system?",
+   "beaver_roman": "swimteomaneuro chungbunhalkkayo? bokji jedoneun eottaeyo?",
+   "learner": "아니요, 복지 제도도 선진국처럼 늘려야 해요.",
+   "en": "No, we need to expand the welfare system too, like developed countries.",
+   "roman": "aniyo, bokji jedodo seonjingukcheoreom neullyeoya haeyo."
   },
   {
    "n": 10,

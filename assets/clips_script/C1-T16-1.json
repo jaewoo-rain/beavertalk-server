@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "교통수단 이용에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about transport use?",
-   "beaver_roman": "gyotongsudan iyonge daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "그렇군요. 배편은 어떻습니까?",
+   "beaver_en": "I see. What about ferries?",
+   "beaver_roman": "geureokunyo. baepyeoneun eotteoseumnikka?",
    "learner": "해상 교통도 휴가철에는 항구가 아주 혼잡합니다.",
    "en": "For sea travel, ports get very crowded in vacation season.",
    "roman": "haesang gyotongdo hyugacheoreneun hangguga aju honjapamnida."

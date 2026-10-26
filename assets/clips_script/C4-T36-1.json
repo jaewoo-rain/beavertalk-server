@@ -34,9 +34,9 @@
    "beaver": "행진할 때 관도 함께 옮기나요?",
    "beaver_en": "Is the coffin carried during the march too?",
    "beaver_roman": "haengjinhal ttae gwando hamkke omginayo?",
-   "learner": "네, 관은 행진 맨 앞에서 천천히 옮겨요.",
-   "en": "Yes, the coffin is carried slowly at the front.",
-   "roman": "ne, gwaneun haengjin maen apeseo cheoncheonhi omgyeoyo."
+   "learner": "아니요, 관 대신 영정을 앞에 모시고 행진해요.",
+   "en": "No, instead of a coffin, we march with the portrait at the front.",
+   "roman": "aniyo, gwan daesin yeongjeongeul ape mosigo haengjinhaeyo."
   },
   {
    "n": 5,
@@ -52,9 +52,9 @@
    "beaver": "문상 온 분들은 어디로 안내하죠?",
    "beaver_en": "Where should we guide the mourners?",
    "beaver_roman": "munsang on bundeureun eodiro annaehajyo?",
-   "learner": "행진이 끝나면 빈소로 안내해요.",
-   "en": "After the march, we guide them to the memorial altar.",
-   "roman": "haengjini kkeunnamyeon binsoro annaehaeyo."
+   "learner": "행진이 끝나면 추모관으로 안내해요.",
+   "en": "After the march, we guide them to the memorial hall.",
+   "roman": "haengjini kkeunnamyeon chumogwaneuro annaehaeyo."
   },
   {
    "n": 7,

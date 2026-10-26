@@ -85,12 +85,12 @@
   },
   {
    "n": 10,
-   "beaver": "그런데 우리 정원에 사과 따러 갈래요?",
-   "beaver_en": "By the way, want to go pick apples in our garden?",
-   "beaver_roman": "Geureonde uri jeongwone sagwa ttareo gallaeyo?",
-   "learner": "좋아요. 사과를 따서 같이 먹어요. 가요!",
-   "en": "Sure. Let's pick apples and eat them together. Let's go!",
-   "roman": "Joayo. Sagwareul ttaseo gachi meogeoyo. Gayo!"
+   "beaver": "그런데 우리 정원에 꽃 보러 갈래요?",
+   "beaver_en": "By the way, want to go see the flowers in our garden?",
+   "beaver_roman": "Geureonde uri jeongwone kkot boreo gallaeyo?",
+   "learner": "좋아요. 꽃이 많이 피어 있겠네요. 가요!",
+   "en": "Sure. There must be lots of flowers in bloom. Let's go!",
+   "roman": "Joayo. Kkochi mani pieo itgenneyo. Gayo!"
   }
  ]
 }

@@ -49,12 +49,12 @@
   },
   {
    "n": 6,
-   "beaver": "이 문제를 좀 더 이야기해 볼까요?",
-   "beaver_en": "Shall we talk about this a bit more?",
-   "beaver_roman": "I munjereul jom deo iyagihae bolkkayo?",
-   "learner": "좋아요. 수출이 증가해야 경제가 발전할 수 있어요.",
-   "en": "Sure. Exports need to increase for the economy to develop.",
-   "roman": "Joayo. Suchuri jeunggahaeya gyeongjega baljeonhal ssu isseoyo."
+   "beaver": "수출이 그렇게 중요해요?",
+   "beaver_en": "Are exports really that important?",
+   "beaver_roman": "Suchuri geureoke jungyohaeyo?",
+   "learner": "그럼요. 수출이 증가해야 경제가 발전할 수 있어요.",
+   "en": "Of course. Exports need to increase for the economy to develop.",
+   "roman": "Geureomyo. Suchuri jeunggahaeya gyeongjega baljeonhal ssu isseoyo."
   },
   {
    "n": 7,
@@ -79,9 +79,9 @@
    "beaver": "고마워요. 회의는 몇 시에 진행해요?",
    "beaver_en": "Thanks. What time is the meeting?",
    "beaver_roman": "Gomawoyo. Hoeuineun myeot sie jinhaenghaeyo?",
-   "learner": "세 시예요. 그 전에 자료를 정리할게요.",
-   "en": "It's at three. I'll organize the materials before then.",
-   "roman": "Se siyeyo. Geu jeone jaryoreul jeongnihalkkeyo."
+   "learner": "세 시예요. 회의실은 제가 예약할게요.",
+   "en": "It's at three. I'll book the meeting room.",
+   "roman": "Se siyeyo. Hoeuisireun jega yeyakalkkeyo."
   },
   {
    "n": 10,

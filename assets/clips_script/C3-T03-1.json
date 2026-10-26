@@ -67,9 +67,9 @@
   },
   {
    "n": 8,
-   "beaver": "외모와 첫인상에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about her looks and first impression?",
-   "beaver_roman": "oemowa cheodinsange daehae deo malsseumhae jusigesseumnikka?",
+   "beaver": "고우신 분이셨군요. 옷차림이나 표정은 어떠셨습니까?",
+   "beaver_en": "She sounds lovely. How were her clothes and expression?",
+   "beaver_roman": "gousin bunisyeotgunyo. otcharimina pyojeongeun eotteosyeotseumnikka?",
    "learner": "옷맵시가 좋고, 늘 환하게 웃으셨어요.",
    "en": "She dressed elegantly and always smiled brightly.",
    "roman": "onmaepssiga joko, neul hwanhage useusyeosseoyo."
@@ -88,9 +88,9 @@
    "beaver": "정말 다정한 분들이셨네요. 정성껏 그리겠습니다.",
    "beaver_en": "They were truly loving. I'll paint it with care.",
    "beaver_roman": "jeongmal dajeonghan bundeurisyeonneyo. jeongseongkkeot geurigesseumnida.",
-   "learner": "감사합니다. 완성되면 꼭 연락 주세요.",
-   "en": "Thank you. Please contact me when it's done.",
-   "roman": "gamsahamnida. wanseongdoemyeon kkok yeollak juseyo."
+   "learner": "감사합니다. 어떻게 그리시려는지 벌써 궁금해요.",
+   "en": "Thank you. I'm already curious how you'll paint it.",
+   "roman": "gamsahamnida. eotteoke geurisiryeoneunji beolsseo gunggeumhaeyo."
   }
  ]
 }

@@ -58,9 +58,9 @@
   },
   {
    "n": 7,
-   "beaver": "이 궁궐의 역사에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell us more about this palace's history?",
-   "beaver_roman": "i gunggworui yeoksae daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "그런데 이 궁궐은 언제 지어졌습니까?",
+   "beaver_en": "By the way, when was this palace built?",
+   "beaver_roman": "geureonde i gunggworeun eonje jieojeotseumnikka?",
    "learner": "이 궁궐은 기원후 5세기쯤 지어졌습니다.",
    "en": "This palace was built around the 5th century AD.",
    "roman": "i gunggworeun giwonhu 5segijjeum jieojeotseumnida."

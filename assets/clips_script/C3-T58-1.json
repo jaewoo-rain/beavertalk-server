@@ -22,9 +22,9 @@
   },
   {
    "n": 3,
-   "beaver": "무슨 이유가 있어? 좀 더 얘기해 줄래?",
-   "beaver_en": "Is there a reason? Can you tell me more?",
-   "beaver_roman": "Museun iyuga isseo? Jom deo yaegihae jullae?",
+   "beaver": "가고 싶은데 왜? 뭐가 마음에 걸려?",
+   "beaver_en": "You want to go, so why? What's bothering you?",
+   "beaver_roman": "Gago sipeunde wae? Mwoga maeume geollyeo?",
    "learner": "오랜만에 보면 어색할 것 같아서.",
    "en": "I think it'll be awkward after so long.",
    "roman": "Oraenmane bomyeon eosaekal kkeot gataseo."
@@ -79,9 +79,9 @@
    "beaver": "그럼 한 시간만 와서 얼굴 보는 건 어때?",
    "beaver_en": "Then how about coming for just an hour to say hi?",
    "beaver_roman": "Geureom han siganman waseo eolgul boneun geon eottae?",
-   "learner": "그래. 친구들이랑 얘기하다 보면 괜찮아지겠지.",
+   "learner": "그래. 친구들이랑 얘기하노라면 괜찮아지겠지.",
    "en": "Okay. If I keep talking with friends, I'll feel better.",
-   "roman": "Geurae. Chingudeurirang yaegihada bomyeon gwaenchanajigetji."
+   "roman": "Geurae. Chingudeurirang yaegihanoramyeon gwaenchanajigetji."
   },
   {
    "n": 10,

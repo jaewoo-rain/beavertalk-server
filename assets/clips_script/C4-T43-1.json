@@ -16,9 +16,9 @@
    "beaver": "감사합니다. 언제 일어서야 합니까?",
    "beaver_en": "Thank you. When should I stand up?",
    "beaver_roman": "gamsahamnida. eonje ireoseoya hamnikka?",
-   "learner": "찬송과 기도 때 일어서요. 거룩한 순간이라서요.",
-   "en": "We stand during hymns and prayers. They're holy moments.",
-   "roman": "chansonggwa gido ttae ireoseoyo. georukan sunganiraseoyo."
+   "learner": "찬송과 기도는 거룩한 까닭에 일어서서 해요.",
+   "en": "Hymns and prayers are holy, so we stand for them.",
+   "roman": "chansonggwa gidoneun georukan kkadalge ireoseoseo haeyo."
   },
   {
    "n": 3,
@@ -58,9 +58,9 @@
   },
   {
    "n": 7,
-   "beaver": "문화와 전통에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about the culture and traditions?",
-   "beaver_roman": "munhwawa jeontonge daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "예배 말고 다른 행사도 교회 방식으로 합니까?",
+   "beaver_en": "Besides services, do you do other events the church way too?",
+   "beaver_roman": "yebae malgo dareun haengsado gyohoe bangsigeuro hamnikka?",
    "learner": "결혼식이나 장례식도 교회식으로 해요.",
    "en": "We also hold weddings and funerals the church way.",
    "roman": "gyeolhonsigina jangnyesikdo gyohoesigeuro haeyo."

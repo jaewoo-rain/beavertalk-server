@@ -7,9 +7,9 @@
    "beaver": "수색 결과를 정리해서 보고해 주시겠습니까?",
    "beaver_en": "Could you sum up and report the search results?",
    "beaver_roman": "Susaek gyeolgwareul jeongnihaeseo bogohae jusigetseumnikka?",
-   "learner": "네, 결과를 정리해서 말씀드리겠습니다.",
-   "en": "Yes, I'll sum up the results and tell you.",
-   "roman": "Ne, gyeolgwareul jeongnihaeseo malsseumdeurigetseumnida."
+   "learner": "네, 보고서에 아래와 같이 정리했습니다.",
+   "en": "Yes, I've summed it up in the report as below.",
+   "roman": "Ne, bogoseoe araewa gachi jeongnihaetseumnida."
   },
   {
    "n": 2,
@@ -49,12 +49,12 @@
   },
   {
    "n": 6,
-   "beaver": "담당자 행방은 어떻습니까? 연락이 안 됩니다.",
-   "beaver_en": "What about the person in charge? I can't reach him.",
-   "beaver_roman": "Damdangja haengbangeun eotteoseumnikka? Yeollagi an doemnida.",
-   "learner": "담당자 행방은 아직 모릅니다. 계속 찾겠습니다.",
-   "en": "We still don't know where he is. I'll keep looking.",
-   "roman": "Damdangja haengbangeun ajik moreumnida. Gyesok chatgetseumnida."
+   "beaver": "아이를 봤다는 사람은 있습니까?",
+   "beaver_en": "Has anyone said they saw the child?",
+   "beaver_roman": "Aireul bwatdaneun sarameun itseumnikka?",
+   "learner": "아직 아이 행방을 아는 사람은 없습니다.",
+   "en": "No one knows where the child is yet.",
+   "roman": "Ajik ai haengbangeul aneun sarameun eopseumnida."
   },
   {
    "n": 7,

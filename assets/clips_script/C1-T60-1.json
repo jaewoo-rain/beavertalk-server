@@ -16,9 +16,9 @@
    "beaver": "그래요? 수험 분위기를 좀 설명해 주겠어요?",
    "beaver_en": "Really? Could you describe the exam atmosphere a bit?",
    "beaver_roman": "geuraeyo? suheom bunwigireul jom seolmyeonghae jugesseoyo?",
-   "learner": "다들 밤늦게까지 공부해요.",
-   "en": "Everyone studies until late at night.",
-   "roman": "dadeul bamneutgekkaji gongbuhaeyo."
+   "learner": "너나없이 모두 밤늦게까지 공부해요.",
+   "en": "Everyone, without exception, studies until late at night.",
+   "roman": "neonaeopsi modu bamneutgekkaji gongbuhaeyo."
   },
   {
    "n": 3,
@@ -58,9 +58,9 @@
   },
   {
    "n": 7,
-   "beaver": "공부와 시험에 대해 더 얘기해 줄래요?",
-   "beaver_en": "Can you tell me more about studying and exams?",
-   "beaver_roman": "gongbuwa siheome daehae deo yaegihae jullaeyo?",
+   "beaver": "그렇군요. 모의시험 날 분위기는 어때요?",
+   "beaver_en": "I see. What's the atmosphere like on mock exam days?",
+   "beaver_roman": "geureokunyo. mouisiheom nal bunwigineun eottaeyo?",
    "learner": "모의시험 날엔 입실 시간이 엄격해서 다들 긴장해요.",
    "en": "On mock exam days, entry time is strict, so everyone is tense.",
    "roman": "mouisiheom naren ipsil sigani eomgyeokaeseo dadeul ginjanghaeyo."

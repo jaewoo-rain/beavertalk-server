@@ -34,9 +34,9 @@
    "beaver": "외부 손님은요?",
    "beaver_en": "What about outside guests?",
    "beaver_roman": "oebu sonnimeunyo?",
-   "learner": "외부 손님은 무대 양옆에 앉으시도록 했어요.",
-   "en": "I had outside guests sit on both sides of the stage.",
-   "roman": "oebu sonnimeun mudae yangnyeope anjeusidorok haesseoyo."
+   "learner": "외부 손님은 무대 앞쪽에 앉으시도록 했어요.",
+   "en": "I had outside guests sit at the front of the stage.",
+   "roman": "oebu sonnimeun mudae apjjoge anjeusidorok haesseoyo."
   },
   {
    "n": 5,
@@ -79,9 +79,9 @@
    "beaver": "우측 통로는 막혀 있지 않죠?",
    "beaver_en": "The right aisle isn't blocked, right?",
    "beaver_roman": "ucheuk tongnoneun makyeo itji ancho?",
-   "learner": "네, 우측은 통로로 비워 뒀어요.",
-   "en": "Right, I kept the right side clear as an aisle.",
-   "roman": "ne, ucheugeun tongnoro biwo dwosseoyo."
+   "learner": "네, 우측 통로는 비워 두도록 했어요.",
+   "en": "Right, I made sure the right aisle is kept clear.",
+   "roman": "ne, ucheuk tongnoneun biwo dudorok haesseoyo."
   },
   {
    "n": 10,

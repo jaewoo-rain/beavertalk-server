@@ -22,9 +22,9 @@
   },
   {
    "n": 3,
-   "beaver": "환경 문제에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about the environmental issues?",
-   "beaver_roman": "hwangyeong munjee daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "매립지가 주변 환경을 구체적으로 어떻게 해칩니까?",
+   "beaver_en": "Specifically, how do landfills harm the surrounding environment?",
+   "beaver_roman": "maeripjiga jubyeon hwangyeongeul guchejeogeuro eotteoke haechimnikka?",
    "learner": "매립지 침출수가 토양과 지하수를 오염시킵니다.",
    "en": "Landfill leachate pollutes the soil and groundwater.",
    "roman": "maeripji chimchulsuga toyanggwa jihasureul oyeomsikimnida."

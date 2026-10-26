@@ -34,9 +34,9 @@
    "beaver": "면접 때는 어떠셨습니까?",
    "beaver_en": "How was it at the interview?",
    "beaver_roman": "myeonjeop ttaeneun eotteosyeotseumnikka?",
-   "learner": "면접관이 제 외모만 보는 것 같아 떨렸어요.",
-   "en": "I was nervous; the interviewer seemed to only see my looks.",
-   "roman": "myeonjeopgwani je oemoman boneun geot gata tteollyeosseoyo."
+   "learner": "깔끔해 보이려고 머리와 옷차림부터 정리하고 갔어요.",
+   "en": "I tidied up my hair and outfit first so I'd look neat.",
+   "roman": "kkalkkeumhae boiryeogo meoriwa otcharimbuteo jeongnihago gasseoyo."
   },
   {
    "n": 5,
@@ -58,21 +58,21 @@
   },
   {
    "n": 7,
-   "beaver": "성형도 생각하셨습니까?",
-   "beaver_en": "Did you also consider plastic surgery?",
-   "beaver_roman": "seonghyeongdo saenggakasyeotseumnikka?",
-   "learner": "쌍꺼풀 성형을 고민했지만 안 했어요.",
-   "en": "I thought about double eyelid surgery, but didn't.",
-   "roman": "ssangkkeopul seonghyeongeul gominhaetjiman an haesseoyo."
+   "beaver": "요즘 손님처럼 외모에 신경 쓰시는 분이 많아요.",
+   "beaver_en": "A lot of people pay attention to their looks these days, like you.",
+   "beaver_roman": "yojeum sonnimcheoreom oemoe singyeong sseusineun buni manayo.",
+   "learner": "친구는 쌍꺼풀 성형을 하려는지 병원을 알아보더라고요.",
+   "en": "My friend is looking into clinics, as if she's going to get double eyelid surgery.",
+   "roman": "chinguneun ssangkkeopul seonghyeongeul haryeoneunji byeongwoneul arabodeoragoyo."
   },
   {
    "n": 8,
-   "beaver": "왜 마음을 바꾸셨습니까?",
-   "beaver_en": "Why did you change your mind?",
-   "beaver_roman": "wae maeumeul bakkusyeotseumnikka?",
-   "learner": "지금 제 눈도 충분히 예쁘다고 들었거든요.",
-   "en": "I was told my eyes are pretty enough as they are.",
-   "roman": "jigeum je nundo chungbunhi yeppeudago deureotgeodeunyo."
+   "beaver": "손님도 생각해 보셨어요?",
+   "beaver_en": "Have you thought about it too?",
+   "beaver_roman": "sonnimdo saenggakae bosyeosseoyo?",
+   "learner": "저는 지금 제 눈도 충분히 괜찮은 것 같아요.",
+   "en": "I think my eyes are fine as they are.",
+   "roman": "jeoneun jigeum je nundo chungbunhi gwaenchaneun geot gatayo."
   },
   {
    "n": 9,

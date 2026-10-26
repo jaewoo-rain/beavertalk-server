@@ -31,66 +31,66 @@
   },
   {
    "n": 4,
-   "beaver": "그런데 그날 박 부장님 환갑잔치도 겹쳤어요.",
-   "beaver_en": "But Director Park's 60th birthday party is the same day.",
-   "beaver_roman": "Geureonde geunal bak bujangnim hwangapjanchido gyeopcheosseoyo.",
-   "learner": "환갑잔치는 저녁이죠? 상갓집 먼저 가요.",
-   "en": "The 60th party is in the evening, right? Let's go to the mourning first.",
-   "roman": "Hwangapjanchineun jeonyeogijyo? Sanggatjip meonjeo gayo."
+   "beaver": "좋아요. 팀 경조사 담당이니까 제가 공지할게요.",
+   "beaver_en": "Sounds good. I handle the team's family events, so I'll announce it.",
+   "beaver_roman": "Joayo. Tim gyeongjosa damdanginikka jega gongjihalgeyo.",
+   "learner": "고마워요. 옷은 검은 정장이면 되겠죠?",
+   "en": "Thanks. A black suit should be fine, right?",
+   "roman": "Gomawoyo. Oseun geomeun jeongjangimyeon doegetjyo?"
   },
   {
    "n": 5,
-   "beaver": "좋아요. 경조사가 한꺼번에 몰리네요.",
-   "beaver_en": "Okay. All the family events are coming at once.",
-   "beaver_roman": "Joayo. Gyeongjosaga hankkeobeone mollineyo.",
-   "learner": "그러게요. 다음 주엔 시상식에 송년회도 있어요.",
-   "en": "I know. Next week there's an awards ceremony and a year-end party too.",
-   "roman": "Geureogeyo. Daeum juen sisangsige songnyeonhoedo isseoyo."
+   "beaver": "네, 화려한 장신구는 빼고 가요. 조문은 처음이세요?",
+   "beaver_en": "Yes, and leave off any flashy accessories. Is this your first time paying condolences?",
+   "beaver_roman": "Ne, hwaryeohan jangsinguneun ppaego gayo. Jomuneun cheoeumiseyo?",
+   "learner": "네, 처음이라 무슨 말을 해야 할지 모르겠어요.",
+   "en": "Yes, it's my first time, so I don't know what to say.",
+   "roman": "Ne, cheoeumira museun mareul haeya halji moreugesseoyo."
   },
   {
    "n": 6,
-   "beaver": "맞다, 창립 십 주년 시상식이죠? 뒤풀이도 있대요.",
-   "beaver_en": "Right, the 10th anniversary awards? There's an after-party too.",
-   "beaver_roman": "Matda, changnip sip junyeon sisangsigijyo? Dwipurido itdaeyo.",
-   "learner": "네, 뒤풀이는 식이 끝나고 호프집에서 한대요.",
-   "en": "Yes, the after-party is at a pub after the ceremony.",
-   "roman": "Ne, dwipurineun sigi kkeunnago hopeujibeseo handaeyo."
+   "beaver": "말은 짧게 하고 고개 숙여 인사하면 돼요.",
+   "beaver_en": "Keep your words short and just bow your head.",
+   "beaver_roman": "Mareun jjalge hago gogae sugyeo insahamyeon dwaeyo.",
+   "learner": "아, 조용히 마음을 전하는 게 예의군요.",
+   "en": "Ah, so quietly showing how you feel is the proper etiquette.",
+   "roman": "A, joyonghi maeumeul jeonhaneun ge yeuigunyo."
   },
   {
    "n": 7,
-   "beaver": "박 부장님은 환갑 전에 성묘도 다녀오신대요.",
-   "beaver_en": "Director Park is visiting his ancestors' graves before his 60th.",
-   "beaver_roman": "Bak bujangnimeun hwangap jeone seongmyodo danyeoosindaeyo.",
-   "learner": "부모님 묘에 인사드리고 오시나 봐요.",
-   "en": "He must be paying respects at his parents' grave.",
-   "roman": "Bumonim myoe insadeurigo osina bwayo."
+   "beaver": "발인은 모레 아침이래요. 장지까지 가실 거예요?",
+   "beaver_en": "The funeral procession is the morning after tomorrow. Will you go all the way to the burial site?",
+   "beaver_roman": "Barineun more achimiraeyo. Jangjikkaji gasil kkeoyeyo?",
+   "learner": "거기까지는 어렵고 오늘 조문만 다녀올게요.",
+   "en": "That would be hard, so I'll just go pay my respects today.",
+   "roman": "Geogikkajineun eoryeopgo oneul jomunman danyeoolgeyo."
   },
   {
    "n": 8,
-   "beaver": "참, 이번 주말에 지역 축제도 있죠?",
-   "beaver_en": "Oh, there's a local festival this weekend too, right?",
-   "beaver_roman": "Cham, ibeon jumare jiyeok chukjedo itjyo?",
-   "learner": "네, 토요일 밤에 강가에서 불꽃놀이를 해요.",
-   "en": "Yes, there are fireworks by the river on Saturday night.",
-   "roman": "Ne, toyoil bame gangkkaeseo bulkkonnorireul haeyo."
+   "beaver": "참, 이번 주 송년회는 미루는 게 좋겠죠?",
+   "beaver_en": "Oh, we should probably postpone this week's year-end party, right?",
+   "beaver_roman": "Cham, ibeon ju songnyeonhoeneun miruneun ge joketjyo?",
+   "learner": "네, 장례가 다 끝난 후에야 하는 게 맞아요.",
+   "en": "Yes, it's only right to hold it after the funeral is completely over.",
+   "roman": "Ne, jangnyega da kkeunnan hueya haneun ge majayo."
   },
   {
    "n": 9,
-   "beaver": "가족들이랑 가 보려고요. 같이 갈래요?",
-   "beaver_en": "I'm going with my family. Want to come?",
-   "beaver_roman": "Gajokdeurirang ga boryeogoyo. Gachi gallaeyo?",
-   "learner": "좋아요. 일 다 끝나면 좀 쉬어야겠네요.",
-   "en": "Sure. Once all the work is done, I should rest a bit.",
-   "roman": "Joayo. Il da kkeunnamyeon jom swieoyagenneyo."
+   "beaver": "맞아요. 과장님이 복귀하시면 다 같이 위로해 드려요.",
+   "beaver_en": "Right. When Manager Kim comes back, let's all comfort him together.",
+   "beaver_roman": "Majayo. Gwajangnimi bokgwihasimyeon da gachi wirohae deuryeoyo.",
+   "learner": "좋아요. 그때 따뜻한 밥이라도 한번 사 드려요.",
+   "en": "Sure. Let's treat him to a warm meal then.",
+   "roman": "Joayo. Geuttae ttatteutan babirado hanbeon sa deuryeoyo."
   },
   {
    "n": 10,
-   "beaver": "그럼 퇴근 후에 같이 상갓집부터 가요.",
-   "beaver_en": "Then let's go to the mourning house together after work.",
-   "beaver_roman": "Geureom toegeun hue gachi sanggatjipputeo gayo.",
-   "learner": "네. 환갑잔치에서 부장님께 축하드려요.",
-   "en": "Okay. And let's congratulate the director at his 60th birthday party.",
-   "roman": "Ne. Hwangapjanchieseo bujangnimkke chukadeuryeoyo."
+   "beaver": "그럼 오늘은 퇴근 후에 같이 상갓집에 가요.",
+   "beaver_en": "Then let's go to the house of mourning together after work today.",
+   "beaver_roman": "Geureom oneureun toegeun hue gachi sanggatjibe gayo.",
+   "learner": "네, 여섯 시에 일 층 로비에서 만나요.",
+   "en": "Okay, let's meet in the first-floor lobby at six.",
+   "roman": "Ne, yeoseot sie il cheung robieseo mannayo."
   }
  ]
 }

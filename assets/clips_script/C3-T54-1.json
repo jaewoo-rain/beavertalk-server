@@ -34,9 +34,9 @@
    "beaver": "지금은 피의자예요. 기소되면 피고인이 됩니다.",
    "beaver_en": "For now you're a suspect. If indicted, you'll be the defendant.",
    "beaver_roman": "jigeumeun piuijayeyo. gisodoemyeon pigoini doemnida.",
-   "learner": "그런데 이 계약서가 허락받은 증거예요.",
-   "en": "But this contract is proof that I got permission.",
-   "roman": "geureonde i gyeyakseoga heorakbadeun jeunggeoyeyo."
+   "learner": "그런데 이 계약서는 제가 허락받았음을 말해 줘요.",
+   "en": "But this contract shows that I had permission.",
+   "roman": "geureonde i gyeyakseoneun jega heorakbadasseumeul malhae jwoyo."
   },
   {
    "n": 5,
