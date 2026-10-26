@@ -16,9 +16,9 @@
    "beaver": "지금까지 하신 일을 소개해 주시겠습니까?",
    "beaver_en": "Could you tell me about your work so far?",
    "beaver_roman": "Jigeumkkaji hasin ireul sogaehae jusigetseumnikka?",
-   "learner": "영업부에서 시작해 기획부를 거쳐 팀장을 맡았습니다.",
+   "learner": "영업부를 시작으로 기획부를 거쳐 팀장을 맡았습니다.",
    "en": "I started in sales, went through planning, and became team leader.",
-   "roman": "Yeongeopbueseo sijakae gihoekbureul geochyeo timjangeul matatseumnida."
+   "roman": "Yeongeopbureul sijageuro gihoekbureul geochyeo timjangeul matatseumnida."
   },
   {
    "n": 3,
@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "직장 생활에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about your work life?",
-   "beaver_roman": "Jikjang saenghware daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "재택근무 기간에도 팀 관리가 잘 되었습니까?",
+   "beaver_en": "Did team management go well during remote work too?",
+   "beaver_roman": "Jaetaekgeunmu giganedo tim gwalliga jal doeeotseumnikka?",
    "learner": "재택근무를 할 때도 팀을 잘 이끌었습니다.",
    "en": "I led the team well even while working from home.",
    "roman": "Jaetaekgeunmureul hal ttaedo timeul jal ikkeureotseumnida."

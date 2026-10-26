@@ -16,9 +16,9 @@
    "beaver": "노숙자나 양로원 어르신도 대상입니까?",
    "beaver_en": "Are homeless people and nursing home seniors included?",
    "beaver_roman": "nosukjana yangnowon eoreusindo daesangimnikka?",
-   "learner": "네, 나이나 형편과 관계없이 모두 대상입니다.",
+   "learner": "네, 나이나 형편을 막론하고 모두 대상입니다.",
    "en": "Yes, everyone is eligible regardless of age or circumstances.",
-   "roman": "ne, naina hyeongpyeongwa gwangyeeopsi modu daesangimnida."
+   "roman": "ne, naina hyeongpyeoneul mangnonhago modu daesangimnida."
   },
   {
    "n": 3,
@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "사회 제도와 복지에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about the social system and welfare?",
-   "beaver_roman": "sahoe jedowa bokjie daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "결국 이 제도의 취지는 무엇입니까?",
+   "beaver_en": "So what is the purpose of this system, after all?",
+   "beaver_roman": "gyeolguk i jedoui chwijineun mueosimnikka?",
    "learner": "어려울 때 모두가 서로 돕자는 제도입니다.",
    "en": "It's a system for everyone to help each other in hard times.",
    "roman": "eoryeoul ttae moduga seoro dopjaneun jedoimnida."

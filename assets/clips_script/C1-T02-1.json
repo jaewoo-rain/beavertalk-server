@@ -67,9 +67,9 @@
   },
   {
    "n": 8,
-   "beaver": "가족과 친척에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about family and relatives?",
-   "beaver_roman": "Gajokgwa chincheoge daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "그렇군요. 친척들과는 자주 만나십니까?",
+   "beaver_en": "I see. Do you see your relatives often?",
+   "beaver_roman": "Geureokunyo. Chincheokdeulgwaneun jaju mannasimnikka?",
    "learner": "친척들은 명절에만 모이고 평소엔 잘 못 만나요.",
    "en": "Relatives gather only on holidays; we rarely meet otherwise.",
    "roman": "Chincheokdeureun myeongjeoreman moigo pyeongsoen jal mon mannayo."
@@ -88,9 +88,9 @@
    "beaver": "마지막으로 요즘 가족의 특징은 무엇입니까?",
    "beaver_en": "Lastly, what is the feature of families today?",
    "beaver_roman": "Majimageuro yojeum gajogui teukjingeun mueosimnikka?",
-   "learner": "가족 수가 적은 게 특징이에요. 감사합니다.",
-   "en": "The feature is having fewer family members. Thank you.",
-   "roman": "Gajok suga jeogeun ge teukjingieyo. Gamsahamnida."
+   "learner": "요즘 가족의 특징은 식구가 적다는 데 있어요.",
+   "en": "The feature of families today lies in having fewer members.",
+   "roman": "Yojeum gajogui teukjingeun sikguga jeokdaneun de isseoyo."
   }
  ]
 }

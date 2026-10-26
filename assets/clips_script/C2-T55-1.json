@@ -25,9 +25,9 @@
    "beaver": "작년 소득은 얼마였습니까?",
    "beaver_en": "How much was your income last year?",
    "beaver_roman": "jangnyeon sodeugeun eolmayeotseumnikka?",
-   "learner": "작년 소득은 천만 원밖에 안 됐습니다.",
-   "en": "Last year's income was only ten million won.",
-   "roman": "jangnyeon sodeugeun cheonman wonbakke an dwaetseumnida."
+   "learner": "작년 소득은 천만 원에 그쳤습니다.",
+   "en": "My income last year came to only ten million won.",
+   "roman": "jangnyeon sodeugeun cheonman wone geuchyeotseumnida."
   },
   {
    "n": 4,

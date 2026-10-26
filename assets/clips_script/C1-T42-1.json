@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "과학기술과 미디어에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell us more about science, tech, and media?",
-   "beaver_roman": "Gwahakgisulgwa midieoe daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "걱정되는 점도 있군요. 최근에 새로 나온 기술도 있습니까?",
+   "beaver_en": "So there are concerns too. Are there any new technologies lately?",
+   "beaver_roman": "Geokjeongdoeneun jeomdo itgunyo. Choegeune saero naon gisuldo itseumnikka?",
    "learner": "물리와 화학이 발전해서 고체 배터리도 나왔습니다.",
    "en": "As physics and chemistry advanced, solid-state batteries appeared.",
    "roman": "Mulliwa hwahagi baljeonhaeseo goche baeteorido nawatseumnida."

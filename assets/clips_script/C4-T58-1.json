@@ -58,9 +58,9 @@
   },
   {
    "n": 7,
-   "beaver": "요즘 마음 상태를 더 말씀해 주시겠어요?",
-   "beaver_en": "Could you tell me more about how you feel these days?",
-   "beaver_roman": "yojeum maeum sangtaereul deo malsseumhae jusigesseoyo?",
+   "beaver": "꿈을 접은 뒤로 일상은 어떠세요?",
+   "beaver_en": "Since giving up your dream, how is your daily life?",
+   "beaver_roman": "kkumeul jeobeun dwiro ilsangeun eotteoseyo?",
    "learner": "꿈을 버린 죄책감도 들고, 일상이 권태로워요.",
    "en": "I feel guilty for abandoning my dream, and daily life feels dull.",
    "roman": "kkumeul beorin joechaekgamdo deulgo, ilsangi gwontaerowoyo."
@@ -70,9 +70,9 @@
    "beaver": "혹시 이런 이야기를 하는 데 거리낌이 있으세요?",
    "beaver_en": "Do you have any hesitation talking about this?",
    "beaver_roman": "hoksi ireon iyagireul haneun de georikkimi isseuseyo?",
-   "learner": "처음엔 있었는데, 이야기하다 보면 편해질 것 같아요.",
+   "learner": "처음엔 있었는데, 이야기하노라면 편해질 것 같아요.",
    "en": "I did at first, but as I keep talking, I think it'll get easier.",
-   "roman": "cheoeumen isseonneunde, iyagihada bomyeon pyeonhaejil geot gatayo."
+   "roman": "cheoeumen isseonneunde, iyagihanoramyeon pyeonhaejil geot gatayo."
   },
   {
    "n": 9,

@@ -31,21 +31,21 @@
   },
   {
    "n": 4,
-   "beaver": "승자는 누구였어요? 아는 선수예요?",
-   "beaver_en": "Who was the winner? Someone you know?",
-   "beaver_roman": "seungjaneun nuguyeosseoyo? aneun seonsuyeyo?",
-   "learner": "작년 리그를 제패한 선수였어요. 대단했어요.",
-   "en": "The player who dominated last year's league. Amazing.",
-   "roman": "jangnyeon rigeureul jepaehan seonsuyeosseoyo. daedanhaesseoyo."
+   "beaver": "우승한 선수는 어떻게 봤어요?",
+   "beaver_en": "What did you think of the player who won?",
+   "beaver_roman": "useunghan seonsuneun eotteoke bwasseoyo?",
+   "learner": "작년 리그를 제패한 선수답게 대단했어요.",
+   "en": "True to having dominated last year's league, they were amazing.",
+   "roman": "jangnyeon rigeureul jepaehan seonsudapge daedanhaesseoyo."
   },
   {
    "n": 5,
    "beaver": "그렇군요. 다른 종목도 합니까?",
    "beaver_en": "I see. Do you do other sports too?",
    "beaver_roman": "geureokunyo. dareun jongmokdo hamnikka?",
-   "learner": "네, 승마 같은 여러 종목을 해요.",
-   "en": "Yes, I do various sports, like horse riding.",
-   "roman": "ne, seungma gateun yeoreo jongmogeul haeyo."
+   "learner": "네, 승마를 하는 등 여러 종목에 재능을 발휘해요.",
+   "en": "Yes, I show talent in various events, like horse riding.",
+   "roman": "ne, seungmareul haneun deung yeoreo jongmoge jaeneungeul balhwihaeyo."
   },
   {
    "n": 6,

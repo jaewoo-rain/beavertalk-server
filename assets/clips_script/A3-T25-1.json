@@ -49,30 +49,30 @@
   },
   {
    "n": 6,
-   "beaver": "마이클 씨, 동생 있죠? 중학생이에요?",
-   "beaver_en": "Michael, you have a younger sibling, right? Middle schooler?",
-   "beaver_roman": "Maikeul ssi, dongsaeng itjyo? Junghaksaengieyo?",
-   "learner": "아니요, 동생은 초등학생이에요.",
-   "en": "No, my sibling is in elementary school.",
-   "roman": "Aniyo, dongsaengeun chodeunghaksaengieyo."
+   "beaver": "출석 확인서는 어디에서 받는지 알아요?",
+   "beaver_en": "Do you know where to get the attendance certificate?",
+   "beaver_roman": "Chulseok hwaginseoneun eodieseo banneunji arayo?",
+   "learner": "아니요, 몰라요. 어디에서 받아요?",
+   "en": "No, I don't. Where do I get it?",
+   "roman": "Aniyo, mollayo. Eodieseo badayo?"
   },
   {
    "n": 7,
-   "beaver": "그래요? 동생은 학교생활이 어때요?",
-   "beaver_en": "Really? How's school life for your sibling?",
-   "beaver_roman": "Geuraeyo? Dongsaengeun hakgyosaenghwari eottaeyo?",
-   "learner": "잘 지내요. 학교에서 그림 상을 받았어요.",
-   "en": "They're doing well. They won a drawing prize at school.",
-   "roman": "Jal jinaeyo. Hakgyoeseo geurim sangeul badasseoyo."
+   "beaver": "학과 사무실에서 받아요. 조교님께 말하면 돼요.",
+   "beaver_en": "You get it at the department office. Just tell the TA.",
+   "beaver_roman": "Hakgwa samusireseo badayo. Jogyonimkke malhamyeon dwaeyo.",
+   "learner": "그럼 오늘 조교님께 가서 받을게요.",
+   "en": "Then I'll go to the TA today and get it.",
+   "roman": "Geureom oneul jogyonimkke gaseo badeulkkeyo."
   },
   {
    "n": 8,
-   "beaver": "와, 대단하네요! 동생한테 축하한다고 전해 주세요.",
-   "beaver_en": "Wow, amazing! Tell your sibling congratulations.",
-   "beaver_roman": "Wa, daedanhaneyo! Dongsaenghante chukahandago jeonhae juseyo.",
-   "learner": "네, 오늘 밤에 동생한테 전화할게요.",
-   "en": "Sure, I'll call my sibling tonight.",
-   "roman": "Ne, oneul bame dongsaenghante jeonhwahalkkeyo."
+   "beaver": "교수님 사인도 받아야 해요. 잊지 마세요.",
+   "beaver_en": "You also need the professor's signature. Don't forget.",
+   "beaver_roman": "Gyosunim saindo badaya haeyo. Itji maseyo.",
+   "learner": "네, 오늘 교수님께 사인을 부탁드릴게요.",
+   "en": "Okay, I'll ask the professor for a signature today.",
+   "roman": "Ne, oneul gyosunimkke saineul butakdeurilkkeyo."
   },
   {
    "n": 9,

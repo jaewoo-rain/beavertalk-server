@@ -25,9 +25,9 @@
    "beaver": "윷놀이는 어려워요?",
    "beaver_en": "Is the yut game difficult?",
    "beaver_roman": "Yunnorineun eoryeowoyo?",
-   "learner": "아니요, 막대 네 개만 던지면 돼서 쉬워요.",
-   "en": "No, you just throw four sticks, so it's easy.",
-   "roman": "Aniyo, makdae ne gaeman deonjimyeon dwaeseo swiwoyo."
+   "learner": "아니요, 막대 네 개밖에 없어서 쉬워요.",
+   "en": "No, there are only four sticks, so it's easy.",
+   "roman": "Aniyo, makdae ne gaebakke eopseoseo swiwoyo."
   },
   {
    "n": 4,
@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "문화와 전통에 대해 더 이야기해 볼래요?",
-   "beaver_en": "Shall we talk more about culture and tradition?",
-   "beaver_roman": "Munhwawa jeontonge daehae deo iyagihae bollaeyo?",
+   "beaver": "아, 그렇군요. 저도 한복을 입어 보고 싶어요.",
+   "beaver_en": "Oh, I see. I'd like to try on a hanbok too.",
+   "beaver_roman": "A, geureokunyo. Jeodo hanbogeul ibeo bogo sipeoyo.",
    "learner": "좋아요. 다음에 한복 가게에 같이 가요.",
    "en": "Sure. Let's go to a hanbok shop together next time.",
    "roman": "Joayo. Daeume hanbok gagee gachi gayo."

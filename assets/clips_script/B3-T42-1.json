@@ -7,9 +7,9 @@
    "beaver": "안녕하세요. 카메라가 갑자기 안 켜져요.",
    "beaver_en": "Hello. My camera suddenly won't turn on.",
    "beaver_roman": "annyeonghaseyo. kameraga gapjagi an kyeojyeoyo.",
-   "learner": "네, 먼저 배터리랑 부품을 확인해 볼게요.",
-   "en": "Okay, I'll check the battery and parts first.",
-   "roman": "ne, meonjeo baeteorirang bupumeul hwaginhae bolkkeyo."
+   "learner": "네, 배터리를 비롯해서 부품을 다 확인할게요.",
+   "en": "Okay, I'll check all the parts, including the battery.",
+   "roman": "ne, baeteorireul birotaeseo bupumeul da hwaginhalkkeyo."
   },
   {
    "n": 2,

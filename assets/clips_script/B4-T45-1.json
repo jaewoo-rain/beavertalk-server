@@ -43,9 +43,9 @@
    "beaver": "그럼 지금은 어때요? 현실에 안주하고 있어요?",
    "beaver_en": "So how about now? Are you settling for reality?",
    "beaver_roman": "Geureom jigeumeun eottaeyo? Hyeonsire anjuhago isseoyo?",
-   "learner": "사실 조금 안주했어요. 편한 데다가 안전해서요.",
-   "en": "Honestly, I settled a bit. It's comfortable and safe, too.",
-   "roman": "Sasil jogeum anjuhaesseoyo. Pyeonhan dedaga anjeonhaeseoyo."
+   "learner": "네, 편한 데다가 안전해서요. 선배는요?",
+   "en": "Yes, it's comfortable and safe, too. How about you, sunbae?",
+   "roman": "Ne, pyeonhan dedaga anjeonhaeseoyo. Seonbaeneunyo?"
   },
   {
    "n": 6,
@@ -67,9 +67,9 @@
   },
   {
    "n": 8,
-   "beaver": "가치관과 삶의 의미에 대해 더 이야기해 볼래요?",
-   "beaver_en": "Shall we talk more about values and life's meaning?",
-   "beaver_roman": "Gachigwangwa salme uimie daehae deo iyagihae bollaeyo?",
+   "beaver": "그럼 삶에서 가장 소중한 가치는 뭐라고 생각해요?",
+   "beaver_en": "Then what do you think is the most precious value in life?",
+   "beaver_roman": "Geureom salmeseo gajang sojunghan gachineun mworago saenggakaeyo?",
    "learner": "저한테는 평생 꿈을 꾸는 게 가장 큰 가치예요.",
    "en": "For me, dreaming my whole life is the greatest value.",
    "roman": "Jeohanteneun pyeongsaeng kkumeul kkuneun ge gajang keun gachiyeyo."

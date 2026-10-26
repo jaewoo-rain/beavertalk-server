@@ -7,9 +7,9 @@
    "beaver": "손님, 인천행 KE905편 운항이 지연되고 있습니다.",
    "beaver_en": "Sir, flight KE905 to Incheon is delayed.",
    "beaver_roman": "Sonnim, incheonhaeng KE905pyeon unhangi jiyeondoego itseumnida.",
-   "learner": "얼마나 늦어져요? 장거리 비행이라 걱정돼요.",
-   "en": "How late will it be? I'm worried since it's a long flight.",
-   "roman": "Eolmana neujeojyeoyo? Janggeori bihaengira geokjeongdwaeyo."
+   "learner": "얼마나 늦어져요? 약속이 있어서 걱정돼요.",
+   "en": "How late will it be? I'm worried because I have an appointment.",
+   "roman": "Eolmana neujeojyeoyo? Yaksogi isseoseo geokjeongdwaeyo."
   },
   {
    "n": 2,
@@ -61,9 +61,9 @@
    "beaver": "짐은 안전합니다. 출발 시간은 곧 안내하겠습니다.",
    "beaver_en": "Your bags are safe. We'll announce the departure time soon.",
    "beaver_roman": "Jimeun anjeonhamnida. Chulbal siganeun got annaehagetseumnida.",
-   "learner": "그러니까 출발 시간은 아직 모르시는 거죠?",
-   "en": "So you don't know the departure time yet, right?",
-   "roman": "Geureonikka chulbal siganeun ajik moreusineun geojyo?"
+   "learner": "다시 말해서 비행기가 언제 뜨려는지 모른다는 거죠?",
+   "en": "In other words, nobody knows when the plane will take off, right?",
+   "roman": "Dasi malhaeseo bihaenggiga eonje tteuryeoneunji moreundaneun geojyo?"
   },
   {
    "n": 8,
@@ -79,9 +79,9 @@
    "beaver": "기장님은 교대하시고, 연료도 다시 점검합니다.",
    "beaver_en": "The captain will be replaced, and we'll check the fuel again.",
    "beaver_roman": "Gijangnimeun gyodaehasigo, yeollyodo dasi jeomgeomhamnida.",
-   "learner": "장거리니까 연료 점검 꼼꼼히 부탁드려요.",
-   "en": "It's a long flight, so please check the fuel carefully.",
-   "roman": "Janggeorinikka yeollyo jeomgeom kkomkkomhi butakdeuryeoyo."
+   "learner": "출발 전에 연료 점검 꼼꼼히 부탁드려요.",
+   "en": "Please check the fuel carefully before departure.",
+   "roman": "Chulbal jeone yeollyo jeomgeom kkomkkomhi butakdeuryeoyo."
   },
   {
    "n": 10,

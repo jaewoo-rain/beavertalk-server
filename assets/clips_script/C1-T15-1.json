@@ -7,9 +7,9 @@
    "beaver": "민지 씨, 행사장 배치 정리됐어요?",
    "beaver_en": "Minji, is the venue layout sorted out?",
    "beaver_roman": "Minji ssi, haengsajang baechi jeongnidwaesseoyo?",
-   "learner": "네, 다 정리했어요. 한번 들어 보세요.",
-   "en": "Yes, it's all sorted. Have a listen.",
-   "roman": "Ne, da jeongnihaesseoyo. Hanbeon deureo boseyo."
+   "learner": "네, 이 자료에 아래와 같이 정리해 왔어요.",
+   "en": "Yes, I've put it together in this handout as below.",
+   "roman": "Ne, i jaryoe araewa gachi jeongnihae wasseoyo."
   },
   {
    "n": 2,
@@ -79,9 +79,9 @@
    "beaver": "손님 대기 장소는요?",
    "beaver_en": "And the guest waiting area?",
    "beaver_roman": "Sonnim daegi jangsoneunyo?",
-   "learner": "대기실은 강가 쪽 분수 옆에 있어요.",
-   "en": "The waiting room is next to the fountain by the riverside.",
-   "roman": "Daegisireun gangga jjok bunsu yeope isseoyo."
+   "learner": "대기실은 길가 쪽 시청 건물 안에 있어요.",
+   "en": "The waiting room is inside City Hall, on the street side.",
+   "roman": "Daegisireun gilga jjok sicheong geonmul ane isseoyo."
   },
   {
    "n": 10,

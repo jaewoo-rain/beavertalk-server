@@ -25,9 +25,9 @@
    "beaver": "하류 쪽은 어떻습니까?",
    "beaver_en": "What about the downstream area?",
    "beaver_roman": "haryu jjogeun eotteosseumnikka?",
-   "learner": "하류에는 흙이 쌓여서 넓은 벌판이 생겼습니다.",
-   "en": "Soil piled up downstream, forming a wide open field.",
-   "roman": "haryueneun heulgi ssayeoseo neolbeun beolpani saenggyeotseumnida."
+   "learner": "하류는 흙이 쌓여 벌판이 생긴 점이 특징적입니다.",
+   "en": "What's distinctive downstream is that soil piled up and formed a plain.",
+   "roman": "haryuneun heulgi ssayeo beolpani saenggin jeomi teukjingjeogimnida."
   },
   {
    "n": 4,
@@ -67,9 +67,9 @@
   },
   {
    "n": 8,
-   "beaver": "자연 환경과 지형에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about the environment and landforms?",
-   "beaver_roman": "jayeon hwangyeonggwa jihyeonge daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "옛날에도 이곳 지형이 지금과 같았습니까?",
+   "beaver_en": "Was the landform here the same in the old days?",
+   "beaver_roman": "yennaredo igot jihyeongi jigeumgwa gatasseumnikka?",
    "learner": "아주 옛날에는 이곳이 빙하로 덮여 있었습니다.",
    "en": "Long ago, this place was covered with glaciers.",
    "roman": "aju yennareneun igosi bingharo deopyeo isseotseumnida."
@@ -79,9 +79,9 @@
    "beaver": "정말요? 지금은 이렇게 따뜻한데요.",
    "beaver_en": "Really? It's so warm now, though.",
    "beaver_roman": "jeongmallyo? jigeumeun ireoke ttatteutandeyo.",
-   "learner": "땅이 천천히 적도 쪽으로 움직였기 때문입니다.",
-   "en": "That's because the land slowly moved toward the equator.",
-   "roman": "ttangi cheoncheonhi jeokdo jjogeuro umjigyeotgi ttaemunimnida."
+   "learner": "빙하기가 끝나고 기후가 따뜻해졌기 때문입니다.",
+   "en": "That's because the ice age ended and the climate warmed.",
+   "roman": "binghagiga kkeunnago gihuga ttatteutaejeotgi ttaemunimnida."
   },
   {
    "n": 10,
