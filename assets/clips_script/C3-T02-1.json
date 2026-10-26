@@ -58,9 +58,9 @@
   },
   {
    "n": 7,
-   "beaver": "가족과 친척에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about the family and relatives?",
-   "beaver_roman": "Gajokgwa chincheoge daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "칭찬받는 며느리였군요. 집안 분위기는 어땠습니까?",
+   "beaver_en": "So she was a praised daughter-in-law. What was the family atmosphere like?",
+   "beaver_roman": "Chingchanbanneun myeoneuriyeotgunyo. Jiban bunwigineun eottaetseumnikka?",
    "learner": "조부모 앞에서 재롱을 떠는 단란한 집이었습니다.",
    "en": "It was a cozy home where kids did cute antics for grandparents.",
    "roman": "Jobumo apeseo jaerongeul tteoneun dallanhan jibieotseumnida."
@@ -79,9 +79,9 @@
    "beaver": "요즘 가족은 어떻습니까?",
    "beaver_en": "What are families like these days?",
    "beaver_roman": "Yojeum gajogeun eotteoseumnikka?",
-   "learner": "핵가족화로 임신부도 혼자 지내는 일이 많습니다.",
-   "en": "With nuclear families, even pregnant women often live alone.",
-   "roman": "Haekgajokwaro imsinbudo honja jinaeneun iri manseumnida."
+   "learner": "핵가족화로 임신부를 돌볼 가족이 적습니다.",
+   "en": "With nuclear families, few relatives are around to care for pregnant women.",
+   "roman": "Haekgajokwaro imsinbureul dolbol gajogi jeokseumnida."
   },
   {
    "n": 10,

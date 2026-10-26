@@ -43,9 +43,9 @@
    "beaver": "그 책은 연구원들도 자주 찾아요.",
    "beaver_en": "Researchers often look for that book too.",
    "beaver_roman": "geu chaegeun yeonguwondeuldo jaju chajayo.",
-   "learner": "저도 읽다 보니 지식이 많이 늘었어요.",
-   "en": "Reading it, my knowledge grew a lot too.",
-   "roman": "jeodo ikda boni jisigi mani neureosseoyo."
+   "learner": "그분 책을 읽다 보니 다른 책도 궁금해졌어요.",
+   "en": "Reading his books, I got curious about his other ones too.",
+   "roman": "geubun chaegeul ikda boni dareun chaekdo gunggeumhaejyeosseoyo."
   },
   {
    "n": 6,
@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "학문 이야기를 좀 더 해 주시겠어요?",
-   "beaver_en": "Could you tell me a bit more about your studies?",
-   "beaver_roman": "hangmun iyagireul jom deo hae jusigesseoyo?",
-   "learner": "좋아요. 학문을 하다 보니 질문이 많아졌어요.",
-   "en": "Sure. Doing scholarship, I've come to have many questions.",
-   "roman": "joayo. hangmuneul hada boni jilmuni manajyeosseoyo."
+   "beaver": "그렇군요. 연구는 해 보니 어떠세요?",
+   "beaver_en": "I see. How do you find research?",
+   "beaver_roman": "geureokunyo. yeonguneun hae boni eotteoseyo?",
+   "learner": "재미있어요. 연구를 하다 보니 질문이 많아졌어요.",
+   "en": "It's fun. Doing research, I've come to have many questions.",
+   "roman": "jaemiisseoyo. yeongureul hada boni jilmuni manajyeosseoyo."
   },
   {
    "n": 10,

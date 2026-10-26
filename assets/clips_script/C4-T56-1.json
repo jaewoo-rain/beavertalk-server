@@ -79,9 +79,9 @@
    "beaver": "지난달 경비원 피살 사건과도 관련이 있습니까?",
    "beaver_en": "Is it linked to last month's murder of a guard?",
    "beaver_roman": "Jinandal gyeongbiwon pisal sageongwado gwallyeoni itseumnikka?",
-   "learner": "관련이 있어 보이지만 아직 증거가 부족합니다.",
-   "en": "It seems linked, but we still lack evidence.",
-   "roman": "Gwallyeoni isseo boijiman ajik jeunggeoga bujokamnida."
+   "learner": "관련이 있다고 쳐도 아직 증거가 부족합니다.",
+   "en": "Even if we assume it's linked, we still lack evidence.",
+   "roman": "Gwallyeoni itdago chyeodo ajik jeunggeoga bujokamnida."
   },
   {
    "n": 10,

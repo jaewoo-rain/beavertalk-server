@@ -31,9 +31,9 @@
   },
   {
    "n": 4,
-   "beaver": "예의도 바르네요. 앉아서 차 한잔해요.",
-   "beaver_en": "You're so well-mannered. Sit down and have some tea.",
-   "beaver_roman": "yeuido bareuneyo. anjaseo cha hanjanhaeyo.",
+   "beaver": "공손하기도 하지요. 앉아서 차 한잔해요.",
+   "beaver_en": "How polite you are. Sit down and have some tea.",
+   "beaver_roman": "gongsonhagido hajiyo. anjaseo cha hanjanhaeyo.",
    "learner": "다 선생님께 배운 거예요.",
    "en": "I learned it all from you.",
    "roman": "da seonsaengnimkke baeun geoyeyo."
@@ -79,9 +79,9 @@
    "beaver": "고맙지만 대접은 내가 해야지요. 밥 먹고 가요.",
    "beaver_en": "Thanks, but I should be the host. Eat before you go.",
    "beaver_roman": "gomapjiman daejeobeun naega haeyajiyo. bap meokgo gayo.",
-   "learner": "아니에요, 오늘은 제가 대접할게요.",
-   "en": "No, today I'll treat you.",
-   "roman": "anieyo, oneureun jega daejeopalgeyo."
+   "learner": "아닙니다 제가 오늘은 바빠서 다음에 또 찾아뵐게요.",
+   "en": "No, I'm busy today, so I'll come visit you again next time.",
+   "roman": "animnida jega oneureun bappaseo daeume tto chajabwelgeyo."
   },
   {
    "n": 10,

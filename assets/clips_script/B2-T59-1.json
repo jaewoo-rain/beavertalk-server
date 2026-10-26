@@ -88,9 +88,9 @@
    "beaver": "암은 아니에요. 약은 하루 세 번씩 드세요.",
    "beaver_en": "It's not cancer. Take the medicine three times a day.",
    "beaver_roman": "ameun anieyo. yageun haru se beonssik deuseyo.",
-   "learner": "설명해 주셔서 감사합니다. 안녕히 계세요.",
-   "en": "Thank you for explaining. Goodbye.",
-   "roman": "seolmyeonghae jusyeoseo gamsahamnida. annyeonghi gyeseyo."
+   "learner": "약에 대한 설명 감사합니다. 안녕히 계세요.",
+   "en": "Thank you for explaining the medicine. Goodbye.",
+   "roman": "yage daehan seolmyeong gamsahamnida. annyeonghi gyeseyo."
   }
  ]
 }

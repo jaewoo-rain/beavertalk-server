@@ -58,9 +58,9 @@
   },
   {
    "n": 7,
-   "beaver": "산업과 기업에 대해 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me more about industry and businesses?",
-   "beaver_roman": "Saneopgwa gieobe daehae deo malsseumhae jusigetseumnikka?",
+   "beaver": "그렇군요. 어업과 농업 외에 다른 산업도 있습니까?",
+   "beaver_en": "I see. Are there other industries besides fishing and farming?",
+   "beaver_roman": "Geureokunyo. Eoeopgwa nongeop oee dareun saneopdo itseumnikka?",
    "learner": "예전에는 석탄을 캤는데, 지금은 제조 공장이 있어요.",
    "en": "We used to mine coal, but now there are factories.",
    "roman": "Yejeoneneun seoktaneul kaenneunde, jigeumeun jejo gongjangi isseoyo."

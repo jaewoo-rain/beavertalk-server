@@ -61,9 +61,9 @@
    "beaver": "다행이다. 거스름돈은 제대로 받았어?",
    "beaver_en": "Phew. Did you get the right change?",
    "beaver_roman": "dahaengida. geoseureumdoneun jedaero badasseo?",
-   "learner": "아니, 점원이 거스름돈을 다시 준다고 했어.",
-   "en": "No, the clerk said she'd give me the change again.",
-   "roman": "ani, jeomwoni geoseureumdoneul dasi jundago haesseo."
+   "learner": "아니, 덜 받아서 점원이 더 준다고 했어.",
+   "en": "No, I got too little, so the clerk said she'd give me more.",
+   "roman": "ani, deol badaseo jeomwoni deo jundago haesseo."
   },
   {
    "n": 8,

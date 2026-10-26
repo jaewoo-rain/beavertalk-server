@@ -70,15 +70,15 @@
    "beaver": "그럼 공방 선생님께 추천서를 부탁해 봐요.",
    "beaver_en": "Then try asking your workshop teacher for a recommendation letter.",
    "beaver_roman": "geureom gongbang seonsaengnimkke chucheonseoreul butakae bwayo.",
-   "learner": "아, 추천서라는 방법이 있었네요!",
-   "en": "Oh, there's a way called a recommendation letter!",
-   "roman": "a, chucheonseoraneun bangbeobi isseonneyo!"
+   "learner": "아, 추천서를 받으면 되겠네요!",
+   "en": "Oh, I could get a recommendation letter!",
+   "roman": "a, chucheonseoreul badeumyeon doegenneyo!"
   },
   {
    "n": 9,
-   "beaver": "다음 주에 직업과 진로에 대해 더 이야기해 볼래요?",
-   "beaver_en": "Shall we talk more about jobs and your career next week?",
-   "beaver_roman": "daeum jue jigeopgwa jilloe daehae deo iyagihae bollaeyo?",
+   "beaver": "그래요. 다음 주에 한 번 더 상담할까요?",
+   "beaver_en": "Right. Shall we have another session next week?",
+   "beaver_roman": "geuraeyo. daeum jue han beon deo sangdamhalkkayo?",
    "learner": "네, 좋아요. 계획을 써서 올게요.",
    "en": "Yes, sounds good. I'll write a plan and bring it.",
    "roman": "ne, joayo. gyehoegeul sseoseo olkkeyo."

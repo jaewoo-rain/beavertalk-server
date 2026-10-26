@@ -67,12 +67,12 @@
   },
   {
    "n": 8,
-   "beaver": "동네 치안에 대해 더 이야기해 볼까요?",
-   "beaver_en": "Shall we talk more about neighborhood safety?",
-   "beaver_roman": "dongne chiane daehae deo iyagihae bolkkayo?",
-   "learner": "좋아요. 나라는 군대가 지키고, 동네는 경찰이 지켜요.",
-   "en": "Sure. The military protects the country, the police the town.",
-   "roman": "joayo. naraneun gundaega jikigo, dongneneun gyeongchari jikyeoyo."
+   "beaver": "그래도 경찰이 있으니까 좀 든든하죠?",
+   "beaver_en": "Still, it's reassuring that the police are around, right?",
+   "beaver_roman": "geuraedo gyeongchari isseunikka jom deundeunhajyo?",
+   "learner": "네, 나라는 군대가, 동네는 경찰이 지켜 줘요.",
+   "en": "Yes, the military protects the country, and the police protect our town.",
+   "roman": "ne, naraneun gundaega, dongneneun gyeongchari jikyeo jwoyo."
   },
   {
    "n": 9,

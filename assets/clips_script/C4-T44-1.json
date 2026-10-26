@@ -31,9 +31,9 @@
   },
   {
    "n": 4,
-   "beaver": "이 궁궐의 역사를 좀 더 말씀해 주시겠습니까?",
-   "beaver_en": "Could you tell me a bit more about this palace's history?",
-   "beaver_roman": "i gunggworui yeoksareul jom deo malsseumhae jusigetseumnikka?",
+   "beaver": "그렇군요. 이 궁궐은 처음에 왜 지었습니까?",
+   "beaver_en": "I see. Why was this palace built in the first place?",
+   "beaver_roman": "geureokunyo. i gunggworeun cheoeume wae jieotseumnikka?",
    "learner": "이 궁은 황제가 왕권을 보여 주려고 지었어요.",
    "en": "The emperor built this palace to show royal authority.",
    "roman": "i gungeun hwangjega wanggwoneul boyeo juryeogo jieosseoyo."
