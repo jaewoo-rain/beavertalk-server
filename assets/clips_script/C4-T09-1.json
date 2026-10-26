@@ -22,12 +22,12 @@
   },
   {
    "n": 3,
-   "beaver": "그럼 뭐가 제일 중요해?",
-   "beaver_en": "Then what's most important?",
-   "beaver_roman": "geureom mwoga jeil jungyohae?",
-   "learner": "소재가 제일 중요해. 땀이 잘 마르는 게 좋아.",
-   "en": "The material matters most. Quick-drying is good.",
-   "roman": "sojaega jeil jungyohae. ttami jal mareuneun ge joa."
+   "beaver": "옷감은 뭐가 좋아?",
+   "beaver_en": "What kind of fabric is good?",
+   "beaver_roman": "otgameun mwoga joa?",
+   "learner": "땀이 잘 마르는 섬유가 제일 좋아.",
+   "en": "Fabric that dries sweat quickly is best.",
+   "roman": "ttami jal mareuneun seomyuga jeil joa."
   },
   {
    "n": 4,
@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "옷차림에 대해 더 말해 줄래? 장신구는?",
-   "beaver_en": "Tell me more about outfits? What about accessories?",
-   "beaver_roman": "otcharime daehae deo malhae jullae? jangsinguneun?",
+   "beaver": "장신구는 몇 개나 할까?",
+   "beaver_en": "How many accessories should I wear?",
+   "beaver_roman": "jangsinguneun myeot gaena halkka?",
    "learner": "장신구는 하나만 해. 그게 더 멋스러워.",
    "en": "Wear just one accessory. That's more stylish.",
    "roman": "jangsinguneun hanaman hae. geuge deo meotseureowo."

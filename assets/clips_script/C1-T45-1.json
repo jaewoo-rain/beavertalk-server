@@ -40,9 +40,9 @@
   },
   {
    "n": 5,
-   "beaver": "가치관과 삶의 의미에 대해 더 말해 줄래요?",
-   "beaver_en": "Could you tell me more about your values and life's meaning?",
-   "beaver_roman": "gachigwangwa salmui uimie daehae deo malhae jullaeyo?",
+   "beaver": "그럼 살면서 가장 중요하게 여기는 건 뭐예요?",
+   "beaver_en": "Then what do you value most in life?",
+   "beaver_roman": "geureom salmyeonseo gajang jungyohage yeogineun geon mwoyeyo?",
    "learner": "저는 윤리를 지키는 삶이 중요해요.",
    "en": "For me, a life that keeps to ethics is important.",
    "roman": "jeoneun yullireul jikineun salmi jungyohaeyo."

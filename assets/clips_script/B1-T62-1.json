@@ -67,12 +67,12 @@
   },
   {
    "n": 8,
-   "beaver": "절약에 대한 팁을 알려 드릴까요?",
-   "beaver_en": "Shall I give you some tips on saving?",
-   "beaver_roman": "jeoryage daehan tibeul allyeo deurilkkayo?",
-   "learner": "네, 좋아요. 용돈도 줄이고 잔돈도 모을게요.",
-   "en": "Yes, please. I'll cut my pocket money and save change too.",
-   "roman": "ne, joayo. yongdondo jurigo jandondo moeulgeyo."
+   "beaver": "매달 얼마씩 갚으실 수 있으세요?",
+   "beaver_en": "How much can you pay back each month?",
+   "beaver_roman": "maedal eolmassik gapeusil su isseuseyo?",
+   "learner": "오십만 원씩요. 생활비를 절약할게요.",
+   "en": "About 500,000 won. I'll save on living costs.",
+   "roman": "osimman wonssigyo. saenghwalbireul jeoryakhalgeyo."
   },
   {
    "n": 9,

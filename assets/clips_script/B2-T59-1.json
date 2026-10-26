@@ -61,18 +61,18 @@
    "beaver": "알겠습니다. 변비는 없으세요?",
    "beaver_en": "I see. Any constipation?",
    "beaver_roman": "algetseumnida. byeonbineun eopseuseyo?",
-   "learner": "변비는 없어요. 그런데 팔에 멍이 있어요.",
-   "en": "No constipation. But I have a bruise on my arm.",
-   "roman": "byeonbineun eopseoyo. geureonde pare meongi isseoyo."
+   "learner": "변비는 없어요. 그런데 배가 계속 아파요.",
+   "en": "No constipation. But my stomach keeps hurting.",
+   "roman": "byeonbineun eopseoyo. geureonde baega gyesok apayo."
   },
   {
    "n": 8,
-   "beaver": "멍은 왜 생겼어요?",
-   "beaver_en": "How did you get the bruise?",
-   "beaver_roman": "meongeun wae saenggyeosseoyo?",
-   "learner": "지난주에 넘어져서 발목도 삐었어요.",
-   "en": "I fell last week and sprained my ankle too.",
-   "roman": "jinanjue neomeojyeoseo balmokdo ppieosseoyo."
+   "beaver": "배는 언제 제일 아파요?",
+   "beaver_en": "When does your stomach hurt the most?",
+   "beaver_roman": "baeneun eonje jeil apayo?",
+   "learner": "밥을 먹고 나면 더 아파요.",
+   "en": "It hurts more after I eat.",
+   "roman": "babeul meokgo namyeon deo apayo."
   },
   {
    "n": 9,

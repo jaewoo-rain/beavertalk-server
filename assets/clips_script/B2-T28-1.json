@@ -43,15 +43,15 @@
    "beaver": "저기 게시판 옆에 있어요.",
    "beaver_en": "It's over there next to the notice board.",
    "beaver_roman": "jeogi gesipan yeope isseoyo.",
-   "learner": "안내문만 봐서는 잘 모르겠더라고요.",
-   "en": "Just looking at the notice, I couldn't really tell.",
-   "roman": "annaemunman bwaseoneun jal moreugetdeoragoyo."
+   "learner": "아, 저기 있네요. 볼펜으로 써요?",
+   "en": "Oh, there it is. Should I write in pen?",
+   "roman": "a, jeogi inneyo. bolpeneuro sseoyo?"
   },
   {
    "n": 6,
-   "beaver": "괜찮아요. 신청서는 볼펜으로 쓰세요.",
-   "beaver_en": "That's fine. Please fill it out in pen.",
-   "beaver_roman": "gwaenchanayo. sincheongseoneun bolpeneuro sseuseyo.",
+   "beaver": "네, 신청서는 볼펜으로 쓰세요.",
+   "beaver_en": "Yes, please fill out the form in pen.",
+   "beaver_roman": "ne, sincheongseoneun bolpeneuro sseuseyo.",
    "learner": "집에서 인쇄한 양식에 작성해도 돼요?",
    "en": "Can I fill out a form I printed at home?",
    "roman": "jibeseo inswaehan yangsige jakseonghaedo dwaeyo?"

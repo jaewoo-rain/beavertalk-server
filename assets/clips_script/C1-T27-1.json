@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "은퇴 뒤 계획은 있으십니까?",
-   "beaver_en": "Do you have plans after retirement?",
-   "beaver_roman": "euntoe dwi gyehoegeun isseusimnikka?",
-   "learner": "은퇴 후에는 복지관에서 봉사하고 싶습니다.",
-   "en": "After retiring, I want to volunteer at a welfare center.",
-   "roman": "euntoe hueneun bokjigwaneseo bongsahago sipseumnida."
+   "beaver": "앞으로 맡고 싶은 업무가 있으십니까?",
+   "beaver_en": "Is there any work you would like to take on in the future?",
+   "beaver_roman": "apeuro matgo sipeun eommuga isseusimnikka?",
+   "learner": "해외 영업을 맡아 보고 싶습니다.",
+   "en": "I would like to try handling overseas sales.",
+   "roman": "haeoe yeongeobeul mata bogo sipseumnida."
   },
   {
    "n": 10,

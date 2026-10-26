@@ -52,9 +52,9 @@
    "beaver": "경기 중에 힘든 일은 없었나요?",
    "beaver_en": "Was there anything hard during the game?",
    "beaver_roman": "gyeonggi junge himdeun ireun eopseonnayo?",
-   "learner": "상대 선수가 퇴장당해서 선수도 많이 놀랐대요.",
-   "en": "His opponent was sent off, so he was very surprised.",
-   "roman": "sangdae seonsuga toejangdanghaeseo seonsudo mani nollatdaeyo."
+   "learner": "상대가 퇴장당해 경기 흐름이 끊겨서 힘들었대요.",
+   "en": "The opponent was ejected, which broke the flow, so it was tough.",
+   "roman": "sangdaega toejangdanghae gyeonggi heureumi kkeunkyeoseo himdeureotdaeyo."
   },
   {
    "n": 7,

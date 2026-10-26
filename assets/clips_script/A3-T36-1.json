@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "와, 아기가 정말 귀여워요! 다른 축제 이야기도 해 줄래요?",
-   "beaver_en": "Wow, the baby is so cute! Will you tell me about other festivals too?",
-   "beaver_roman": "wa, agiga jeongmal gwiyeowoyo! dareun chukje iyagido hae jullaeyo?",
-   "learner": "네, 내일 축제 이야기도 해 줄게요.",
-   "en": "Sure, I'll tell you about festivals tomorrow too.",
-   "roman": "ne, naeil chukje iyagido hae julgeyo."
+   "beaver": "와, 아기가 정말 귀여워요! 한복도 입었네요?",
+   "beaver_en": "Wow, the baby is so cute! Is the baby wearing hanbok too?",
+   "beaver_roman": "wa, agiga jeongmal gwiyeowoyo! hanbokdo ibeonneyo?",
+   "learner": "네, 다음에 한복 사진도 보여 줄게요.",
+   "en": "Yes, I'll show you hanbok photos next time too.",
+   "roman": "ne, daeume hanbok sajindo boyeo julgeyo."
   },
   {
    "n": 10,

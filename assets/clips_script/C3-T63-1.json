@@ -52,18 +52,18 @@
    "beaver": "농업 말고 다른 산업과도 협력합니까?",
    "beaver_en": "Will you also work with industries other than farming?",
    "beaver_roman": "Nongeop malgo dareun saneopgwado hyeomnyeokamnikka?",
-   "learner": "수산업은 물론이려니와 임업과도 협력하겠습니다.",
-   "en": "We'll work with fishing and forestry alike.",
-   "roman": "Suseobeun mulloniryeoniwa imeopgwado hyeomnyeokagetseumnida."
+   "learner": "네, 수산업이나 임업 쪽과도 함께하려고 합니다.",
+   "en": "Yes, we also plan to work with the fishery and forestry sectors.",
+   "roman": "ne, susaneobina imeop jjokgwado hamkkeharyeogo hamnida."
   },
   {
    "n": 7,
-   "beaver": "광업이나 조선업은 어떻습니까?",
-   "beaver_en": "What about mining or shipbuilding?",
-   "beaver_roman": "Gwangeobina joseoneobeun eotteoseumnikka?",
-   "learner": "그건 어렵지만 대신 경공업 벤처와 손잡겠습니다.",
-   "en": "That's hard, but we'll team up with light-industry ventures instead.",
-   "roman": "Geugeon eoryeopjiman daesin gyeonggongeop bencheowa sonjapgetseumnida."
+   "beaver": "제조 쪽 업체와도 손잡을 계획이 있습니까?",
+   "beaver_en": "Do you plan to partner with manufacturing companies too?",
+   "beaver_roman": "jejo jjok eopchewado sonjabeul gyehoegi itseumnikka?",
+   "learner": "네, 경공업 벤처와도 손잡을 계획입니다.",
+   "en": "Yes, we plan to partner with light-industry startups too.",
+   "roman": "ne, gyeonggongeop benchewado sonjabeul gyehoegimnida."
   },
   {
    "n": 8,

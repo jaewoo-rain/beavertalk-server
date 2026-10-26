@@ -67,12 +67,12 @@
   },
   {
    "n": 8,
-   "beaver": "그럼 검사나 운전사는 어때요?",
-   "beaver_en": "Then how about a prosecutor or a driver?",
-   "beaver_roman": "Geureom geomsana unjeonsaneun eottaeyo?",
-   "learner": "검사는 힘든데 운전사는 재미있을 것 같아요.",
-   "en": "A prosecutor is tough, but a driver seems fun.",
-   "roman": "Geomsaneun himdeunde unjeonsaneun jaemiisseul geot gatayo."
+   "beaver": "그럼 운전사는 어때요?",
+   "beaver_en": "Then how about being a driver?",
+   "beaver_roman": "geureom unjeonsaneun eottaeyo?",
+   "learner": "운전은 좋아하는데 잘 모르겠어요.",
+   "en": "I like driving, but I'm not sure.",
+   "roman": "unjeoneun joahaneunde jal moreugesseoyo."
   },
   {
    "n": 9,

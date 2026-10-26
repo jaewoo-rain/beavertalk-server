@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "아픈 증상은 어떻게 말하면 됩니까?",
-   "beaver_en": "How should we describe our symptoms?",
-   "beaver_roman": "apeun jeungsangeun eotteoke malhamyeon doemnikka?",
+   "beaver": "병원에서 증상은 어떻게 말하면 됩니까?",
+   "beaver_en": "How should we describe our symptoms at the hospital?",
+   "beaver_roman": "byeongwoneseo jeungsangeun eotteoke malhamyeon doemnikka?",
    "learner": "병명을 몰라도 아픈 곳을 정확히 말하면 됩니다.",
    "en": "Even without knowing the disease name, just say exactly where it hurts.",
    "roman": "byeongmyeongeul mollado apeun goseul jeonghwaki malhamyeon doemnida."

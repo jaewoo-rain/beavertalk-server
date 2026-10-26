@@ -67,12 +67,12 @@
   },
   {
    "n": 8,
-   "beaver": "배드민턴 얘기 더 해 볼까요?",
-   "beaver_en": "Shall we talk more about badminton?",
-   "beaver_roman": "baedeuminteon yaegi deo hae bolkkayo?",
-   "learner": "좋아요. 배드민턴 기술에 대해서 알고 싶어요.",
-   "en": "Sure. I want to know about badminton techniques.",
-   "roman": "joayo. baedeuminteon gisure daehaeseo algo sipeoyo."
+   "beaver": "배드민턴은 누구한테 배웠어요?",
+   "beaver_en": "Who taught you badminton?",
+   "beaver_roman": "baedeuminteoneun nuguhante baewosseoyo?",
+   "learner": "혼자 배웠어요. 기술에 대해서 더 알고 싶어요.",
+   "en": "I learned on my own. I want to know more about techniques.",
+   "roman": "honja baewosseoyo. gisure daehaeseo deo algo sipeoyo."
   },
   {
    "n": 9,

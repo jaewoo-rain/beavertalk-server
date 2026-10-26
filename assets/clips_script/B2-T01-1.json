@@ -61,18 +61,18 @@
    "beaver": "아, 보여요. 오늘은 참가자가 정말 많네요.",
    "beaver_en": "Ah, I see him. There are so many participants today.",
    "beaver_roman": "a, boyeoyo. oneureun chamgajaga jeongmal manneyo.",
-   "learner": "네, 젊은 사람들이 많네요.",
-   "en": "Yes, there are a lot of young people.",
-   "roman": "ne, jeolmeun saramdeuri manneyo."
+   "learner": "네, 시간이 가면 갈수록 더 많아지네요.",
+   "en": "Yes, the more time passes, the more people come.",
+   "roman": "ne, sigani gamyeon galsurok deo manajineyo."
   },
   {
    "n": 8,
-   "beaver": "간단히 자기소개 좀 해 주시겠어요?",
-   "beaver_en": "Could you briefly introduce yourself?",
-   "beaver_roman": "gandanhi jagisogae jom hae jusigesseoyo?",
-   "learner": "저는 학생이에요. 한국어는 배우면 배울수록 재미있어요.",
-   "en": "I'm a student. The more I learn Korean, the more fun it is.",
-   "roman": "jeoneun haksaengieyo. hangugeoneun baeumyeon baeulsurok jaemiisseoyo."
+   "beaver": "직업 칸도 있어요. 학생이세요, 직장인이세요?",
+   "beaver_en": "There is an occupation box too. Are you a student or an office worker?",
+   "beaver_roman": "jigeop kando isseoyo. haksaengiseyo, jikjanginiseyo?",
+   "learner": "학생이에요. 한국대학교에서 공부해요.",
+   "en": "I'm a student. I study at Hankuk University.",
+   "roman": "haksaengieyo. hangukdaehakgyoeseo gongbuhaeyo."
   },
   {
    "n": 9,

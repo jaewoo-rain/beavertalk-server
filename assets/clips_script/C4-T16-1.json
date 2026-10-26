@@ -22,12 +22,12 @@
   },
   {
    "n": 3,
-   "beaver": "공항 안 차량이 사고를 내고 그냥 가 버렸습니다.",
-   "beaver_en": "An airport vehicle caused an accident and just drove off.",
-   "beaver_roman": "Gonghang an charyangi sagoreul naego geunyang ga beoryeotseumnida.",
-   "learner": "뺑소니요? 차가 후진하다가 부딪친 거예요?",
-   "en": "A hit-and-run? Did it crash while reversing?",
-   "roman": "Ppaengsoniyo? Chaga hujinhadaga budichin geoyeyo?"
+   "beaver": "공항 차량끼리 부딪치는 사고가 났습니다.",
+   "beaver_en": "Two airport vehicles collided with each other.",
+   "beaver_roman": "gonghang charyangkkiri budichineun sagoga natseumnida.",
+   "learner": "차가 후진하다가 부딪친 거예요?",
+   "en": "Did a vehicle hit something while backing up?",
+   "roman": "chaga hujinhadaga budichin geoyeyo?"
   },
   {
    "n": 4,

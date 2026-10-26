@@ -76,18 +76,18 @@
   },
   {
    "n": 9,
-   "beaver": "그럼 괜찮아요. 학교에서 이루고 싶은 목표가 있어요?",
-   "beaver_en": "Then it's fine. Do you have a goal you want to achieve at school?",
-   "beaver_roman": "geureom gwaenchanayo. hakgyoeseo irugo sipeun mokpyoga isseoyo?",
-   "learner": "네, 열심히 공부해서 대학원까지 가고 싶어요.",
-   "en": "Yes, I want to study hard and go on to graduate school.",
-   "roman": "ne, yeolsimhi gongbuhaeseo daehagwonkkaji gago sipeoyo."
+   "beaver": "그럼 괜찮아요. 담임 선생님께 미리 말하세요.",
+   "beaver_en": "Then it's fine. Tell your homeroom teacher in advance.",
+   "beaver_roman": "geureom gwaenchanayo. damim seonsaengnimkke miri malhaseyo.",
+   "learner": "네, 목요일에 미리 말씀드릴게요.",
+   "en": "Okay, I'll tell my teacher on Thursday.",
+   "roman": "ne, mogyoire miri malsseumdeurilgeyo."
   },
   {
    "n": 10,
-   "beaver": "멋져요. 지금처럼 열심히 하면 돼요.",
-   "beaver_en": "Wonderful. Just keep working hard like now.",
-   "beaver_roman": "meotjyeoyo. jigeumcheoreom yeolsimhi hamyeon dwaeyo.",
+   "beaver": "좋아요. 또 궁금하면 물어보세요.",
+   "beaver_en": "Good. Ask me if you have more questions.",
+   "beaver_roman": "joayo. tto gunggeumhamyeon mureoboseyo.",
    "learner": "감사합니다. 자료는 지금 가져다 드릴게요.",
    "en": "Thank you. I'll go get the materials for you now.",
    "roman": "gamsahamnida. jaryoneun jigeum gajyeoda deurilgeyo."

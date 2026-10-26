@@ -67,9 +67,9 @@
   },
   {
    "n": 8,
-   "beaver": "이 주변 지형에 대해 좀 더 알려 주세요.",
-   "beaver_en": "Tell me a bit more about the terrain around here.",
-   "beaver_roman": "i jubyeon jihyeonge daehae jom deo allyeo juseyo.",
+   "beaver": "이 주변 지형은 어떤 특징이 있어요?",
+   "beaver_en": "What is special about the terrain around here?",
+   "beaver_roman": "i jubyeon jihyeongeun eotteon teukjingi isseoyo?",
    "learner": "저쪽은 골짜기가 넓은 점이 특징적이에요.",
    "en": "What's distinctive over there is that the valley is wide.",
    "roman": "jeojjogeun goljjagiga neolbeun jeomi teukjingjeogieyo."
