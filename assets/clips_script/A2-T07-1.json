@@ -31,12 +31,12 @@
   },
   {
    "n": 4,
-   "beaver": "학생 방은 어떻게 생겼는지 말해 줄래요?",
-   "beaver_en": "Can you tell me what your room looks like?",
-   "beaver_roman": "haksaeng bangeun eotteoke saenggyeonneunji malhae jullaeyo?",
-   "learner": "방에 큰 창문이 하나 있어요. 문은 작아요.",
-   "en": "There's one big window in the room. The door is small.",
-   "roman": "bange keun changmuni hana isseoyo. muneun jagayo."
+   "beaver": "방에 불편한 건 없어요?",
+   "beaver_en": "Is there anything inconvenient about your room?",
+   "beaver_roman": "bange bulpyeonhan geon eopseoyo?",
+   "learner": "괜찮아요. 창문이 커서 밝아요.",
+   "en": "It's fine. The window is big, so it's bright.",
+   "roman": "gwaenchanayo. changmuni keoseo balgayo."
   },
   {
    "n": 5,

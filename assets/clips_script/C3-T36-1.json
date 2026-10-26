@@ -58,30 +58,30 @@
   },
   {
    "n": 7,
-   "beaver": "폐막식은 어떻게 할까요?",
-   "beaver_en": "How should we do the closing ceremony?",
-   "beaver_roman": "Pyemaksigeun eotteoke halkkayo?",
+   "beaver": "마지막 순서는 어떻게 할까요?",
+   "beaver_en": "How should we end the program?",
+   "beaver_roman": "majimak sunseoneun eotteoke halkkayo?",
    "learner": "마지막에 다 같이 추모곡을 부르고 마쳐요.",
    "en": "At the end, we'll all sing a memorial song and finish.",
    "roman": "Majimage da gachi chumogogeul bureugo machyeoyo."
   },
   {
    "n": 8,
-   "beaver": "이 행사를 우리 시로 유치하기가 쉽지 않았어요.",
-   "beaver_en": "It wasn't easy to bring this event to our city.",
-   "beaver_roman": "I haengsareul uri siro yuchihagiga swipji anasseoyo.",
-   "learner": "알아요. 많은 분들이 애써서 유치했다고 들었어요.",
-   "en": "I know. I heard many people worked hard to bring it here.",
-   "roman": "Arayo. Maneun bundeuri aesseoseo yuchihaetdago deureosseoyo."
+   "beaver": "유족분들께는 언제 인사드리면 될까요?",
+   "beaver_en": "When should we greet the bereaved family?",
+   "beaver_roman": "yujokbundeulkkeneun eonje insadeurimyeon doelkkayo?",
+   "learner": "행사를 마친 후에 따로 인사드리면 돼요.",
+   "en": "You can greet them separately after the event.",
+   "roman": "haengsareul machin hue ttaro insadeurimyeon dwaeyo."
   },
   {
    "n": 9,
-   "beaver": "행사장은 몇 시에 폐장하면 될까요?",
-   "beaver_en": "What time should we close the venue?",
-   "beaver_roman": "Haengsajangeun myeot sie pyejanghamyeon doelkkayo?",
-   "learner": "여섯 시쯤 폐장하면 좋겠어요. 정리도 할게요.",
-   "en": "Closing around six would be good. I'll help clean up too.",
-   "roman": "Yeoseot sijjeum pyejanghamyeon jokesseoyo. Jeongnido halgeyo."
+   "beaver": "행사장은 몇 시에 정리하면 될까요?",
+   "beaver_en": "What time should we clear the venue?",
+   "beaver_roman": "haengsajangeun myeot sie jeongnihamyeon doelkkayo?",
+   "learner": "여섯 시쯤 정리하면 좋겠어요. 저도 도울게요.",
+   "en": "Around six would be good. I'll help too.",
+   "roman": "yeoseot sijjeum jeongnihamyeon jokesseoyo. jeodo doulgeyo."
   },
   {
    "n": 10,

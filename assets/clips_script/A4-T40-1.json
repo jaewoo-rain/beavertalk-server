@@ -49,21 +49,21 @@
   },
   {
    "n": 6,
-   "beaver": "이 동네에 사신 지는 얼마나 됐어요?",
-   "beaver_en": "How long have you lived in this neighborhood?",
-   "beaver_roman": "i dongnee sasin jineun eolmana dwaesseoyo?",
-   "learner": "이 동네에 산 지 6개월 됐어요.",
-   "en": "I've lived in this neighborhood for six months.",
-   "roman": "i dongnee san ji yukgaewol dwaesseoyo."
+   "beaver": "센터 이용 시간은 저녁 여섯 시까지예요.",
+   "beaver_en": "The center is open until 6 p.m.",
+   "beaver_roman": "senteo iyong siganeun jeonyeok yeoseot sikkajiyeyo.",
+   "learner": "네, 알겠어요. 쓰레기는 어디에 버려요?",
+   "en": "Okay. Where do I throw away trash?",
+   "roman": "ne, algesseoyo. sseuregineun eodie beoryeoyo?"
   },
   {
    "n": 7,
-   "beaver": "그럼 동네 규칙도 잘 아시겠네요.",
-   "beaver_en": "Then you must know the neighborhood rules well.",
-   "beaver_roman": "geureom dongne gyuchikdo jal asigenneyo.",
-   "learner": "네, 쓰레기 규칙이 제일 중요해요.",
-   "en": "Yes, the trash rules are the most important.",
-   "roman": "ne, sseuregi gyuchigi jeil jungyohaeyo."
+   "beaver": "저쪽 분리수거함에 버리세요.",
+   "beaver_en": "Please use the recycling bins over there.",
+   "beaver_roman": "jeojjok bullisugeohame beoriseyo.",
+   "learner": "한국에서는 분리수거가 중요한 거 같아요.",
+   "en": "I think recycling is important in Korea.",
+   "roman": "hangugeseoneun bullisugeoga jungyohan geo gatayo."
   },
   {
    "n": 8,

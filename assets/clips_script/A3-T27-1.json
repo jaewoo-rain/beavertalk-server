@@ -58,12 +58,12 @@
   },
   {
    "n": 7,
-   "beaver": "월급날은 언제예요?",
-   "beaver_en": "When is payday?",
-   "beaver_roman": "Wolgeumnareun eonjeyeyo?",
-   "learner": "매달 이십오 일이에요. 월급이 올라서 기뻐요.",
-   "en": "The 25th of every month. My salary went up, so I'm happy.",
-   "roman": "Maedal isibo irieyo. Wolgeubi ollaseo gippeoyo."
+   "beaver": "이번 달부터 월급이 올랐다면서요?",
+   "beaver_en": "I heard your pay went up this month?",
+   "beaver_roman": "ibeon dalbuteo wolgeubi ollatdamyeonseoyo?",
+   "learner": "네, 조금 올라서 정말 기뻐요.",
+   "en": "Yes, it went up a little, so I'm really happy.",
+   "roman": "ne, jogeum ollaseo jeongmal gippeoyo."
   },
   {
    "n": 8,
@@ -79,9 +79,9 @@
    "beaver": "저도 가 볼게요. 아, 점심시간이 다 지나갔네요.",
    "beaver_en": "I'll try going too. Oh, lunchtime is almost over.",
    "beaver_roman": "Jeodo ga bolgeyo. A, jeomsimsigani da jinaganneyo.",
-   "learner": "퇴근 후에 휴게실에서 또 이야기해요.",
-   "en": "Let's talk again in the lounge after work.",
-   "roman": "Toegeun hue hyugesireseo tto iyagihaeyo."
+   "learner": "그럼 오후에 휴게실에서 또 이야기해요.",
+   "en": "Then let's talk again in the break room this afternoon.",
+   "roman": "geureom ohue hyugesireseo tto iyagihaeyo."
   },
   {
    "n": 10,

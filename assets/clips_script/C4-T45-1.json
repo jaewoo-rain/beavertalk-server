@@ -31,9 +31,9 @@
   },
   {
    "n": 4,
-   "beaver": "가치관이나 삶의 의미에 대해 더 말해 줄래요?",
-   "beaver_en": "Can you tell me more about your values or life's meaning?",
-   "beaver_roman": "Gachigwanina salmui uimie daehae deo malhae jullaeyo?",
+   "beaver": "그 뒤로 뭐가 제일 달라졌어요?",
+   "beaver_en": "What changed the most after that?",
+   "beaver_roman": "geu dwiro mwoga jeil dallajyeosseoyo?",
    "learner": "유서를 미리 써 보면서 삶을 돌아봤어요.",
    "en": "Writing a will in advance, I looked back on my life.",
    "roman": "Yuseoreul miri sseo bomyeonseo salmeul dorabwasseoyo."
@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "안락사 같은 윤리 문제는 어떻게 생각해요?",
-   "beaver_en": "What do you think about ethical issues like euthanasia?",
-   "beaver_roman": "Allaksa gateun yulli munjeneun eotteoke saenggakaeyo?",
+   "beaver": "죽을 고비를 넘기니 안락사도 달리 보여요?",
+   "beaver_en": "After nearly dying, do you see euthanasia differently?",
+   "beaver_roman": "jugeul gobireul neomgini allaksado dalli boyeoyo?",
    "learner": "생명은 고귀하지만 자율적 선택도 중요해요.",
    "en": "Life is noble, but autonomous choice matters too.",
    "roman": "Saengmyeongeun gogwihajiman jayuljeok seontaekdo jungyohaeyo."

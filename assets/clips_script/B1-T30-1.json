@@ -76,18 +76,18 @@
   },
   {
    "n": 9,
-   "beaver": "어렸을 때도 병원에 자주 갔어요?",
-   "beaver_en": "Did you go to the hospital often as a kid too?",
-   "beaver_roman": "eoryeosseul ttaedo byeongwone jaju gasseoyo?",
-   "learner": "네, 어렸을 때 소아과에서 물약을 자주 받았어요.",
-   "en": "Yes, when I was little, I often got liquid medicine at pediatrics.",
-   "roman": "ne, eoryeosseul ttae soagwaeseo mullyageul jaju badasseoyo."
+   "beaver": "약은 하루에 몇 번 먹어요?",
+   "beaver_en": "How many times a day do you take the medicine?",
+   "beaver_roman": "yageun harue myeot beon meogeoyo?",
+   "learner": "하루 세 번이요. 아플 때 먹는 약도 있어요.",
+   "en": "Three times a day. There's also medicine for when it hurts.",
+   "roman": "haru se beonieyo. apeul ttae meongneun yakdo isseoyo."
   },
   {
    "n": 10,
-   "beaver": "하하, 그랬군요. 푹 쉬고 빨리 나아요!",
-   "beaver_en": "Haha, I see. Rest well and get better soon!",
-   "beaver_roman": "haha, geuraetgunnyo. puk swigo ppalli naayo!",
+   "beaver": "그렇군요. 푹 쉬고 빨리 나아요!",
+   "beaver_en": "I see. Get plenty of rest and get well soon!",
+   "beaver_roman": "geureokunyo. puk swigo ppalli naayo!",
    "learner": "고마워요. 퇴원하면 처방전 들고 약국 갈게요.",
    "en": "Thanks. When I'm discharged, I'll take my prescription to the pharmacy.",
    "roman": "gomawoyo. toewonhamyeon cheobangjeon deulgo yakguk galgeyo."

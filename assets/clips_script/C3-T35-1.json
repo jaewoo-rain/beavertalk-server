@@ -40,30 +40,30 @@
   },
   {
    "n": 5,
-   "beaver": "그렇군요. 다른 종목도 합니까?",
-   "beaver_en": "I see. Do you do other sports too?",
-   "beaver_roman": "geureokunyo. dareun jongmokdo hamnikka?",
-   "learner": "네, 승마를 하는 등 여러 종목에 재능을 발휘해요.",
-   "en": "Yes, I show talent in various events, like horse riding.",
-   "roman": "ne, seungmareul haneun deung yeoreo jongmoge jaeneungeul balhwihaeyo."
+   "beaver": "그렇군요. 승마는 어땠어요?",
+   "beaver_en": "I see. How was the riding?",
+   "beaver_roman": "geureokunyo. seungmaneun eottaesseoyo?",
+   "learner": "승마 1위를 하는 등 여러 종목에 재능을 발휘했어요.",
+   "en": "I showed my talent in several events, like taking first in riding.",
+   "roman": "seungma irwireul haneun deung yeoreo jongmoge jaeneungeul balhwihaesseoyo."
   },
   {
    "n": 6,
-   "beaver": "구기 종목은 안 해요? 야구 같은 거요.",
-   "beaver_en": "No ball sports? Like baseball?",
-   "beaver_roman": "gugi jongmogeun an haeyo? yagu gateun geoyo.",
-   "learner": "어릴 때 야구를 했어요. 홈런도 쳤어요.",
-   "en": "I played baseball as a kid. I even hit home runs.",
-   "roman": "eoril ttae yagureul haesseoyo. homneondo cheosseoyo."
+   "beaver": "수영은 어땠어요? 기록이 괜찮았죠?",
+   "beaver_en": "How was swimming? Your time was good, right?",
+   "beaver_roman": "suyeongeun eottaesseoyo? girogi gwaenchanatjyo?",
+   "learner": "네, 수영은 제 최고 기록이 나왔어요.",
+   "en": "Yes, I set my personal best in swimming.",
+   "roman": "ne, suyeongeun je choego girogi nawasseoyo."
   },
   {
    "n": 7,
-   "beaver": "운동 신경이 좋네요. 다른 건요?",
-   "beaver_en": "You're athletic. Anything else?",
-   "beaver_roman": "undong singyeongi jonneyo. dareun geonyo?",
-   "learner": "역도와 요트도 해 봤어요. 활도 쏴 봤고요.",
-   "en": "I've tried weightlifting and sailing. Archery too.",
-   "roman": "yeokdowa yoteudo hae bwasseoyo. hwaldo sswa bwatgoyo."
+   "beaver": "펜싱에서는 점수를 좀 잃었죠?",
+   "beaver_en": "You lost some points in fencing, right?",
+   "beaver_roman": "pensingeseoneun jeomsureul jom ireotjyo?",
+   "learner": "네, 막판에 서두르다가 점수를 잃었어요.",
+   "en": "Yes, I rushed at the end and lost points.",
+   "roman": "ne, makpane seodureudaga jeomsureul ireosseoyo."
   },
   {
    "n": 8,

@@ -43,9 +43,9 @@
    "beaver": "네, 어린 왕자가 쓰던 거울이라고 합니다.",
    "beaver_en": "Yes, they say a young prince used it.",
    "beaver_roman": "ne, eorin wangjaga sseudeon geourirago hamnida.",
-   "learner": "증명서가 있나요? 사진으로나마 보고 싶어요.",
-   "en": "Is there a certificate? I'd like to see it, even if only in a photo.",
-   "roman": "jeungmyeongseoga innayo? sajineuronama bogo sipeoyo."
+   "learner": "증명서가 있나요? 있으면 보고 싶어요.",
+   "en": "Is there a certificate? I'd like to see it if there is.",
+   "roman": "jeungmyeongseoga innayo? isseumyeon bogo sipeoyo."
   },
   {
    "n": 6,

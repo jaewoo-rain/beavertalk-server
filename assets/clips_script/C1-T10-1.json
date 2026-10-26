@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "매장 분실물은 어떻게 처리했어요?",
-   "beaver_en": "How did you handle lost items in the store?",
-   "beaver_roman": "Maejang bunsilmureun eotteoke cheorihaesseoyo?",
-   "learner": "습득한 물품은 모두 고객 센터에 맡겼어요.",
-   "en": "We left all found items at the customer center.",
-   "roman": "Seupdeukan mulpumeun modu gogaek sentere matgyeosseoyo."
+   "beaver": "중고 물품 거래는 어때요?",
+   "beaver_en": "How about secondhand goods trading?",
+   "beaver_roman": "junggo mulpum georaeneun eottaeyo?",
+   "learner": "중고 물품을 사는 경향도 늘었어요.",
+   "en": "More people also tend to buy secondhand goods.",
+   "roman": "junggo mulpumeul saneun gyeonghyangdo neureosseoyo."
   },
   {
    "n": 10,

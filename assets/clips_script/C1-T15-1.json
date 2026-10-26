@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "위치와 방향에 대해 더 말해 줄래요?",
-   "beaver_en": "Can you tell me more about positions and directions?",
-   "beaver_roman": "Wichiwa banghyange daehae deo malhae jullaeyo?",
+   "beaver": "부스는 어디에 세워요?",
+   "beaver_en": "Where will the booths go?",
+   "beaver_roman": "buseuneun eodie sewoyo?",
    "learner": "광장 가장자리에 부스를 빙 둘러 세울 거예요.",
    "en": "We'll set up booths all around the edge of the plaza.",
    "roman": "Gwangjang gajangjarie buseureul bing dulleo seul kkeoyeyo."

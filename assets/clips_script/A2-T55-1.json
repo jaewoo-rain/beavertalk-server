@@ -61,15 +61,15 @@
    "beaver": "네, 오늘 오전에 행사가 있었어요.",
    "beaver_en": "Yes, there was an event this morning.",
    "beaver_roman": "ne, oneul ojeone haengsaga isseosseoyo.",
-   "learner": "그럼 시장님도 오셨어요?",
-   "en": "Then did the mayor come too?",
-   "roman": "geureom sijangnimdo osyeosseoyo?"
+   "learner": "무슨 행사였어요?",
+   "en": "What was the event?",
+   "roman": "museun haengsayeosseoyo?"
   },
   {
    "n": 8,
-   "beaver": "네, 시장님이 열 시에 오셨어요.",
-   "beaver_en": "Yes, the mayor came at ten.",
-   "beaver_roman": "ne, sijangnimi yeol sie osyeosseoyo.",
+   "beaver": "시민 축제였어요. 시장님도 오셨어요.",
+   "beaver_en": "It was a citizens' festival. The mayor came too.",
+   "beaver_roman": "simin chukjeyeosseoyo. sijangnimdo osyeosseoyo.",
    "learner": "시청은 내일도 아홉 시에 열어요?",
    "en": "Does city hall open at nine tomorrow too?",
    "roman": "sicheongeun naeildo ahop sie yeoreoyo?"

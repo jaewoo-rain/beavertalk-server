@@ -49,12 +49,12 @@
   },
   {
    "n": 6,
-   "beaver": "자기소개를 조금 더 해 주시겠어요?",
-   "beaver_en": "Could you tell me a bit more about yourself?",
-   "beaver_roman": "jagisogaereul jogeum deo hae jusigesseoyo?",
-   "learner": "저는 주말에 운동하거나 책을 읽어요.",
-   "en": "On weekends, I exercise or read books.",
-   "roman": "jeoneun jumare undonghageona chaegeul ilgeoyo."
+   "beaver": "학생이세요, 직장인이세요?",
+   "beaver_en": "Are you a student or an office worker?",
+   "beaver_roman": "haksaengiseyo, jikjanginiseyo?",
+   "learner": "한국대학교 2학년 학생이에요.",
+   "en": "I'm a second-year student at Hankuk University.",
+   "roman": "hangukdaehakgyo ihangnyeon haksaengieyo."
   },
   {
    "n": 7,
@@ -70,9 +70,9 @@
    "beaver": "그럼 비상 연락처를 써 주세요.",
    "beaver_en": "Then please write an emergency contact.",
    "beaver_roman": "geureom bisang yeollakcheoreul sseo juseyo.",
-   "learner": "할머니예요. 성함은 메리 브라운이라고 하세요.",
-   "en": "It's my grandmother. Her name is Mary Brown.",
-   "roman": "halmeoniyeyo. seonghameun meri beuraunirago haseyo."
+   "learner": "할머니예요. 전화하거나 문자 하시면 돼요.",
+   "en": "It's my grandmother. You can call or text her.",
+   "roman": "halmeoniyeyo. jeonhwahageona munja hasimyeon dwaeyo."
   },
   {
    "n": 9,

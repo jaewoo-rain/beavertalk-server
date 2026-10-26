@@ -22,12 +22,12 @@
   },
   {
    "n": 3,
-   "beaver": "아, 그럼 부모님은 어디에서 오셨어요?",
-   "beaver_en": "Oh, then where are your parents from?",
-   "beaver_roman": "a, geureom bumonimeun eodieseo osyeosseoyo?",
-   "learner": "두 분 다 한국에서 오셨어요.",
-   "en": "Both of them came from Korea.",
-   "roman": "du bun da hangugeseo osyeosseoyo."
+   "beaver": "그럼 국적 칸에 미국이라고 써 주세요.",
+   "beaver_en": "Then please write 'USA' in the nationality box.",
+   "beaver_roman": "geureom gukjeok kane migugirago sseo juseyo.",
+   "learner": "네, 미국이라고 썼어요.",
+   "en": "Okay, I wrote 'USA'.",
+   "roman": "ne, migugirago sseosseoyo."
   },
   {
    "n": 4,

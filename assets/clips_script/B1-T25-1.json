@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "선배님, 학교생활 이야기도 더 해 주실래요?",
-   "beaver_en": "Could you tell me more about school life?",
-   "beaver_roman": "seonbaenim, hakgyosaenghwal iyagido deo hae jusillaeyo?",
-   "learner": "좋아요. 처음엔 바쁠 텐데 천천히 적응해요.",
-   "en": "Sure. You'll probably be busy at first, so adjust slowly.",
-   "roman": "joayo. cheoeumen bappeul tende cheoncheonhi jeogeunghaeyo."
+   "beaver": "선배님, 첫 학기는 많이 바빠요?",
+   "beaver_en": "Sunbae, is the first semester very busy?",
+   "beaver_roman": "seonbaenim, cheot hakgineun mani bappayo?",
+   "learner": "좀 바쁠 텐데 천천히 적응하면 돼요.",
+   "en": "It'll be a bit busy, but you can adjust slowly.",
+   "roman": "jom bappeul tende cheoncheonhi jeogeunghamyeon dwaeyo."
   },
   {
    "n": 10,

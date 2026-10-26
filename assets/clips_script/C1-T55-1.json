@@ -49,12 +49,12 @@
   },
   {
    "n": 6,
-   "beaver": "구청은 어떤 일을 하는 곳입니까?",
-   "beaver_en": "What kind of work does the district office do?",
-   "beaver_roman": "Gucheongeun eotteon ireul haneun gosimnikka?",
-   "learner": "구청은 자치 기구이고, 공공시설을 관리합니다.",
-   "en": "The district office is a self-governing body and manages public facilities.",
-   "roman": "Gucheongeun jachi giguigo, gonggongsiseoreul gwallihamnida."
+   "beaver": "구청 자료실은 어떤 자료를 관리합니까?",
+   "beaver_en": "What kind of data does the district office archive manage?",
+   "beaver_roman": "gucheong jaryosireun eotteon jaryoreul gwallihamnikka?",
+   "learner": "구 공공시설과 주민 생활 자료를 관리합니다.",
+   "en": "We manage data on district public facilities and residents' lives.",
+   "roman": "gu gonggongsiseolgwa jumin saenghwal jaryoreul gwallihamnida."
   },
   {
    "n": 7,

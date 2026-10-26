@@ -22,9 +22,9 @@
   },
   {
    "n": 3,
-   "beaver": "네, 오만 원이에요. 차로 오셨어요?",
-   "beaver_en": "Okay, it's 50,000 won. Did you come by car?",
-   "beaver_roman": "ne, oman wonieyo. charo osyeosseoyo?",
+   "beaver": "네, 오만 원이에요. 차로 오셨으면 주차권 드릴게요.",
+   "beaver_en": "Okay, that's 50,000 won. If you came by car, I'll give you a parking ticket.",
+   "beaver_roman": "ne, oman wonieyo. charo osyeosseumyeon juchagwon deurilgeyo.",
    "learner": "네, 주차장이 어디예요? 알려 주세요.",
    "en": "Yes, where is the parking lot? Please tell me.",
    "roman": "ne, juchajangi eodiyeyo? allyeo juseyo."

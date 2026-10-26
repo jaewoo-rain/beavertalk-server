@@ -76,21 +76,21 @@
   },
   {
    "n": 9,
-   "beaver": "크리스마스에는 뭐 할 거예요?",
-   "beaver_en": "What are you going to do on Christmas?",
-   "beaver_roman": "keuriseumaseueneun mwo hal geoyeyo?",
-   "learner": "크리스마스에는 친구들과 파티를 할 거예요.",
-   "en": "On Christmas, I'll have a party with friends.",
-   "roman": "keuriseumaseueneun chingudeulgwa patireul hal geoyeyo."
+   "beaver": "집들이는 재미있었어요?",
+   "beaver_en": "Was the housewarming fun?",
+   "beaver_roman": "jipdeurineun jaemiisseosseoyo?",
+   "learner": "네, 게임하다가 막차를 놓칠 뻔했어요.",
+   "en": "Yes, we played games and I almost missed the last train.",
+   "roman": "ne, geimhadaga makchareul nochil ppeonhaesseoyo."
   },
   {
    "n": 10,
-   "beaver": "좋네요! 저도 가도 돼요?",
-   "beaver_en": "Nice! Can I come too?",
-   "beaver_roman": "jonneyo! jeodo gado dwaeyo?",
-   "learner": "물론이에요. 초대장 보낼게요!",
-   "en": "Of course. I'll send you an invitation!",
-   "roman": "mullonieyo. chodaejang bonaelgeyo!"
+   "beaver": "하하, 재미있었겠네요!",
+   "beaver_en": "Haha, sounds like it was fun!",
+   "beaver_roman": "haha, jaemiisseotgenneyo!",
+   "learner": "네, 다음엔 우리 집에도 놀러 오세요!",
+   "en": "Yes, come over to my place next time too!",
+   "roman": "ne, daeumen uri jibedo nolleo oseyo!"
   }
  ]
 }

@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "부모님은 몇 시에 주무세요?",
-   "beaver_en": "What time do your parents go to sleep?",
-   "beaver_roman": "bumonimeun myeot sie jumuseyo?",
-   "learner": "부모님은 열 시에 주무세요.",
-   "en": "My parents go to sleep at ten.",
-   "roman": "bumonimeun yeol sie jumuseyo."
+   "beaver": "가족들도 그 시간에 자요?",
+   "beaver_en": "Does your family go to bed at that time too?",
+   "beaver_roman": "gajokdeuldo geu sigane jayo?",
+   "learner": "아니요, 부모님은 열 시에 주무세요.",
+   "en": "No, my parents go to bed at ten.",
+   "roman": "aniyo, bumonimeun yeol sie jumuseyo."
   },
   {
    "n": 10,

@@ -31,12 +31,12 @@
   },
   {
    "n": 4,
-   "beaver": "시골 초가집 같은 데는 어때? 아늑할 것 같은데.",
-   "beaver_en": "How about a thatched house in the countryside? It'd be cozy.",
-   "beaver_roman": "sigol chogajip gateun deneun eottae? aneukal kkeot gateunde.",
-   "learner": "초가집은 처마랑 담장 고치는 비용이 많이 들 거야.",
-   "en": "A thatched house would cost a lot to fix the eaves and walls.",
-   "roman": "chogajibeun cheomarang damjang gochineun biyongi mani deul kkeoya."
+   "beaver": "시골 한옥은 어때? 마당도 있고 아늑하잖아.",
+   "beaver_en": "How about a hanok in the countryside? It has a yard and feels cozy.",
+   "beaver_roman": "sigol hanogeun eottae? madangdo itgo aneukajana.",
+   "learner": "한옥은 처마랑 담장 고치는 비용이 많이 들 거야.",
+   "en": "A hanok would cost a lot to fix the eaves and walls.",
+   "roman": "hanogeun cheomarang damjang gochineun biyongi mani deul geoya."
   },
   {
    "n": 5,

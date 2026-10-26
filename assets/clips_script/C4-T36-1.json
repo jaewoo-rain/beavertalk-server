@@ -31,12 +31,12 @@
   },
   {
    "n": 4,
-   "beaver": "행진할 때 관도 함께 옮기나요?",
-   "beaver_en": "Is the coffin carried during the march too?",
-   "beaver_roman": "haengjinhal ttae gwando hamkke omginayo?",
-   "learner": "아니요, 관 대신 영정을 앞에 모시고 행진해요.",
-   "en": "No, instead of a coffin, we march with the portrait at the front.",
-   "roman": "aniyo, gwan daesin yeongjeongeul ape mosigo haengjinhaeyo."
+   "beaver": "행진할 때 앞에 무엇을 모시나요?",
+   "beaver_en": "What do we carry at the front of the procession?",
+   "beaver_roman": "haengjinhal ttae ape mueoseul mosinayo?",
+   "learner": "고인의 영정을 앞에 모시고 행진해요.",
+   "en": "We carry the portrait of the deceased at the front.",
+   "roman": "goinui yeongjeongeul ape mosigo haengjinhaeyo."
   },
   {
    "n": 5,
@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "문상 온 분들은 어디로 안내하죠?",
-   "beaver_en": "Where should we guide the mourners?",
-   "beaver_roman": "munsang on bundeureun eodiro annaehajyo?",
+   "beaver": "추모하러 오신 분들은 어디로 안내하죠?",
+   "beaver_en": "Where should we guide the people who came to pay tribute?",
+   "beaver_roman": "chumohareo osin bundeureun eodiro annaehajyo?",
    "learner": "행진이 끝나면 추모관으로 안내해요.",
    "en": "After the march, we guide them to the memorial hall.",
    "roman": "haengjini kkeunnamyeon chumogwaneuro annaehaeyo."
@@ -61,9 +61,9 @@
    "beaver": "그럼 그 전에는 기다려야 하겠네요.",
    "beaver_en": "Then they'll have to wait before that.",
    "beaver_roman": "geureom geu jeoneneun gidaryeoya hagenneyo.",
-   "learner": "네, 대기실에서 문상객들에게 차를 드려요.",
-   "en": "Yes, we'll serve tea to the mourners in the waiting room.",
-   "roman": "ne, daegisireseo munsanggaekdeurege chareul deuryeoyo."
+   "learner": "네, 대기실에서 손님들께 차를 드려요.",
+   "en": "Yes, we serve tea to the guests in the waiting room.",
+   "roman": "ne, daegisireseo sonnimdeulkke chareul deuryeoyo."
   },
   {
    "n": 8,

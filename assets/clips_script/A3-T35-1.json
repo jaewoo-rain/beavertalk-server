@@ -67,21 +67,21 @@
   },
   {
    "n": 8,
-   "beaver": "저는 다음 달에 수영 대회에 나가요.",
-   "beaver_en": "I'm entering a swimming competition next month.",
-   "beaver_roman": "Jeoneun daeum dare suyeong daehoee nagayo.",
-   "learner": "와, 멋있어요! 저는 수영할 줄 몰라요.",
-   "en": "Wow, that's cool! I don't know how to swim.",
-   "roman": "Wa, meosisseoyo! Jeoneun suyeonghal jul mollayo."
+   "beaver": "저는 다음 달에 테니스 대회에 나가요.",
+   "beaver_en": "I'm entering a tennis tournament next month.",
+   "beaver_roman": "jeoneun daeum dare teniseu daehoee nagayo.",
+   "learner": "와, 멋있어요! 꼭 응원하러 갈게요.",
+   "en": "Wow, cool! I'll definitely come cheer for you.",
+   "roman": "wa, meosisseoyo! kkok eungwonhareo galgeyo."
   },
   {
    "n": 9,
-   "beaver": "그럼 스키는 탈 줄 알아요?",
-   "beaver_en": "Then do you know how to ski?",
-   "beaver_roman": "Geureom seukineun tal jul arayo?",
-   "learner": "네, 작년에 간 스키장에서 배웠어요.",
-   "en": "Yes, I learned at the ski resort I went to last year.",
-   "roman": "Ne, jangnyeone gan seukijangeseo baewosseoyo."
+   "beaver": "고마워요. 그럼 토요일 아침 열 시 어때요?",
+   "beaver_en": "Thanks. Then how about Saturday at 10 a.m.?",
+   "beaver_roman": "gomawoyo. geureom toyoil achim yeol si eottaeyo?",
+   "learner": "네, 좋아요. 열 시에 갈게요.",
+   "en": "Yes, sounds good. I'll be there at ten.",
+   "roman": "ne, joayo. yeol sie galgeyo."
   },
   {
    "n": 10,

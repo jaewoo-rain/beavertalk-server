@@ -67,12 +67,12 @@
   },
   {
    "n": 8,
-   "beaver": "욕실 물건은 어디에 두세요?",
-   "beaver_en": "Where do you keep your bathroom things?",
-   "beaver_roman": "yoksil mulgeoneun eodie duseyo?",
-   "learner": "욕실 세면도구랑 솜은 선반에 둬요.",
-   "en": "I keep bathroom toiletries and cotton on the shelf.",
-   "roman": "yoksil semyeondogurang someun seonbane dwoyo."
+   "beaver": "욕실은 곰팡이가 좀 있네요.",
+   "beaver_en": "There's some mold in the bathroom.",
+   "beaver_roman": "yoksireun gompangiga jom inneyo.",
+   "learner": "욕실 문을 늘 닫아 둬서 그런가 봐요.",
+   "en": "I guess it's because I always keep the bathroom door closed.",
+   "roman": "yoksil muneul neul dada dwoseo geureonga bwayo."
   },
   {
    "n": 9,

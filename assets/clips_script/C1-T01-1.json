@@ -58,12 +58,12 @@
   },
   {
    "n": 7,
-   "beaver": "주변에 연상인 분들과도 이야기하십니까?",
-   "beaver_en": "Do you also talk with older people around you?",
-   "beaver_roman": "jubyeone yeonsangin bundeulgwado iyagihasimnikka?",
-   "learner": "네, 열 살 연상인 박 여사님과 자주 이야기해요.",
-   "en": "Yes, I often talk with Madam Park, who is ten years older.",
-   "roman": "ne, yeol sal yeonsangin bak yeosanimgwa jaju iyagihaeyo."
+   "beaver": "다른 세대와도 자주 이야기하십니까?",
+   "beaver_en": "Do you often talk with people from other generations?",
+   "beaver_roman": "dareun sedaewado jaju iyagihasimnikka?",
+   "learner": "네, 이웃 주민이신 박 여사님과 자주 이야기를 나눠요.",
+   "en": "Yes, I often chat with Mrs. Park, who lives in my neighborhood.",
+   "roman": "ne, iut juminisin bak yeosanimgwa jaju iyagireul nanwoyo."
   },
   {
    "n": 8,
