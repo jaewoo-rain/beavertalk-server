@@ -166,6 +166,10 @@ class LiveEvent:
     # 없다는 뜻이라(모델 생성 중·tool 실행 중) **핸들을 덮어쓰면 안 된다**.
     resume_handle: Optional[str] = None
     resumable: bool = False
+    # kind=="out_tr": 자막을 **소리 위치 마커**(sentence·text)로 보낸다 — 클립 통화 전용(2026-10-26 call 2946).
+    #   클립은 글 전체와 소리를 한 번에 내보내므로 output_transcript 로 보내면 소리보다 먼저 통째로 뜬다.
+    #   ⚠ 기본 False → Live 자막(output_transcript · 생성 속도)은 그대로다.
+    sync: bool = False
 
 
 @runtime_checkable

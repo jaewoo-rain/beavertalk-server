@@ -304,8 +304,14 @@ class ServerSentenceMarker(BaseModel):
     turn_id: str = ""
     seq: int
     emotion: str
-    # ⛔ 항상 "". 위 주석 참조 — 채우면 Live 자막이 두 시계로 갈린다.
+    # ⛔ Live 는 항상 "". 위 주석 참조 — 채우면 Live 자막이 두 시계로 갈린다.
+    #   ⭐ 예외: 클립 통화(clipexpr·대본 읽기)는 output_transcript 대신 여기에 자막을 싣는다
+    #     (LiveEvent.sync · 2026-10-26 call 2946 「자막이 Voice랑 아예 노출되는 속도가 다른데」).
+    #     클립은 글과 소리를 한 번에 보내므로 output_transcript 로 보내면 소리보다 통째로 먼저 뜬다.
     text: str = ""
+    # 클립 통화 전용 — 이 턴에서 지금까지 보낸 출력 PCM 바이트. 프론트가 다음 마커와의 차분으로
+    #   이 구간 소리 길이를 알고 타자기 속도를 맞춘다. Live 는 None(프론트는 int 가 아니면 -1).
+    server_bytes: Union[int, None] = None
 
 
 class ServerInputTranscript(BaseModel):
