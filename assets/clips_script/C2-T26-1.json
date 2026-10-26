@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "직업과 진로에 대해 더 말해 주실래요?",
-   "beaver_en": "Could you tell me more about jobs and careers?",
-   "beaver_roman": "jigeopgwa jilloe daehae deo malhae jusillaeyo?",
+   "beaver": "그 밖에 다른 길도 있을까요?",
+   "beaver_en": "Are there any other paths besides those?",
+   "beaver_roman": "geu bakke dareun gildo isseulkkayo?",
    "learner": "외교관 같은 공무원이나 장사도 생각해 봐.",
    "en": "Consider civil service like diplomat, or business.",
    "roman": "oegyogwan gateun gongmuwonina jangsado saenggakae bwa."

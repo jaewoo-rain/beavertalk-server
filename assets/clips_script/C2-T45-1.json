@@ -67,12 +67,12 @@
   },
   {
    "n": 8,
-   "beaver": "가치관에 대해 더 말해 줄래요?",
-   "beaver_en": "Can you tell me more about your values?",
-   "beaver_roman": "gachigwane daehae deo malhae jullaeyo?",
-   "learner": "부도덕한 성공은 성공이 아니라고 봐요.",
-   "en": "I think immoral success isn't success.",
-   "roman": "budodeokan seonggongeun seonggongi anirago bwayo."
+   "beaver": "성공을 위해서라면 뭐든 해도 될까요?",
+   "beaver_en": "Is it okay to do anything for success?",
+   "beaver_roman": "seonggongeul wihaeseoramyeon mwodeun haedo doelkkayo?",
+   "learner": "아니요, 부도덕한 성공은 성공이 아니라고 봐요.",
+   "en": "No, I don't think immoral success counts as success.",
+   "roman": "aniyo, budodeokan seonggongeun seonggongi anirago bwayo."
   },
   {
    "n": 9,

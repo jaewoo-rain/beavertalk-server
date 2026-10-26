@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "국방과 치안의 관계도 말씀해 주시겠어요?",
-   "beaver_en": "Could you also tell us how defense and public safety relate?",
-   "beaver_roman": "Gukbanggwa chianui gwangyedo malsseumhae jusigesseoyo?",
-   "learner": "군대는 적을 막고, 경찰은 범죄를 막습니다.",
-   "en": "The military stops enemies, and the police stop crime.",
-   "roman": "Gundaeneun jeogeul makgo, gyeongchareun beomjoereul makseumnida."
+   "beaver": "앞으로 군부대와도 협조하나요?",
+   "beaver_en": "Will you keep cooperating with the military base?",
+   "beaver_roman": "apeuro gunbudaewado hyeopjohanayo?",
+   "learner": "네, 군과 함께 순찰을 늘리겠습니다.",
+   "en": "Yes, we will increase patrols together with the military.",
+   "roman": "ne, gungwa hamkke sunchareul neulligetseumnida."
   },
   {
    "n": 10,

@@ -40,9 +40,9 @@
   },
   {
    "n": 5,
-   "beaver": "돈 관리에 대해 더 말해 줄래요?",
-   "beaver_en": "Can you tell me more about managing money?",
-   "beaver_roman": "don gwallie daehae deo malhae jullaeyo?",
+   "beaver": "돈 관리는 구체적으로 어떻게 해요?",
+   "beaver_en": "So how exactly do you manage your money?",
+   "beaver_roman": "don gwallineun guchejeogeuro eotteoke haeyo?",
    "learner": "단돈 천 원도 기록하고, 카드 대금은 바로 내요.",
    "en": "I record even a mere 1,000 won, and pay card bills right away.",
    "roman": "dandon cheon wondo girokago, kadeu daegeumeun baro naeyo."

@@ -40,9 +40,9 @@
   },
   {
    "n": 5,
-   "beaver": "동물과 식물에 대해 더 말해 줄래요?",
-   "beaver_en": "Can you tell me more about the animals and plants?",
-   "beaver_roman": "dongmulgwa singmure daehae deo malhae jullaeyo?",
+   "beaver": "큰 동물은요? 사슴이나 염소는 봤어요?",
+   "beaver_en": "What about large animals? Did you see deer or goats?",
+   "beaver_roman": "keun dongmureunyo? saseumina yeomsoneun bwasseoyo?",
    "learner": "뿔 달린 사슴은 많은 데 반해 염소는 적었어요.",
    "en": "There were many horned deer, while goats were few.",
    "roman": "ppul dallin saseumeun maneun de banhae yeomsoneun jeogeosseoyo."

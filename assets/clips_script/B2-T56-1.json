@@ -58,21 +58,21 @@
   },
   {
    "n": 7,
-   "beaver": "휴, 다행이다. 저는 살인 사건 소문도 들었어요.",
-   "beaver_en": "Phew, thank goodness. I also heard a rumor about a murder.",
-   "beaver_roman": "Hyu, dahaengida. Jeoneun sarin sageon somundo deureosseoyo.",
-   "learner": "그건 헛소문이에요. 살인 사건은 없었어요.",
-   "en": "That's a false rumor. There was no murder.",
-   "roman": "Geugeon heotsomunieyo. Sarin sageoneun eopseosseoyo."
+   "beaver": "휴, 다행이다. 요즘 이상한 소문이 많아서 걱정했어요.",
+   "beaver_en": "Phew, what a relief. There've been so many strange rumors lately that I was worried.",
+   "beaver_roman": "hyu, dahaengida. yojeum isanghan somuni manaseo geokjeonghaesseoyo.",
+   "learner": "소문은 다 믿지 마세요. 다 헛소문이에요.",
+   "en": "Don't believe all the rumors. They're all false.",
+   "roman": "somuneun da mitji maseyo. da heotsomunieyo."
   },
   {
    "n": 8,
-   "beaver": "어제 펑 소리는요? 총 소리 같던데요.",
-   "beaver_en": "What about that bang yesterday? It sounded like a gun.",
-   "beaver_roman": "Eoje peong sorineunyo? Chong sori gatdeondeyo.",
-   "learner": "총 소리가 아니라 아이들이 풍선을 터뜨렸대요.",
-   "en": "It wasn't a gunshot. Kids popped balloons.",
-   "roman": "Chong soriga anira aideuri pungseoneul teotteuryeotdaeyo."
+   "beaver": "어제 펑 소리는요? 그것도 사고였어요?",
+   "beaver_en": "What about the bang yesterday? Was that an accident too?",
+   "beaver_roman": "eoje peong sorineunyo? geugeotdo sagoyeosseoyo?",
+   "learner": "아니요, 아이들이 풍선을 터뜨렸대요.",
+   "en": "No, the kids popped a balloon.",
+   "roman": "aniyo, aideuri pungseoneul teotteuryeotdaeyo."
   },
   {
    "n": 9,

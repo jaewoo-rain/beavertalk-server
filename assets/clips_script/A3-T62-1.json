@@ -61,9 +61,9 @@
    "beaver": "네, 카드도 같이 만들어 드릴까요?",
    "beaver_en": "Sure. Shall I make you a card too?",
    "beaver_roman": "ne, kadeudo gachi mandeureo deurilkkayo?",
-   "learner": "감사합니다. 다음 달에 월급을 타요.",
-   "en": "Thank you. I get my salary next month.",
-   "roman": "gamsahamnida. daeum dare wolgeubeul tayo."
+   "learner": "네, 만들어 주세요. 월급 통장으로 쓸 거예요.",
+   "en": "Yes, please. I'll use it as my salary account.",
+   "roman": "ne, mandeureo juseyo. wolgeup tongjangeuro sseul geoyeyo."
   },
   {
    "n": 8,
@@ -79,9 +79,9 @@
    "beaver": "저금을 잘하시면 부자가 되실 거예요.",
    "beaver_en": "If you save well, you'll become rich.",
    "beaver_roman": "jeogeumeul jalhasimyeon bujaga doesil geoyeyo.",
-   "learner": "그런데 친구한테 빌린 돈도 갚아야 해요.",
-   "en": "But I also have to pay back money I borrowed from a friend.",
-   "roman": "geureonde chinguhante billin dondo gapaya haeyo."
+   "learner": "네, 매달 꼭 저금할게요.",
+   "en": "Yes, I'll be sure to save every month.",
+   "roman": "ne, maedal kkok jeogeumhalgeyo."
   },
   {
    "n": 10,

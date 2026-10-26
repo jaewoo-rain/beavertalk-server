@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "요즘 경기 상황을 좀 더 얘기해 주실래요?",
-   "beaver_en": "Could you tell me more about the economy these days?",
-   "beaver_roman": "Yojeum gyeonggi sanghwangeul jom deo yaegihae jusillaeyo?",
+   "beaver": "지금 경기가 어느 정도로 안 좋아요?",
+   "beaver_en": "How bad is the economy right now?",
+   "beaver_roman": "jigeum gyeonggiga eoneu jeongdoro an joayo?",
    "learner": "소비가 침체되고 투자도 뚜렷이 줄었어요.",
    "en": "Spending has slumped and investment has clearly dropped.",
    "roman": "Sobiga chimchedoego tujado tturyeosi jureosseoyo."

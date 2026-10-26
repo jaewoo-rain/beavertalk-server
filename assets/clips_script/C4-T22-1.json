@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "멋진 말이네. 그리고 또?",
-   "beaver_en": "Nice words. Anything else?",
-   "beaver_roman": "Meotjin marine. Geurigo tto?",
-   "learner": "도움받은 걸 잊지 않는 의리도 중요해.",
-   "en": "Loyalty, never forgetting help you got, matters too.",
-   "roman": "Doumbadeun geol itji anneun uirido jungyohae."
+   "beaver": "멋진 말이네. 난 의리도 중요한 것 같아.",
+   "beaver_en": "Nice. I think loyalty matters too.",
+   "beaver_roman": "meotjin marine. nan uirido jungyohan geot gata.",
+   "learner": "맞아, 도움받은 걸 잊지 않는 게 의리지.",
+   "en": "Right, not forgetting the help you got is what loyalty is.",
+   "roman": "maja, doumbadeun geol itji anneun ge uiriji."
   },
   {
    "n": 10,

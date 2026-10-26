@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "민수 씨는 요즘 뭐로 뉴스를 봐요?",
-   "beaver_en": "Minsu, what do you watch the news on these days?",
-   "beaver_roman": "Minsu ssineun yojeum mworo nyuseureul bwayo?",
-   "learner": "음, 요즘은 컴퓨터밖에 안 써요.",
-   "en": "Hmm, these days I only use my computer.",
-   "roman": "Eum, yojeumeun keompyuteobakke an sseoyo."
+   "beaver": "민수 씨는 텔레비전으로는 뉴스 안 봐요?",
+   "beaver_en": "Don't you watch the news on TV, Minsu?",
+   "beaver_roman": "minsu ssineun tellebijeoneuroneun nyuseu an bwayo?",
+   "learner": "네, 집에서는 컴퓨터로밖에 안 봐요.",
+   "en": "No, at home I only watch it on the computer.",
+   "roman": "ne, jibeseoneun keompyuteorobakke an bwayo."
   },
   {
    "n": 10,

@@ -58,9 +58,9 @@
   },
   {
    "n": 7,
-   "beaver": "누구 병문안을 가세요?",
-   "beaver_en": "Who are you visiting?",
-   "beaver_roman": "nugu byeongmunaneul gaseyo?",
+   "beaver": "아, 병문안이요? 어느 병원이에요?",
+   "beaver_en": "Oh, a hospital visit? Which hospital?",
+   "beaver_roman": "a, byeongmunaniyo? eoneu byeongwonieyo?",
    "learner": "친구가 다리를 다쳤는데 한국병원에 있어요.",
    "en": "My friend hurt his leg, and he's at Hanguk Hospital.",
    "roman": "chinguga darireul dachyeonneunde hangukbyeongwone isseoyo."

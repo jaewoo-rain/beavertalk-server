@@ -85,12 +85,12 @@
   },
   {
    "n": 10,
-   "beaver": "이웃집에 일본 사람이 산대요. 집들이 올래요?",
-   "beaver_en": "I hear a Japanese person lives next door. Come to my housewarming?",
-   "beaver_roman": "iutjibe ilbon sarami sandaeyo. jipdeuri ollaeyo?",
-   "learner": "이웃집에 일본 사람이 산다고요? 꼭 갈게요!",
-   "en": "A Japanese person lives next door? I'll definitely come!",
-   "roman": "iutjibe ilbon sarami sandagoyo? kkok galgeyo!"
+   "beaver": "다음 주 토요일에 집들이 할 거예요. 올래요?",
+   "beaver_en": "I'm having a housewarming next Saturday. Will you come?",
+   "beaver_roman": "daeum ju toyoire jipdeuri hal geoyeyo. ollaeyo?",
+   "learner": "토요일에 집들이를 한다고요? 꼭 갈게요!",
+   "en": "You're having a housewarming on Saturday? I'll definitely come!",
+   "roman": "toyoire jipdeurireul handagoyo? kkok galgeyo!"
   }
  ]
 }

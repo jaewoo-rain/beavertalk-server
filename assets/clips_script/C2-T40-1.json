@@ -58,12 +58,12 @@
   },
   {
    "n": 7,
-   "beaver": "요즘 구조 인력이 부족하다던데 괜찮습니까?",
-   "beaver_en": "I heard rescue staff are short these days. Is it okay?",
-   "beaver_roman": "yojeum gujo illyeogi bujokadadeonde gwaenchanseumnikka?",
-   "learner": "아니요, 출산율이 낮아 구조 인력난도 심합니다.",
-   "en": "No, with the low birth rate, rescue staff shortages are severe.",
-   "roman": "aniyo, chulsanyuri naja gujo illyeongnando simhamnida."
+   "beaver": "지원금 말고 다른 지원도 있습니까?",
+   "beaver_en": "Is there any other support besides money?",
+   "beaver_roman": "jiwongeum malgo dareun jiwondo itseumnikka?",
+   "learner": "네, 임시 거처와 의료 지원도 해 드립니다.",
+   "en": "Yes, we also provide temporary housing and medical support.",
+   "roman": "ne, imsi geocheowa uiryo jiwondo hae deurimnida."
   },
   {
    "n": 8,

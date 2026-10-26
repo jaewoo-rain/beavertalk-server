@@ -76,9 +76,9 @@
   },
   {
    "n": 9,
-   "beaver": "오늘은 어디에 가세요?",
-   "beaver_en": "Where are you going today?",
-   "beaver_roman": "oneureun eodie gaseyo?",
+   "beaver": "어디로 여행 가세요?",
+   "beaver_en": "Where are you traveling to?",
+   "beaver_roman": "eodiro yeohaeng gaseyo?",
    "learner": "제주도에 가요. 다음에는 배를 타려고 해요.",
    "en": "I'm going to Jeju. Next time I plan to take a ship.",
    "roman": "jejudoe gayo. daeumeneun baereul taryeogo haeyo."

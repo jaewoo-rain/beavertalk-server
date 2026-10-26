@@ -52,24 +52,24 @@
    "beaver": "많이 가려우세요? 이 연고를 바르세요.",
    "beaver_en": "Is it very itchy? Put on this ointment.",
    "beaver_roman": "Mani garyeouseyo? I yeongoreul bareuseyo.",
-   "learner": "넘어져서 생긴 상처에도 발라도 돼요?",
-   "en": "Can I also put it on a wound from a fall?",
-   "roman": "Neomeojyeoseo saenggin sangcheoedo ballado dwaeyo?"
+   "learner": "이 연고는 하루에 몇 번 발라요?",
+   "en": "How many times a day should I apply this ointment?",
+   "roman": "i yeongoneun harue myeot beon ballayo?"
   },
   {
    "n": 7,
-   "beaver": "네, 하루 두 번 바르시면 돼요.",
-   "beaver_en": "Yes, just apply it twice a day.",
-   "beaver_roman": "Ne, haru du beon bareusimyeon dwaeyo.",
-   "learner": "아침에 코피도 났는데 괜찮을까요?",
-   "en": "I also had a nosebleed this morning. Is that okay?",
-   "roman": "Achime kopido nanneunde gwaenchaneulkkayo?"
+   "beaver": "하루 두 번 바르시면 돼요.",
+   "beaver_en": "Apply it twice a day.",
+   "beaver_roman": "haru du beon bareusimyeon dwaeyo.",
+   "learner": "요즘 너무 피곤한데 괜찮을까요?",
+   "en": "I've been very tired lately. Is that okay?",
+   "roman": "yojeum neomu pigonhande gwaenchaneulkkayo?"
   },
   {
    "n": 8,
-   "beaver": "피곤하면 날 수 있어요. 푹 쉬세요.",
-   "beaver_en": "It can happen when you're tired. Get plenty of rest.",
-   "beaver_roman": "Pigonhamyeon nal su isseoyo. Puk swiseyo.",
+   "beaver": "몸살 때문일 거예요. 푹 쉬세요.",
+   "beaver_en": "It's probably from the body aches. Get plenty of rest.",
+   "beaver_roman": "momsal ttaemuniril geoyeyo. puk swiseyo.",
    "learner": "이 약에 대한 설명 좀 해 주세요.",
    "en": "Please tell me about this medicine.",
    "roman": "I yage daehan seolmyeong jom hae juseyo."

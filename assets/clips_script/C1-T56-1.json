@@ -49,9 +49,9 @@
   },
   {
    "n": 6,
-   "beaver": "군대랑 경찰 얘기 좀 더 해 주실래요?",
-   "beaver_en": "Could you tell me a bit more about the military and the police?",
-   "beaver_roman": "gundaerang gyeongchal yaegi jom deo hae jusillaeyo?",
+   "beaver": "그럼 경찰이랑 같이 일하신 적도 있어요?",
+   "beaver_en": "Then have you also worked with the police?",
+   "beaver_roman": "geureom gyeongchalirang gachi ilhasin jeokdo isseoyo?",
    "learner": "국방부와 경찰청이 함께 훈련한 바도 있어요.",
    "en": "The defense ministry and police have trained together.",
    "roman": "gukbangbuwa gyeongchalcheongi hamkke hullyeonhan bado isseoyo."
@@ -76,12 +76,12 @@
   },
   {
    "n": 9,
-   "beaver": "그 국방부 행사에서 신기한 것도 보셨어요?",
-   "beaver_en": "Did you see anything interesting at that defense ministry event?",
-   "beaver_roman": "geu gukbangbu haengsaeseo singihan geotdo bosyeosseoyo?",
-   "learner": "네, 장군의 칼을 직접 본 적도 있어요.",
-   "en": "Yes, I even saw the general's sword in person.",
-   "roman": "ne, janggunui kareul jikjeop bon jeokdo isseoyo."
+   "beaver": "순찰은 지금도 하세요?",
+   "beaver_en": "Do you still do patrols?",
+   "beaver_roman": "sunchareun jigeumdo haseyo?",
+   "learner": "네, 한 달에 두 번 골목을 돌아요.",
+   "en": "Yes, I walk the alleys twice a month.",
+   "roman": "ne, han dare du beon golmogeul dorayo."
   },
   {
    "n": 10,

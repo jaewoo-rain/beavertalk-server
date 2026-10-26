@@ -40,9 +40,9 @@
   },
   {
    "n": 5,
-   "beaver": "공부와 시험에 대해 더 말씀해 주실래요?",
-   "beaver_en": "Could you tell me more about studying and exams?",
-   "beaver_roman": "Gongbuwa siheome daehae deo malsseumhae jusillaeyo?",
+   "beaver": "어학 공부는 어떻게 해야 해요?",
+   "beaver_en": "How should I study for language tests?",
+   "beaver_roman": "eohak gongbuneun eotteoke haeya haeyo?",
    "learner": "어학은 교과 공부처럼 지속적으로 해야 돼.",
    "en": "Language study needs steady work, like school subjects.",
    "roman": "Eohageun gyogwa gongbucheoreom jisokjeogeuro haeya dwae."
